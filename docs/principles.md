@@ -7,8 +7,9 @@ Rules every component in `daw-ui` follows. A change that breaks one of them need
 The package ships behaviour, not looks. Someone else must be able to publish a shadcn registry with their own design on top of it, using only the public API.
 
 - A component is a namespace of parts named like Base UI's: `Knob.Root`, `Knob.Control`, `Knob.Label`, `Knob.Value`, `Fader.Track`, `Fader.Thumb`, …
-- Each part renders one element and takes that element's props, plus `className` and `style` (a value, or a function of the part's state) and `render` (an element or a function) to replace the element.
+- Each part renders one element and takes that element's props, and `render` (an element or a function) to replace the element. `className` and `style` are plain values, never functions of the part's state (section 7).
 - State is exposed as `data-*` attributes (`data-dragging`, `data-pressed`, `data-disabled`, `data-orientation`, …) and, for values, as CSS variables on the root (`--knob-value`, `--fader-value`), so styling needs no JavaScript.
+- Thresholds on a value, such as "red above 0 dB", are declared once as a prop and exposed as an attribute that changes only when the value crosses one. The application never has to compare values in code to style a part.
 - Types are exported per part: `Knob.Root.Props`, `Knob.Root.State`. A registry wraps them the way shadcn wraps Base UI.
 - The library sets no colours, sizes, fonts or spacing. Inline styles are limited to what behaviour needs: positioning along a track (with logical properties) and `touch-action`.
 - `data-slot` and anything else registry-specific belongs in the registry, not here.
@@ -53,6 +54,7 @@ Every user action is wrapped in `onGestureStart` / `onGestureEnd`: a drag, a key
 
 Performance is a requirement, measured on every change.
 
+- **Assume that everything renders often.** A drag commits on every pointer event, and automation changes controlled values on every frame, on every channel. Work done per render is multiplied by the number of channels and the frame rate, so it is never "negligible". Parts therefore run no application code per render to style themselves: `className` and `style` take values, not functions of state, and state reaches CSS only through attributes and CSS variables, which the browser applies without JavaScript. An API that invites per-render work in the hot path is a performance bug, even when each call is cheap.
 - **Values that change at audio-visual rates never go through React state.** Meters (and later playheads) are read once per animation frame by one shared loop and written straight to the DOM.
 - An interaction re-renders only what it changes: dragging one knob does not render its siblings.
 - Layout is read at the start of a gesture, not on every pointer move.
