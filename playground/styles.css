@@ -77,6 +77,12 @@ h2 {
   color: var(--muted);
 }
 
+.docs-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--accent);
+}
+
 .settings {
   display: flex;
   gap: 12px;

@@ -1,0 +1,12 @@
+{
+  "pages": [
+    "index",
+    "---Components---",
+    "...components",
+    "---Guides---",
+    "...guides",
+    "---Reference---",
+    "principles",
+    "specification"
+  ]
+}

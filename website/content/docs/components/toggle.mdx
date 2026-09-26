@@ -1,0 +1,39 @@
+---
+title: Toggle
+description: A two-state button that reacts on press, with momentary and hybrid behaviours for transport and hardware-style buttons.
+---
+
+<ComponentPreview name="toggle" />
+
+## Anatomy
+
+```tsx
+import { Toggle } from '@addstack/daw-ui/react';
+
+<Toggle />
+```
+
+## Behaviour
+
+A toggle reacts when the button goes down, not when it comes up, as on hardware and in desktop DAWs. `behavior` sets what a press does:
+
+| `behavior` | Press | Release |
+| --- | --- | --- |
+| `"toggle"` | Flips the state. | Nothing. |
+| `"momentary"` | Turns it on. | Turns it off. |
+| `"hybrid"` | Flips the state. | Flips it back if it was held longer than `holdDelay` (250 ms), like the buttons of controllers such as Push. |
+
+<kbd>Space</kbd> and <kbd>Enter</kbd> do the same from the keyboard. Inside a [toggle group](/docs/components/toggle-group), toggles can also be painted by dragging.
+
+`onPressedChange` receives the reason for each change: `"press"`, `"release"`, `"keyboard"`, `"paint"` or `"exclusive"`.
+
+## API reference
+
+Renders a `<button>` with `aria-pressed`.
+
+<PropsTable part="Toggle" />
+
+| Data attribute | |
+| --- | --- |
+| `data-pressed` | While the toggle is on. |
+| `data-disabled` | When `disabled`. |

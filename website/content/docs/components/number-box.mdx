@@ -1,0 +1,56 @@
+---
+title: Number Box
+description: A value shown as text that you drag up and down, or type into, like the tempo field of a DAW.
+---
+
+<ComponentPreview name="number-box" />
+
+## Anatomy
+
+```tsx
+import { NumberBox } from '@addstack/daw-ui/react';
+
+<NumberBox.Root>
+  <NumberBox.Label />
+  <NumberBox.Field />
+</NumberBox.Root>
+```
+
+## Interaction
+
+| Input | Effect |
+| --- | --- |
+| Drag up / down | Changes the value: two pixels per `step` by default. <kbd>Shift</kbd> is 10 times finer. |
+| Double-click, <kbd>Enter</kbd> | Edits the value as text. |
+| Typing a digit, `.`, `,`, `+` or `-` | Starts editing with that character, as in Ableton Live. |
+| <kbd>Enter</kbd>, leaving the field | Applies the typed value, parsed by `format`. Text that does not parse keeps the value. |
+| <kbd>Escape</kbd> | Discards the typed value. |
+| Arrow keys, <kbd>Page Up</kbd> / <kbd>Page Down</kbd>, <kbd>Home</kbd> / <kbd>End</kbd>, <kbd>Delete</kbd> | As on the [knob](/docs/components/knob#interaction). |
+
+Typed values go through the format's `parse`: `formats.frequency()` reads "1k" as 1000, `formats.decibel()` reads "-inf". Either decimal separator works, whatever the locale.
+
+## API reference
+
+### Root
+
+Holds the value. Renders a `<div>`.
+
+<PropsTable part="NumberBox.Root" />
+
+| Data attribute | |
+| --- | --- |
+| `data-dragging` | While the value is being dragged. |
+| `data-editing` | While the value is edited as text. |
+| `data-disabled` | When `disabled`. |
+
+### Field
+
+The value: a `<span>` with `role="spinbutton"`, replaced by an `<input>` while editing. Both have `dir="auto"` and the root's data attributes.
+
+<PropsTable part="NumberBox.Field" />
+
+### Label
+
+Names the field; clicking it focuses the field. Renders a `<span>`.
+
+<PropsTable part="NumberBox.Label" />

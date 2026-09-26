@@ -1,0 +1,114 @@
+---
+title: Knob
+description: A rotary control, dragged up and down like the knobs of a DAW.
+---
+
+<ComponentPreview name="knob" />
+
+## Anatomy
+
+```tsx
+import { Knob } from '@addstack/daw-ui/react';
+
+<Knob.Root>
+  <Knob.Label />
+  <Knob.Control>
+    <svg viewBox="0 0 100 100">
+      <Knob.Track />
+      <Knob.Range />
+      <Knob.Pointer />
+    </svg>
+  </Knob.Control>
+  <Knob.Value />
+</Knob.Root>
+```
+
+`Track`, `Range` and `Pointer` draw into a 100 × 100 view box around its center. You can leave them out and draw the knob yourself: the root sets `--knob-angle`, so `rotate: var(--knob-angle)` turns any element.
+
+## Examples
+
+### Bipolar
+
+With `origin`, the range is drawn from that value instead of from `min`: a pan knob fills from the center in both directions, and its root gets `data-bipolar`.
+
+<ComponentPreview name="knob-bipolar" />
+
+### Scales and steps
+
+`scale` maps travel to value. A frequency knob with `scales.log` gives each octave the same travel; a MIDI knob with `step={1}` snaps to whole numbers and moves one step per arrow key.
+
+```tsx
+<Knob.Root min={20} max={20_000} scale={scales.log} format={formats.frequency()} />
+<Knob.Root min={0} max={127} step={1} />
+```
+
+See [values and formats](/docs/guides/values-and-formats) for the scales and formats.
+
+## Interaction
+
+| Input | Effect |
+| --- | --- |
+| Drag up / down | Increases / decreases. 200 px covers the full travel (`sensitivity`). |
+| <kbd>Shift</kbd> while dragging or scrolling | 10 times finer. |
+| Wheel | 5% of the travel per notch. `wheel={false}` leaves the wheel to the page. |
+| <kbd>↑</kbd> <kbd>→</kbd> / <kbd>↓</kbd> <kbd>←</kbd> | 1% of the travel (<kbd>Shift</kbd>: 0.1%), or one `step`. |
+| <kbd>Page Up</kbd> / <kbd>Page Down</kbd> | 10% of the travel. |
+| <kbd>Home</kbd> / <kbd>End</kbd> | Minimum / maximum. |
+| Double-click, <kbd>Delete</kbd>, <kbd>Backspace</kbd> | Reset to `resetValue`, `defaultValue` or `origin`. |
+
+Each of these is one [gesture](/docs/guides/gestures).
+
+## API reference
+
+### Root
+
+Groups the parts and holds the value. Renders a `<div>`.
+
+<PropsTable part="Knob.Root" />
+
+| Data attribute | |
+| --- | --- |
+| `data-dragging` | While the value is being dragged. |
+| `data-disabled` | When `disabled`. |
+| `data-bipolar` | When `origin` lies inside the range. |
+
+| CSS variable | |
+| --- | --- |
+| `--knob-value` | Travel of the value, from 0 to 1. |
+| `--knob-angle` | Rotation of the value, e.g. `-135deg` at the minimum of a 270° sweep. |
+
+### Control
+
+The focusable element that takes drags, keys and the wheel. Renders a `<div>` with `role="slider"`, `aria-valuenow`, `aria-valuetext` (the formatted value) and the label. It sets the same data attributes as the root.
+
+<PropsTable part="Knob.Control" />
+
+### Label
+
+Names the knob for assistive technology; clicking it focuses the control. Renders a `<span>`. Without a label, give the control an `aria-label`.
+
+<PropsTable part="Knob.Label" />
+
+### Track
+
+The whole sweep. Renders an SVG `<path>`.
+
+<PropsTable part="Knob.Track" />
+
+### Range
+
+The arc from `origin` to the value. Renders an SVG `<path>`.
+
+<PropsTable part="Knob.Range" />
+
+### Pointer
+
+A line at the value's angle. Renders an SVG `<line>`.
+
+<PropsTable part="Knob.Pointer" />
+
+### Value
+
+The formatted value. Renders an `<output>` with `dir="auto"`, which is not a live region: the control already announces the value.
+
+<PropsTable part="Knob.Value" />

@@ -9,6 +9,7 @@ export type Language = "en" | "pl";
 type Strings = {
   locale: string;
   title: string;
+  documentation: string;
   description: string;
   play: string;
   tempo: string;
@@ -36,6 +37,7 @@ export const strings: Record<Language, Strings> = {
   en: {
     locale: "en",
     title: "daw-ui playground",
+    documentation: "Documentation",
     description: "Headless React components for audio apps. Everything here is built from them, styled in this page's CSS.",
     play: "Play",
     tempo: "Tempo",
@@ -67,6 +69,7 @@ export const strings: Record<Language, Strings> = {
   pl: {
     locale: "pl",
     title: "daw-ui – plac zabaw",
+    documentation: "Dokumentacja",
     description:
       "Komponenty React bez stylów dla aplikacji audio. Wszystko tutaj jest z nich zbudowane i ostylowane CSS-em tej strony.",
     play: "Odtwarzaj",

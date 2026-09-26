@@ -1,13 +1,18 @@
-name: Playground
+name: Pages
+
+# The documentation (website/, Next.js with Fumadocs) at https://addstack.github.io/daw-ui/,
+# with the playground (playground/, Vite) at /daw-ui/playground/.
 
 on:
   push:
     branches: [main]
     paths:
       - "src/**"
+      - "docs/**"
       - "playground/**"
+      - "website/**"
       - "package-lock.json"
-      - ".github/workflows/playground.yml"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 # One deployment at a time; never cancel one that is in progress.
@@ -34,10 +39,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run build:playground
+      - run: npm run build:site
+        env:
+          PAGES_BASE_PATH: /daw-ui
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: playground/dist
+          path: website/out
       - id: deployment
         uses: actions/deploy-pages@v5

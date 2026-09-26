@@ -12,8 +12,9 @@
 </p>
 
 <p align="center">
+  <a href="https://addstack.github.io/daw-ui/docs/">Documentation</a> ·
+  <a href="https://addstack.github.io/daw-ui/playground/">Playground</a> ·
   <a href="#-quick-start">Quick start</a> ·
-  <a href="https://addstack.github.io/daw-ui/">Playground</a> ·
   <a href="#-components">Components</a> ·
   <a href="#-performance">Performance</a> ·
   <a href="https://github.com/addstack/daw-ui/blob/main/docs/principles.md">Principles</a> ·
@@ -22,7 +23,8 @@
 
 ---
 
-🎛️ <a href="https://addstack.github.io/daw-ui/"><b>Try the playground</b></a>: a drum machine and mixer built from these components, with real Web Audio meters, in English or Polish, left to right or right to left.
+📖 <a href="https://addstack.github.io/daw-ui/docs/"><b>Documentation</b></a>: every component with live demos and its props.<br>
+🎛️ <a href="https://addstack.github.io/daw-ui/playground/"><b>Playground</b></a>: a drum machine and mixer built from these components, with real Web Audio meters, in English or Polish, left to right or right to left.
 
 General UI libraries stop where music software starts. A volume fader is not a range input: it has a dB law, goes down to −∞, resets on double-click and moves in fine steps with Shift. A row of mute buttons is not a list of checkboxes: you drag across it to mute eight tracks at once. And 64 meters running at 60 frames per second cannot go through React state. `daw-ui` does this part:
 
@@ -223,7 +225,7 @@ The deterministic numbers fail CI when they get worse: React commits per interac
 
 ## 🎨 Building a styled library on top
 
-The package ships behaviour only, so it can sit under your design system or a shadcn registry, the way Base UI sits under shadcn/ui. The [playground](https://github.com/addstack/daw-ui/blob/main/playground/main.tsx) is written like that: its `components/ui` sections wrap the parts with `data-slot` and classes, and the app imports those.
+The package ships behaviour only, so it can sit under your design system or a shadcn registry, the way Base UI sits under shadcn/ui. The [documentation's demos](https://github.com/addstack/daw-ui/tree/main/website/components/demos) show it with Tailwind, and the [playground](https://github.com/addstack/daw-ui/blob/main/playground/main.tsx) is written like that: its `components/ui` sections wrap the parts with `data-slot` and classes, and the app imports those.
 
 - State is exposed as attributes: `data-dragging`, `data-disabled`, `data-bipolar`, `data-orientation`, `data-pressed`, `data-painting="on" | "off"`, `data-editing`, `data-active`, `data-clipped`.
 - Values are exposed as CSS variables: `--knob-value`, `--knob-angle`, `--fader-value`, `--meter-level`, `--meter-peak`.

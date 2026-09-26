@@ -1,0 +1,64 @@
+---
+title: Introduction
+description: Headless React components for audio apps, in the style of Base UI.
+---
+
+<ComponentPreview name="toggle-group-sequencer" />
+
+General UI libraries stop where music software starts. A volume fader is not a range input: it has a dB law, goes down to −∞, resets on double-click and moves in fine steps with Shift. A row of steps is not a list of checkboxes: you drag across it to set sixteen at once. And 64 meters running at 60 frames per second cannot go through React state.
+
+daw-ui does this part, and leaves the looks to you:
+
+- **DAW input**: relative vertical drag, Shift for fine steps, double-click and Delete to reset, the mouse wheel, optional pointer lock, and typed values with units ("1k", "-6 dB", "50L").
+- **Painting**: drag across toggles to set them all. Fast drags do not skip steps, and lanes keep a stroke on one row of a mixer.
+- **Gestures**: every user action is wrapped in `onGestureStart` / `onGestureEnd`, so it becomes one undo step or one automation pass.
+- **Measured performance**: meters never render through React, and budgets on React commits and bundle size fail CI.
+- **Accessible, in any language**: correct roles, `aria-valuetext` as users read it, a keyboard path for everything, numbers in the user's locale, and right-to-left layouts.
+- **Headless, like Base UI**: parts, `data-*` attributes, CSS variables and a `render` prop. Style it with Tailwind, CSS, or a shadcn registry of your own.
+
+## Installation
+
+```npm
+npm install @addstack/daw-ui
+```
+
+It needs React 19. The core (`@addstack/daw-ui`: ranges, scales, formats, meter ballistics) has no dependencies; the components are in `@addstack/daw-ui/react`.
+
+## Quick start
+
+Each component is a set of parts. Put them together, style them with classes and the `data-*` attributes they set, and connect the value to your audio:
+
+```tsx
+import { formats, scales } from '@addstack/daw-ui';
+import { Knob } from '@addstack/daw-ui/react';
+
+export function Cutoff({ filter }: { filter: BiquadFilterNode }) {
+  return (
+    <Knob.Root
+      min={20}
+      max={20_000}
+      defaultValue={20_000}
+      scale={scales.log}
+      format={formats.frequency()}
+      onValueChange={(hz) => filter.frequency.setTargetAtTime(hz, filter.context.currentTime, 0.01)}
+    >
+      <Knob.Label>Cutoff</Knob.Label>
+      <Knob.Control className="size-12">
+        <svg viewBox="0 0 100 100">
+          <Knob.Track className="fill-none stroke-neutral-800 stroke-9" />
+          <Knob.Range className="fill-none stroke-orange-500 stroke-9" />
+          <Knob.Pointer className="stroke-white stroke-7" from={10} to={28} />
+        </svg>
+      </Knob.Control>
+      <Knob.Value />
+    </Knob.Root>
+  );
+}
+```
+
+<Cards>
+  <Card title="Components" href="/docs/components/knob" description="Knob, Fader, NumberBox, Meter, Toggle and ToggleGroup, with live demos and their props." />
+  <Card title="Styling" href="/docs/guides/styling" description="Data attributes, CSS variables, the render prop, and building a shadcn registry." />
+  <Card title="Principles" href="/docs/principles" description="Accessibility, no hard-coded English, right-to-left layouts, measured performance." />
+  <Card title="Playground" href="https://addstack.github.io/daw-ui/playground/" description="A drum machine and mixer built from these components, with Web Audio." />
+</Cards>

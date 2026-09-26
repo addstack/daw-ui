@@ -58,6 +58,20 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
+  # The props tables of the docs are generated from the types: an API change must still build them.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:site
+        env:
+          PAGES_BASE_PATH: /daw-ui
+
   # docs/principles.md, section 7: deterministic budgets (React commits, bundle
   # size) fail the job; timings are reported in the job summary.
   perf:
@@ -86,7 +100,7 @@ jobs:
           retention-days: 30
 
   release:
-    needs: [test, e2e, perf]
+    needs: [test, e2e, perf, docs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

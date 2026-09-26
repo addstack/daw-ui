@@ -1,0 +1,53 @@
+---
+title: Values and formats
+description: Ranges, scales that map travel to value, and formats that print values in the user's locale and parse what they type.
+---
+
+Knobs, faders and number boxes share one value model. Values are in natural units (Hz, dB, ms, −1 … 1 for pan); the position along the control, its *travel*, runs from 0 to 1 and is derived through a scale.
+
+## Ranges
+
+`min`, `max` and `step` on a control are a `Range`, which you can also use on its own, for example to map MIDI controllers or draw automation:
+
+```ts
+import { createRange, scales } from '@addstack/daw-ui';
+
+const cutoff = createRange({ min: 20, max: 20_000, scale: scales.log });
+cutoff.normalize(632); // 0.5
+cutoff.denormalize(0.5); // 632.5…
+```
+
+`constrain` clamps a value and snaps it to the step; `denormalize` does so after mapping.
+
+## Scales
+
+| Scale | Use | Travel |
+| --- | --- | --- |
+| `scales.linear` | Most parameters | Proportional to the value. |
+| `scales.log` | Frequencies, times | Equal travel for equal ratios: every octave gets the same distance. Needs `min > 0`. |
+| `scales.power(n)` | Anything that needs more room at one end | `n > 1` gives the low values more travel. |
+| `scales.decibel` | Volume in dB | A console fader law: 0 dB at about 80% of a −70 … +6 dB fader. `min` may be `-Infinity`. |
+
+A scale is an object with `toNormalized(value, min, max)` and `fromNormalized(travel, min, max)`, so you can write your own.
+
+## Formats
+
+A format prints the value for the readout and for `aria-valuetext`, and parses what a user types into a number box:
+
+```ts
+type ValueFormat = {
+  format(value: number): string;
+  parse(text: string): number | null; // null: not understood, keep the value
+};
+```
+
+| Format | Shows | Parses |
+| --- | --- | --- |
+| `formats.decibel()` | `-6.0 dB`, `-∞ dB` | `-6`, `-6,5 dB`, `-inf` |
+| `formats.frequency()` | `440 Hz`, `1.50 kHz` | `440`, `1k`, `1.5 kHz` |
+| `formats.time()` | `250 ms`, `1.50 s` | `250`, `1.5 s` |
+| `formats.percent()` | `50%` (`50 %` in German) | `50`, `50%` |
+| `formats.pan({ left, right, center })` | `50L`, `C`, `50R`, with your letters | `50L`, `-50`, `C` |
+| `formats.number({ digits, unit })` | `120.00 BPM` | `128`, `128 BPM` |
+
+Numbers are printed with `Intl.NumberFormat` in the runtime's locale, or the `locale` you pass: `formats.frequency({ locale: 'pl' })` prints `1,50 kHz`. Parsing accepts either decimal separator. See [internationalization](/docs/guides/internationalization).

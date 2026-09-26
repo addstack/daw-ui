@@ -1,0 +1,39 @@
+---
+title: Gestures, undo and automation
+description: Every user action is one gesture, so it becomes one undo step or one automation pass.
+---
+
+A drag on a fader sends dozens of values. An undo history should get one step for it, and an automation lane should know when the user grabbed the fader and when they let go. Plugins call this a change gesture; every daw-ui control reports it:
+
+```tsx
+<Fader.Root
+  onGestureStart={() => history.begin('Volume')}
+  onValueChange={(db) => track.setVolume(db)}
+  onGestureEnd={() => history.commit()}
+/>
+```
+
+## What one gesture is
+
+| Component | One gesture |
+| --- | --- |
+| Knob, Fader, NumberBox | A drag, from press to release. A key press. A burst of wheel events, ending 400 ms after the last one. A reset by double-click or Delete. A typed value. |
+| ToggleGroup | A press, including the toggles an exclusive press turns off. A paint stroke. A <kbd>Shift</kbd>+arrow paint step. |
+
+A gesture starts with its first change, not with the press: a click that changes nothing leaves no empty undo step.
+
+## Recording automation
+
+While a gesture is open, write the values to the automation lane instead of (or as well as) the parameter, and stop reading the lane for that parameter, so playback does not fight the user's hand:
+
+```tsx
+<Knob.Root
+  onGestureStart={() => automation.touch('cutoff')}
+  onValueChange={(hz) => automation.write('cutoff', transport.time, hz)}
+  onGestureEnd={() => automation.release('cutoff')}
+/>
+```
+
+## Why a value changed
+
+`onValueChange` and `onPressedChange` receive `details.reason`: `"drag"`, `"keyboard"`, `"wheel"`, `"reset"` or `"input"` for values, and `"press"`, `"release"`, `"keyboard"`, `"paint"` or `"exclusive"` for toggles, with the native `event`.

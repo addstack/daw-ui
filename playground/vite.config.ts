@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  // Relative asset paths, so the build works under https://addstack.github.io/daw-ui/.
+  // Relative asset paths, so the build works under https://addstack.github.io/daw-ui/playground/.
   base: "./",
   build: {
     rollupOptions: {

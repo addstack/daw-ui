@@ -168,6 +168,10 @@ function App() {
         <div>
           <h1>{t.title}</h1>
           <p dir="auto">{t.description}</p>
+          {/* Published at /daw-ui/playground/, next to the docs at /daw-ui/docs/. */}
+          <a className="docs-link" href="../docs/">
+            {t.documentation}
+          </a>
         </div>
         <div className="settings">
           <label>

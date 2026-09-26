@@ -22,7 +22,7 @@
     "type": "git",
     "url": "git+https://github.com/addstack/daw-ui.git"
   },
-  "homepage": "https://github.com/addstack/daw-ui#readme",
+  "homepage": "https://addstack.github.io/daw-ui/",
   "bugs": {
     "url": "https://github.com/addstack/daw-ui/issues"
   },
@@ -52,6 +52,9 @@
     "access": "public",
     "provenance": true
   },
+  "workspaces": [
+    "website"
+  ],
   "peerDependencies": {
     "react": ">=19",
     "react-dom": ">=19"
@@ -74,6 +77,9 @@
     "check:size": "node scripts/size.mjs",
     "playground": "vite playground",
     "build:playground": "vite build playground",
+    "docs": "npm run build && (tsc -p tsconfig.build.json --watch --preserveWatchOutput & npm run dev -w website)",
+    "build:docs": "npm run build && npm run build -w website",
+    "build:site": "npm run build:docs && vite build playground --outDir ../website/out/playground --emptyOutDir",
     "check:package": "npx --yes publint && npx --yes @arethetypeswrong/cli --pack . --profile esm-only",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },

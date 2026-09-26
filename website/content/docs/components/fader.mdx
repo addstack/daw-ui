@@ -1,0 +1,109 @@
+---
+title: Fader
+description: A linear control whose thumb follows the pointer, like a mixer's volume fader.
+---
+
+<ComponentPreview name="fader" />
+
+## Anatomy
+
+```tsx
+import { Fader } from '@addstack/daw-ui/react';
+
+<Fader.Root>
+  <Fader.Label />
+  <Fader.Control>
+    <Fader.Track>
+      <Fader.Range />
+      <Fader.Tick value={0} />
+      <Fader.Thumb />
+    </Fader.Track>
+  </Fader.Control>
+  <Fader.Value />
+</Fader.Root>
+```
+
+`Range`, `Thumb` and `Tick` are positioned inside `Track`, and the track's length is the full travel of a drag: the thumb stays under the pointer. Only positioning is set inline; give the track its size and the thumb its looks.
+
+## Examples
+
+### A volume fader down to silence
+
+`scales.decibel` is a console fader law: 0 dB sits at about 80% of the travel, and the quiet end gets the bottom quarter. With `min={-Infinity}`, the bottom of the fader is silence, shown as `-∞ dB` by `formats.decibel()`.
+
+```tsx
+<Fader.Root min={-Infinity} max={6} defaultValue={0} scale={scales.decibel} format={formats.decibel()} />
+```
+
+### Horizontal
+
+`orientation="horizontal"` lays the fader out along the inline axis. In a right-to-left page it fills from the right, and dragging to the left increases it.
+
+```tsx
+<Fader.Root orientation="horizontal" min={-1} max={1} origin={0} />
+```
+
+## Interaction
+
+The same as the [knob](/docs/components/knob#interaction), with these differences: a drag moves the thumb with the pointer (the sensitivity is the track's length), and on a horizontal fader the left and right arrow keys follow the reading direction.
+
+## API reference
+
+### Root
+
+Groups the parts and holds the value. Renders a `<div>`.
+
+<PropsTable part="Fader.Root" />
+
+| Data attribute | |
+| --- | --- |
+| `data-orientation` | `"vertical"` or `"horizontal"`. |
+| `data-dragging` | While the value is being dragged. |
+| `data-disabled` | When `disabled`. |
+| `data-bipolar` | When `origin` lies inside the range. |
+
+| CSS variable | |
+| --- | --- |
+| `--fader-value` | Travel of the value, from 0 to 1. |
+
+### Control
+
+The focusable element that takes drags, keys and the wheel. Renders a `<div>` with `role="slider"` and `aria-orientation`.
+
+<PropsTable part="Fader.Control" />
+
+### Label
+
+Names the fader; clicking it focuses the control. Renders a `<span>`.
+
+<PropsTable part="Fader.Label" />
+
+### Track
+
+The line the thumb travels along. Renders a `<div>` with `position: relative`.
+
+<PropsTable part="Fader.Track" />
+
+### Range
+
+The filled part of the track, from `origin` to the value. Renders a `<div>`, positioned with `bottom` and `height` (vertical) or `inset-inline-start` and `width` (horizontal).
+
+<PropsTable part="Fader.Range" />
+
+### Thumb
+
+The handle, centered on the value. Renders a `<div>`.
+
+<PropsTable part="Fader.Thumb" />
+
+### Tick
+
+A mark of the scale, centered on `value`. Renders a `<div>` hidden from assistive technology; its children are yours, such as the dB number.
+
+<PropsTable part="Fader.Tick" />
+
+### Value
+
+The formatted value. Renders an `<output>` with `dir="auto"`.
+
+<PropsTable part="Fader.Value" />

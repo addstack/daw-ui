@@ -1,0 +1,103 @@
+---
+title: Meter
+description: A peak level meter with peak hold and a clip indicator, that never renders through React.
+---
+
+<ComponentPreview name="meter" />
+
+## Anatomy
+
+```tsx
+import { Meter } from '@addstack/daw-ui/react';
+
+<Meter.Root read={() => level()}>
+  <Meter.Label />
+  <Meter.Clip />
+  <Meter.Track>
+    <Meter.Bar />
+    <Meter.Peak />
+  </Meter.Track>
+</Meter.Root>
+```
+
+## Reading the level
+
+`read` is called once per animation frame and returns the level in dBFS. One shared `requestAnimationFrame` loop drives every meter on the page and writes the result straight to the DOM, as CSS variables and attributes: a mixer of 64 running meters causes no React renders at all.
+
+With the Web Audio API, read the peak of an `AnalyserNode`:
+
+```tsx
+import { gainToDecibels } from '@addstack/daw-ui';
+
+const buffer = new Float32Array(analyser.fftSize);
+
+function peak() {
+  analyser.getFloatTimeDomainData(buffer);
+  let max = 0;
+  for (const sample of buffer) max = Math.max(max, Math.abs(sample));
+  return gainToDecibels(max);
+}
+
+<Meter.Root read={peak} />;
+```
+
+When the level lives in React state instead, pass it as `level`.
+
+## Styling
+
+`Bar` covers the track and is clipped to the level with `clip-path`, so a gradient on it stays in place: green at the bottom, red at the top, whatever the level. The root exposes the level and the peak as CSS variables and marks signal and clips with data attributes:
+
+```css
+.bar { background: linear-gradient(to top, #22c55e 64%, #eab308 82%, #ef4444 92%); }
+.meter:not([data-active]) .peak { display: none; }
+.clip[data-clipped] { background: #ef4444; }
+```
+
+## API reference
+
+### Root
+
+Reads the level and runs the ballistics. Renders a `<div>`.
+
+<PropsTable part="Meter.Root" />
+
+| Data attribute | |
+| --- | --- |
+| `data-orientation` | `"vertical"` or `"horizontal"`. |
+| `data-active` | While the peak is above `min`. |
+| `data-clipped` | After the level went above `clipAbove`, until the clip indicator is pressed. |
+
+| CSS variable | |
+| --- | --- |
+| `--meter-level` | Travel of the level, from 0 to 1. |
+| `--meter-peak` | Travel of the held peak, from 0 to 1. |
+
+### Track
+
+The scale the level fills. Renders a `<div>` with `role="meter"`; its `aria-valuenow` and `aria-valuetext` are updated four times a second, not on every frame. Name it with `Meter.Label` or an `aria-label`.
+
+<PropsTable part="Meter.Track" />
+
+### Bar
+
+The lit part. Renders a `<div>` that covers the track, clipped to the level.
+
+<PropsTable part="Meter.Bar" />
+
+### Peak
+
+The peak-hold marker; its edge sits at the recent peak. Renders a `<div>`.
+
+<PropsTable part="Meter.Peak" />
+
+### Clip
+
+The clip indicator: a `<button>` with `data-clipped` that resets it when pressed. Place it outside `Meter.Track` (a meter's content is hidden from assistive technology) and give it an `aria-label` in your application's language.
+
+<PropsTable part="Meter.Clip" />
+
+### Label
+
+Names the meter. Renders a `<span>`.
+
+<PropsTable part="Meter.Label" />

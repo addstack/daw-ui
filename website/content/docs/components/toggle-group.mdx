@@ -1,0 +1,81 @@
+---
+title: Toggle Group
+description: Rows of toggles you paint by dragging, with lanes, exclusive solo, one tab stop and one gesture per action.
+---
+
+<ComponentPreview name="toggle-group-sequencer" />
+
+## Anatomy
+
+```tsx
+import { Toggle, ToggleGroup } from '@addstack/daw-ui/react';
+
+<ToggleGroup>
+  <Toggle />
+</ToggleGroup>
+```
+
+Toggles can sit anywhere inside the group, in any markup: in rows of a sequencer, or in the channel strips of a mixer.
+
+## Painting
+
+With `paint`, pressing a toggle and dragging sets every toggle the pointer crosses to the state the first one took: start on an empty step to fill, on a filled one to clear. The whole segment between two pointer events is tested, so a fast drag does not skip steps, and a toggle is set at most once per stroke. With `erase="secondary"`, the right button always clears, as in FL Studio.
+
+From the keyboard, <kbd>Shift</kbd>+arrow moves to the next toggle and gives it the state of the current one.
+
+## Lanes
+
+Toggles with the same `lane` form a line: a row of a step sequencer, or the mute buttons of a mixer's channels. A stroke paints along the lane where it started, even when the pointer drifts over the next one; an exclusive press only turns off toggles in its lane; the arrow keys move along a lane and across lanes.
+
+<ComponentPreview name="toggle-group-mixer" />
+
+## State
+
+Two ways, which can be mixed:
+
+- **The group holds it.** Toggles with a `value` are pressed when the group's `value` (or `defaultValue`) contains it. A step sequencer's pattern is one array: `["kick:0", "kick:4", …]`.
+- **Each toggle holds its own.** Toggles without a `value` use `pressed` / `onPressedChange`, for example from a store per track. The group only coordinates them.
+
+## Exclusive presses
+
+`exclusive="click"` makes a press turn off the other toggles in its lane, as Ableton Live's solo does; <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+click adds instead. `"modifier"` is the other way around. A map sets it per lane:
+
+```tsx
+<ToggleGroup exclusive={{ solo: 'click' }}>
+```
+
+## Gestures
+
+`onGestureStart` and `onGestureEnd` wrap each user action: a press, a paint stroke, an exclusive press that turns five toggles off. Use them to make each action one undo step:
+
+```tsx
+<ToggleGroup paint onGestureStart={() => history.begin('Mute')} onGestureEnd={() => history.commit()}>
+```
+
+## Keyboard
+
+The group is one tab stop: <kbd>Tab</kbd> reaches the last focused toggle.
+
+| Key | Moves focus to |
+| --- | --- |
+| Arrow along the lane (← → for rows) | The next toggle in the lane. Left and right follow the reading direction. |
+| Arrow across lanes (↑ ↓ for rows) | The toggle at the same position in the next lane. |
+| <kbd>Home</kbd> / <kbd>End</kbd> | The ends of the lane; with <kbd>Ctrl</kbd>, of the group. |
+| <kbd>Shift</kbd> + arrow | Moves, and paints the next toggle with the current one's state. |
+| <kbd>Space</kbd>, <kbd>Enter</kbd> | Toggles. |
+
+Without lanes, `orientation` decides: a row, a column, or a `grid` of `columns`.
+
+## API reference
+
+Renders a `<div>` with `role="group"`.
+
+<PropsTable part="ToggleGroup" />
+
+| Data attribute | |
+| --- | --- |
+| `data-orientation` | `"horizontal"`, `"vertical"` or `"grid"`. |
+| `data-painting` | During a paint stroke: `"on"` or `"off"`, the state it paints. |
+| `data-disabled` | When `disabled`. |
+
+See [Toggle](/docs/components/toggle) for the toggles' own props, including `lane` and `value`.

@@ -1,0 +1,37 @@
+---
+title: Languages and direction
+description: The library adds no words of its own, prints numbers in the user's locale, and works in right-to-left layouts.
+---
+
+daw-ui does not decide the language of your application. Nothing a user sees or a screen reader announces comes from the library as English words; a test in the repository renders every component and fails if one does.
+
+## Words come from you
+
+- Parts without visible text need a name from you: a `Label` part, or an `aria-label` in your language.
+- The pan format takes its letters: `formats.pan({ left: 'L', right: 'R', center: 'C' })` in English, `{ left: 'L', right: 'P', center: 'Ś' }` in Polish.
+- Units such as BPM, and anything else that is a word, go in `formats.number({ unit })` or your own format.
+
+The built-in formats add only symbols that read the same in every language: Hz, kHz, dB, ms, s, %, and −∞.
+
+## Numbers follow the locale
+
+Formats print with `Intl.NumberFormat`: in the runtime's locale by default, or in the `locale` you pass, which is what you want when the app's language differs from the browser's:
+
+```ts
+formats.decibel({ locale: 'de' }).format(-6.5); // "-6,5 dB"
+formats.percent({ locale: 'de' }).format(0.5); // "50 %"
+```
+
+Parsing accepts `.` and `,` as the decimal separator, and the Unicode minus sign.
+
+## Right-to-left
+
+The direction comes from the page (`dir="rtl"` or CSS `direction`); there is no prop for it.
+
+| Follows the reading direction | Does not |
+| --- | --- |
+| Horizontal faders and meters fill from the right. | Vertical controls: up is always more. |
+| Dragging a horizontal fader to the left increases it. | Knobs: clockwise is always more, as on hardware. |
+| <kbd>←</kbd> and <kbd>→</kbd> on horizontal controls and in toggle groups. | <kbd>↑</kbd> and <kbd>↓</kbd>. |
+
+Formatted values render with `dir="auto"`, so "-6.0 dB" keeps its order inside a right-to-left page, and a value with an Arabic unit reads right to left. Try both directions in the [playground](https://addstack.github.io/daw-ui/playground/).

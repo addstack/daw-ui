@@ -1,0 +1,30 @@
+---
+title: Performance
+description: How the components stay out of the way of audio and animation, and how that is measured on every change.
+---
+
+In a DAW, the interface competes with audio and with dozens of animated meters. Performance is a requirement of the library, and it is measured, not assumed.
+
+## How the components work
+
+- **Meters never render through React.** One shared `requestAnimationFrame` loop reads every meter and writes CSS variables and attributes directly, and only when they change. The accessible value updates four times a second.
+- **An interaction renders only what it changes.** Dragging one knob does not render its siblings. Toggles in a group subscribe to their own state: painting one step of a 16 × 64 sequencer renders that step, not the grid.
+- **Layout is read once per gesture.** A paint stroke reads the boxes of the toggles when it starts, then tests the pointer's path against them.
+- **Formatters are created once**, not per frame.
+
+## What is measured
+
+Every change to the repository runs a stress page, in a production build, in Chromium with the CPU slowed down 4×: 64 channel strips with running meters, pan knobs, faders and mute and solo buttons, and a 16 × 64 step sequencer.
+
+| Scenario | Frame p50 / p99 (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
+| --- | --: | --: | --: | --: |
+| 64 meters running | 16.7 / 16.8 | 0 of 181 | – | 0 |
+| Fader drag, meters running | 16.7 / 16.8 | 0 of 90 | 9.4 / 11.2 | 62 for 60 moves |
+| Paint 64 steps, meters running | 16.7 / 33.2 | 1 of 90 | 9.5 / 12.9 | 32 for 30 moves |
+
+The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction, zero commits from running meters, renders per painted step, and the bundle size (11.3 kB minified and gzipped, everything included). Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
+
+## In your application
+
+- Pass the level to meters with `read`, not with `level`: `level` goes through React state, `read` does not.
+- Controlled components render when their parent does. For a mixer with many channels, keep each channel strip in a memoized component, or leave the controls uncontrolled and send `onValueChange` straight to your audio engine, as the [playground](https://github.com/addstack/daw-ui/blob/main/playground/main.tsx) does.
