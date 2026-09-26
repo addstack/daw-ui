@@ -65,3 +65,19 @@ test("Tab reaches the knob, arrows change it, double-click resets it", async ({ 
   await knob.dblclick();
   expect(await valueOf(knob)).toBe(0);
 });
+
+test("an endless knob keeps turning past a full turn, one step per detent", async ({ page }) => {
+  const encoder = page.getByRole("spinbutton", { name: "Browse" });
+  const start = await center(encoder);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  // Down, where the page has room: 240 px is one turn of 24 steps, 300 px a turn and a quarter.
+  await page.mouse.move(start.x, start.y + 300, { steps: 30 });
+  await page.mouse.up();
+  expect(await valueOf(encoder)).toBe(-30);
+  // From -180deg at 0, on past -540deg: the rotation never jumps back.
+  await expect(page.getByTestId("encoder")).toHaveCSS("--knob-angle", "-630deg");
+
+  const changes = (await eventsOf(page, "encoder")).filter((event) => event.type === "change");
+  expect(changes.reduce((sum, event) => sum + (event.delta ?? 0), 0)).toBe(-30);
+});

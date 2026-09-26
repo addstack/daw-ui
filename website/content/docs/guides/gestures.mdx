@@ -40,3 +40,13 @@ When the gesture ends, `read` takes over again and returns what was just recorde
 ## Why a value changed
 
 `onValueChange` and `onPressedChange` receive `details.reason`: `"drag"`, `"keyboard"`, `"wheel"`, `"reset"` or `"input"` for values, and `"press"`, `"release"`, `"keyboard"`, `"paint"` or `"exclusive"` for toggles, with the native `event`.
+
+## How much a value changed
+
+`onValueChange` also receives `details.delta`, the change from the previous value. Relative uses read it instead of the value: an [endless knob](/docs/components/knob#endless) that steps through presets, or a control that sends MIDI in relative mode.
+
+```tsx
+<Knob.Root endless max={24} step={1} onValueChange={(_, { delta }) => browser.move(delta)} />
+```
+
+On a control that wraps, `delta` goes the way the user moved: turning up from 350° to 10° is `+20`, not `−340`.

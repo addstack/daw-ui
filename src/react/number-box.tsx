@@ -59,10 +59,11 @@ const liveAttributes = (live: Live) => liveProps(live).attributes;
 // A character that starts typing a value, as in Ableton Live: focus a number box and type.
 const STARTS_A_VALUE = /^[0-9.,+\-−]$/;
 
-/** Travel for a full drag: two pixels per step, within reason. */
-function numberBoxSensitivity(min: number, max: number, step: number | undefined): number {
+/** Travel for a full drag: two pixels per step, within reason; without ends, two pixels per step. */
+function numberBoxSensitivity(min: number, max: number, step: number | undefined, endless: boolean): number {
   if (!Number.isFinite(max - min) || step === undefined) return 400;
-  return Math.min(1000, Math.max(100, (2 * (max - min)) / step));
+  const pixels = (2 * (max - min)) / step;
+  return endless ? pixels : Math.min(1000, Math.max(100, pixels));
 }
 
 /**
@@ -71,10 +72,10 @@ function numberBoxSensitivity(min: number, max: number, step: number | undefined
  */
 export function NumberBoxRoot(props: NumberBoxRoot.Props) {
   const [controlProps, elementProps] = splitValueControlProps(props);
-  const { min = 0, max = 1, step } = controlProps;
+  const { min = 0, max = 1, step, endless = false } = controlProps;
   const control = useValueControl(controlProps, {
     orientation: "vertical",
-    defaultSensitivity: () => numberBoxSensitivity(min, max, step),
+    defaultSensitivity: () => numberBoxSensitivity(min, max, step, endless),
     resetOnDoubleClick: false,
     role: "spinbutton",
   });

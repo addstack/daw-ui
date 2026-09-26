@@ -38,13 +38,23 @@ Inline styles set by parts are limited to positioning (`position`, logical inset
 
 ## 3. Value model
 
-`createRange({ min, max, step?, scale? })`:
+`createRange({ min, max, step?, scale?, wrap?, endless? })`:
 
 - requires `max > min` and `step > 0`, and throws a `RangeError` otherwise;
-- `clamp(v)` limits to `[min, max]`;
-- `constrain(v)` clamps, then snaps to `min + k·step` when `step` is set (to `k·step` when `min` is `−∞`; rounded to the decimals of `step` and `min`, then clamped again), and otherwise rounds to 12 significant digits;
-- `normalize(v)` returns the travel position in `[0, 1]` through the scale;
-- `denormalize(t)` clamps `t` to `[0, 1]`, maps it through the scale, and constrains the result.
+- `clamp(v)` brings `v` into the range: it limits it to `[min, max]`, or, with `wrap` or `endless`, as below;
+- `constrain(v)` clamps, then snaps to `min + k·step` when `step` is set (to `k·step` when `min` is `−∞`; rounded to the decimals of `step` and `min`), and otherwise rounds to 12 significant digits; then it clamps again;
+- `normalize(v)` returns the travel position of `v` through the scale;
+- `denormalize(t)` brings `t` into the travel, maps it through the scale, and constrains the result.
+
+A range has one of three kinds of ends, which decide how values and travel are brought into it:
+
+| | `clamp(v)` | `normalize(v)` | `denormalize(t)` |
+| --- | --- | --- | --- |
+| bounded (default) | `[min, max]` | in `[0, 1]` | `t` clamped to `[0, 1]` |
+| `wrap` | `min + ((v − min) mod (max − min))`, in `[min, max)`: `max` is the same point as `min` | in `[0, 1)` | `t − ⌊t⌋` |
+| `endless` | `v`, unchanged | `(v − min) / (max − min)`, not bounded | `min + t·(max − min)`, not bounded |
+
+`wrap` and `endless` require a finite `min` and `max`, and `endless` requires the linear scale; otherwise `createRange` throws a `RangeError`. With both, `endless` applies. On an endless range, `min … max` only sets the scale: it is one turn of a knob.
 
 Scales map a value in `[min, max]` to travel and back:
 
@@ -91,19 +101,23 @@ Every part describes what it shows of the value: attributes (e.g. `aria-valuenow
 
 With `read`, the root calls it once per animation frame through the frame loop shared with meters (§7.2), and shows `constrain(read())` through the store, except while the pointer is down on the control or a gesture is open (§6): the user's value wins until they let go.
 
-State exposed to parts: `value`, `normalized`, `originNormalized`, `text` (formatted value), `dragging`, `disabled`, `bipolar` (`0 < originNormalized < 1`), `zone` (`zoneOf(value, zones)`, §3).
+State exposed to parts: `value`, `normalized` (not bounded on an endless control, §3), `originNormalized`, `text` (formatted value), `dragging`, `disabled`, `bipolar` (`0 < originNormalized < 1`), `zone` (`zoneOf(value, zones)`, §3).
+
+The root takes `wrap` and `endless` (§3) into its range; `Fader.Root` does not take `endless`.
 
 Every part of a knob, fader or number box carries the data attributes `data-dragging`, `data-disabled`, `data-bipolar` and `data-zone` for this state; fader parts also carry `data-orientation`, number box parts `data-editing`. `Fader.Tick` is the exception: its `data-zone` is the zone of its own `value`.
 
-A change is **applied** as follows: the candidate is constrained; if it equals the last value this control produced or showed (`Object.is`), nothing happens; otherwise a gesture starts if none is open (§6), an uncontrolled control shows the value through the store, and `onValueChange(value, { reason, event })` is called. A controlled control shows the new value only when the parent passes it back.
+A change is **applied** as follows: the candidate is constrained; if it equals the last value this control produced or showed (`Object.is`), nothing happens; otherwise a gesture starts if none is open (§6), an uncontrolled control shows the value through the store, and `onValueChange(value, { reason, event, delta })` is called. A controlled control shows the new value only when the parent passes it back.
+
+`delta` is the new value minus the previous one. On a wrapping range it follows the direction of the input: a drag, wheel or key towards higher values whose raw difference is negative (the value came around past `max`) gets `max − min` added, and the other way round, so a step up from 350° to 10° is `+20`. A reset and a typed value have no direction and report the raw difference.
 
 ### 5.2 Drag
 
 On primary-button pointerdown on the control (not disabled): the default action is prevented, the control takes focus, captures the pointer, and optionally requests pointer lock (`pointerLock`). The drag keeps a travel position `p`, starting at `normalize(value)`.
 
-On each pointermove, `Δ` is the pointer movement since the previous event (`movementX/Y` while locked, else client coordinates): up for vertical controls, towards the inline end for horizontal ones (§10). Then `p = clamp01(p + Δ / sensitivity × (Shift ? 0.1 : 1))`, and `denormalize(p)` is applied with reason `"drag"`. Because `p` is clamped, moving back after overshooting an end responds at once. `dragging` is true from the first move until the pointer is released, cancelled or loses capture; then the gesture ends.
+On each pointermove, `Δ` is the pointer movement since the previous event (`movementX/Y` while locked, else client coordinates): up for vertical controls, towards the inline end for horizontal ones (§10). Then `p = clamp01(p + Δ / sensitivity × (Shift ? 0.1 : 1))`, and `denormalize(p)` is applied with reason `"drag"`. Because `p` is clamped, moving back after overshooting an end responds at once. On a wrapping or endless range, `p` is not clamped, and the drag goes round. `dragging` is true from the first move until the pointer is released, cancelled or loses capture; then the gesture ends.
 
-`sensitivity` (pixels for the full travel) defaults to 200 for a knob, to the track's length along the orientation for a fader (the control's length if there is no track, 200 if that is 0), and for a number box to `clamp(2·(max − min) / step, 100, 1000)` (400 without a step or with an infinite range).
+`sensitivity` (pixels for the full travel) defaults to 200 for a knob, to the track's length along the orientation for a fader (the control's length if there is no track, 200 if that is 0), and for a number box to `clamp(2·(max − min) / step, 100, 1000)` (400 without a step or with an infinite range; an endless number box takes `2·(max − min) / step` unclamped, two pixels per step).
 
 ### 5.3 Keyboard
 
@@ -116,6 +130,8 @@ On the focused control (not disabled):
 | PageUp / PageDown | travel ± 0.1 | travel ± 0.1 if that is more than one step, else ± step |
 | Home / End | `min` / `max` | same |
 | Delete, Backspace | reset | same |
+
+On a wrapping range, End goes to the last value before `max`, `min + (⌈(max − min) / step⌉ − 1)·step`, and does nothing on a continuous one. An endless range ignores Home and End. Arrows and Page keys give the direction for `delta` (§5.1).
 
 Each handled key prevents its default action and is one gesture.
 
@@ -131,20 +147,20 @@ Double-click (knob, fader) and Delete/Backspace apply `resetValue ?? defaultValu
 
 | Part | Element | Behaviour |
 | --- | --- | --- |
-| `*.Root` | `div` | Holds the value. Knob: `--knob-value`, `--knob-angle` (`−sweep/2 + normalized·sweep`, in deg). Fader: `--fader-value`. |
-| `Knob.Control`, `Fader.Control` | `div` | `role="slider"`, `tabindex` 0 (−1 disabled), `aria-valuemin` (omitted when infinite), `aria-valuemax`, `aria-valuenow` (omitted when infinite), `aria-valuetext` = formatted value, `aria-orientation`, `aria-disabled`, `aria-labelledby` = the mounted `Label`. Handles §5.2–5.5. |
+| `*.Root` | `div` | Holds the value. Knob: `--knob-value`, `--knob-angle` (`−sweep/2 + normalized·sweep`, in deg; both not bounded on an endless knob). Fader: `--fader-value`. |
+| `Knob.Control`, `Fader.Control` | `div` | `role="slider"`, `tabindex` 0 (−1 disabled), `aria-valuemin` (omitted when infinite), `aria-valuemax` (on a wrapping range, the last value End reaches, else `max`), `aria-valuenow` (omitted when infinite), `aria-valuetext` = formatted value, `aria-orientation`, `aria-disabled`, `aria-labelledby` = the mounted `Label`. On an endless knob: `role="spinbutton"`, without `aria-valuemin`, `aria-valuemax` and `aria-orientation`. Handles §5.2–5.5. |
 | `*.Label` | `span` | Its id labels the control while mounted. A click focuses the control. |
 | `*.Value` | `output` | The formatted value, `for` the control, `aria-live="off"`, `dir="auto"`. With `children` as a function, `children(text, value)` is rendered instead, and that part (alone) renders on every change of the value. |
 | `Knob.Track` | `path` | Arc over the full sweep, radius `radius` (40) around (50, 50), `fill="none"`. |
-| `Knob.Range` | `path` | Arc from the origin's angle to the value's angle. An empty arc is a bare move command. |
+| `Knob.Range` | `path` | Arc from the origin's angle to the value's angle. An empty arc is a bare move command. An endless knob draws none: `d` is absent. |
 | `Knob.Pointer` | `line` | From radius `from` (0) to `to` (40) at the value's angle. |
 | `Knob.Modulation` | `path` | The arc at radius `radius` (46) from the value's angle to the angle of `read()`, the modulated value in the knob's units. `read` is called once per animation frame and the arc (`d`) is written by the frame loop only, never by a render. |
 | `Fader.Track` | `div` | `position: relative`; its length is the default sensitivity. |
 | `Fader.Range` | `div` | Absolutely positioned from the lower of origin and value, with length equal to their distance. |
 | `Fader.Thumb`, `Fader.Tick` | `div` | Centred on the value (thumb) or on `normalize(value)` (tick). Ticks are `aria-hidden`. |
-| `NumberBox.Field` | `span`, or `input` while editing | Display: `role="spinbutton"` with the value attributes, `dir="auto"`. See §5.7. |
+| `NumberBox.Field` | `span`, or `input` while editing | Display: `role="spinbutton"` with the value attributes (without `aria-valuemin` and `aria-valuemax` when endless), `dir="auto"`. See §5.7. |
 
-Angles are in degrees, clockwise from 12 o'clock. `sweep` defaults to 270.
+Angles are in degrees, clockwise from 12 o'clock. `sweep` defaults to 270, and to 360 on a wrapping or endless knob.
 
 ### 5.7 Number box editing
 

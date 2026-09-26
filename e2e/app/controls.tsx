@@ -6,7 +6,8 @@ import { log } from "./harness.js";
 function logged(source: string) {
   return {
     onGestureStart: () => log({ source, type: "start" }),
-    onValueChange: (value: number, { reason }: { reason: string }) => log({ source, type: "change", value, reason }),
+    onValueChange: (value: number, { reason, delta }: { reason: string; delta: number }) =>
+      log({ source, type: "change", value, reason, delta }),
     onGestureEnd: (value: number) => log({ source, type: "end", value }),
   };
 }
@@ -27,6 +28,16 @@ export function Controls() {
             </svg>
           </Knob.Control>
           <Knob.Value />
+        </Knob.Root>
+
+        <Knob.Root className="knob" data-testid="encoder" endless max={24} step={1} sensitivity={240} {...logged("encoder")}>
+          <Knob.Label>Browse</Knob.Label>
+          <Knob.Control className="knob-control">
+            <svg viewBox="0 0 100 100">
+              <Knob.Track className="knob-track" />
+              <Knob.Pointer className="knob-pointer" />
+            </svg>
+          </Knob.Control>
         </Knob.Root>
       </section>
 

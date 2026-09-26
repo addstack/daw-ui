@@ -43,13 +43,15 @@ function useKnobContext(part: string): KnobContextValue {
 
 /**
  * Groups the parts of a knob and holds its value. Sets `--knob-value` (travel
- * in [0, 1]) and `--knob-angle` on its element for styling in CSS.
+ * in [0, 1]) and `--knob-angle` on its element for styling in CSS. On an
+ * endless knob both count on past a turn, so a rotation never jumps back.
  *
  * When the value changes, the parts write what they show straight to the
  * DOM; nothing renders (docs/principles.md, section 7).
  */
 export function KnobRoot(props: KnobRoot.Props) {
-  const [controlProps, { sweep = 270, ...elementProps }] = splitValueControlProps(props);
+  const [controlProps, { sweep: sweepProp, ...elementProps }] = splitValueControlProps(props);
+  const sweep = sweepProp ?? (controlProps.wrap || controlProps.endless ? 360 : 270);
   const control = useValueControl(controlProps, {
     orientation: "vertical",
     defaultSensitivity: () => 200,
@@ -76,8 +78,9 @@ export namespace KnobRoot {
   export type Props = Omit<PartProps<"div", State>, keyof ValueControlProps> &
     ValueControlProps & {
       /**
-       * Degrees of rotation from the lowest to the highest value.
-       * @default 270
+       * Degrees of rotation from `min` to `max`. The middle of the range
+       * points up.
+       * @default 270, or 360 when the knob wraps or is endless
        */
       sweep?: number | undefined;
     };
@@ -146,13 +149,16 @@ export namespace KnobTrack {
   };
 }
 
-/** The arc from `origin` to the value, as an SVG path. */
+/** The arc from `origin` to the value, as an SVG path. An endless knob has no range, and draws none. */
 export function KnobRange({ radius = 40, ...props }: KnobRange.Props) {
   const { control, sweep } = useKnobContext("Range");
+  const { endless } = control.range;
   const live = useLivePart(control, (state) =>
     mergeLive(valueLive(state), {
       attributes: {
-        d: arcPath(CENTER, CENTER, radius, knobAngle(state.originNormalized, sweep), knobAngle(state.normalized, sweep)),
+        d: endless
+          ? null
+          : arcPath(CENTER, CENTER, radius, knobAngle(state.originNormalized, sweep), knobAngle(state.normalized, sweep)),
       },
     }),
   );

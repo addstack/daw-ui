@@ -66,7 +66,7 @@ Performance is a requirement, measured on every change.
 
 - Every stateful part works controlled (`value` + `onValueChange`) and uncontrolled (`defaultValue`).
 - Values are in natural units (Hz, dB, ms, −1…1 for pan). The travel position in [0, 1] is derived through a `Range` with a `Scale`.
-- Callbacks receive `details` with the `reason` and the native `event`.
+- Callbacks receive `details` with the `reason` and the native `event`; value callbacks also receive the `delta`, for relative uses such as endless encoders.
 
 ## 9. Packaging
 

@@ -19,6 +19,26 @@ cutoff.denormalize(0.5); // 632.5…
 
 `constrain` clamps a value and snaps it to the step; `denormalize` does so after mapping.
 
+### Ends
+
+A range stops at `min` and `max` unless you say otherwise:
+
+| Option | Past the ends | For |
+| --- | --- | --- |
+| (none) | The value stops. | Most parameters. |
+| `wrap` | The value comes around from the other end: `max` is the same point as `min`, so values stay in `[min, max)`. | Phase, hue, the angle of a surround panner, a list that loops. |
+| `endless` | The value keeps counting, and travel counts on past 0 and 1: `min` … `max` only sets the scale. | Encoders that step through presets, jog wheels, relative controls. |
+
+```ts
+const phase = createRange({ min: -180, max: 180, wrap: true });
+phase.constrain(190); // -170
+
+const detents = createRange({ min: 0, max: 24, step: 1, endless: true });
+detents.normalize(36); // 1.5: a turn and a half
+```
+
+Controls take the same options as props. A wrapping or endless knob turns a full circle, and an endless one reports `details.delta` for [relative uses](/docs/guides/gestures#how-much-a-value-changed).
+
 ## Values that change on their own
 
 A knob or fader takes its value from `value` (React state), `defaultValue` (uncontrolled), or `read`, a function called once per animation frame for values that change by themselves: automation playback, modulation, a control surface. `read` shows the value without rendering, and the user's drag wins while they hold the control. See [performance](/docs/guides/performance) for what the difference costs.

@@ -3,6 +3,7 @@ export type HarnessEvent = {
   type: "start" | "change" | "end";
   value?: unknown;
   reason?: string;
+  delta?: number;
 };
 
 export type FrameStats = {

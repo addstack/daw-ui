@@ -81,6 +81,18 @@ describe("NumberBox", () => {
     expect(onValueChange).not.toHaveBeenCalled();
   });
 
+  test("an endless number box has no bounds, and drags two pixels per step", () => {
+    render(
+      <NumberBox.Root endless step={1} defaultValue={0}>
+        <NumberBox.Field data-testid="field" />
+      </NumberBox.Root>,
+    );
+    const field = screen.getByRole("spinbutton");
+    expect(field.hasAttribute("aria-valuemin")).toBe(false);
+    drag(field, [{ y: 100 }, { y: 300 }]);
+    expect(field.getAttribute("aria-valuenow")).toBe("-100");
+  });
+
   test("typed values are constrained to the range and step", () => {
     render(<Tempo />);
     fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "Enter" });

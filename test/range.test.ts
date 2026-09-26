@@ -42,6 +42,46 @@ describe("createRange", () => {
   });
 });
 
+describe("wrap", () => {
+  test("values past max come around from min, and max is min", () => {
+    const phase = createRange({ min: 0, max: 360, wrap: true });
+    expect(phase.constrain(370)).toBe(10);
+    expect(phase.constrain(-90)).toBe(270);
+    expect(phase.constrain(360)).toBe(0);
+    expect(phase.normalize(270)).toBe(0.75);
+  });
+
+  test("travel wraps too, so a drag can go round and round", () => {
+    const phase = createRange({ min: -180, max: 180, wrap: true });
+    expect(phase.denormalize(1.25)).toBe(-90);
+    expect(phase.denormalize(-0.25)).toBe(90);
+    expect(phase.denormalize(1)).toBe(-180);
+  });
+
+  test("a value rounded up to max comes around to min", () => {
+    const presets = createRange({ min: 0, max: 8, step: 1, wrap: true });
+    expect(presets.constrain(7.6)).toBe(0);
+    expect(presets.constrain(-1)).toBe(7);
+    expect(createRange({ min: 0, max: 360, wrap: true }).constrain(-1e-13)).toBe(0);
+  });
+});
+
+describe("endless", () => {
+  test("values and travel go on past both ends", () => {
+    const encoder = createRange({ min: 0, max: 24, step: 1, endless: true });
+    expect(encoder.constrain(30.4)).toBe(30);
+    expect(encoder.constrain(-3)).toBe(-3);
+    expect(encoder.normalize(36)).toBe(1.5);
+    expect(encoder.denormalize(-0.5)).toBe(-12);
+  });
+
+  test("needs finite ends, which set its scale, and is linear", () => {
+    expect(() => createRange({ min: -Infinity, max: 0, endless: true })).toThrow(RangeError);
+    expect(() => createRange({ min: -Infinity, max: 0, wrap: true })).toThrow(RangeError);
+    expect(() => createRange({ min: 1, max: 10, scale: scales.log, endless: true })).toThrow(RangeError);
+  });
+});
+
 describe("scales", () => {
   test("log gives equal travel to equal ratios", () => {
     const range = createRange({ min: 20, max: 20_000, scale: scales.log });

@@ -68,6 +68,19 @@ export type RangeOptions = {
    * @default scales.linear
    */
   scale?: Scale | undefined;
+  /**
+   * Past `max`, values come around from `min`, and the other way round:
+   * `max` is the same point as `min`, as 360° is 0°. Values stay in
+   * `[min, max)`.
+   * @default false
+   */
+  wrap?: boolean | undefined;
+  /**
+   * Values keep going past `max` and below `min`, and travel counts on past
+   * 0 and 1: `min` … `max` is one turn of an endless knob. Linear only.
+   * @default false
+   */
+  endless?: boolean | undefined;
 };
 
 export type Range = {
@@ -75,29 +88,40 @@ export type Range = {
   readonly max: number;
   readonly step: number | undefined;
   readonly scale: Scale;
+  readonly wrap: boolean;
+  readonly endless: boolean;
+  /** Brings a value into the range: clamps it, wraps it around, or, when endless, leaves it. */
   clamp(value: number): number;
-  /** Clamps, then snaps to the step. */
+  /** Brings a value into the range, then snaps it to the step. */
   constrain(value: number): number;
-  /** Travel position in [0, 1] of a value. */
+  /** Travel position in [0, 1] of a value; not bounded when endless. */
   normalize(value: number): number;
   /** Value at a travel position, constrained. */
   denormalize(normalized: number): number;
 };
 
 /** The value model shared by knobs, faders and number boxes. */
-export function createRange({ min, max, step, scale = linear }: RangeOptions): Range {
+export function createRange({ min, max, step, scale = linear, wrap = false, endless = false }: RangeOptions): Range {
   if (!(max > min)) throw new RangeError(`max (${max}) must be greater than min (${min}).`);
   if (step !== undefined && !(step > 0)) throw new RangeError(`step (${step}) must be greater than 0.`);
+  if ((wrap || endless) && !Number.isFinite(max - min)) throw new RangeError("A range that wraps or is endless needs a finite min and max.");
+  if (endless && scale !== linear) throw new RangeError("An endless range is linear.");
 
-  const clamp = (value: number) => Math.min(max, Math.max(min, value));
+  const length = max - min;
+  const clamp = endless
+    ? (value: number) => value
+    : wrap
+      ? (value: number) => min + ((((value - min) % length) + length) % length)
+      : (value: number) => Math.min(max, Math.max(min, value));
   const constrain = (value: number) => {
     const clamped = clamp(value);
     // 12 significant digits drop noise such as 0.30000000000000004 and keep far more precision than any control shows.
-    if (step === undefined) return Number(clamped.toPrecision(12));
+    if (step === undefined) return clamp(Number(clamped.toPrecision(12)));
     // Steps count from min, or from 0 when min is -Infinity (a fader down to silence in 0.5 dB steps).
     const base = Number.isFinite(min) ? min : 0;
     const snapped = base + Math.round((clamped - base) / step) * step;
-    // Remove floating-point noise such as 0.30000000000000004, and stay in range when max - min is no multiple of step.
+    // Remove floating-point noise such as 0.30000000000000004. Clamping again keeps the value in range when
+    // max - min is no multiple of step, and brings a value rounded up to max around to min.
     return clamp(Number(snapped.toFixed(decimalsOf(step) + decimalsOf(base))));
   };
 
@@ -106,10 +130,18 @@ export function createRange({ min, max, step, scale = linear }: RangeOptions): R
     max,
     step,
     scale,
+    wrap,
+    endless,
     clamp,
     constrain,
-    normalize: (value) => clamp01(scale.toNormalized(clamp(value), min, max)),
-    denormalize: (normalized) => constrain(scale.fromNormalized(clamp01(normalized), min, max)),
+    normalize: endless
+      ? (value) => (value - min) / length
+      : (value) => clamp01(scale.toNormalized(clamp(value), min, max)),
+    denormalize: endless
+      ? (normalized) => constrain(min + normalized * length)
+      : wrap
+        ? (normalized) => constrain(scale.fromNormalized(normalized - Math.floor(normalized), min, max))
+        : (normalized) => constrain(scale.fromNormalized(clamp01(normalized), min, max)),
   };
 }
 

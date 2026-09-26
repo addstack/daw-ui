@@ -34,6 +34,24 @@ With `origin`, the range is drawn from that value instead of from `min`: a pan k
 
 <ComponentPreview name="knob-bipolar" />
 
+### Wrap
+
+With `wrap`, turning past `max` comes around from `min`, as a phase or a hue does: `max` is the same point as `min`, so the value stays in `[min, max)`, and the knob turns a full circle. The middle of the range points up, so `-180` … `180` puts 0° at 12 o'clock.
+
+<ComponentPreview name="knob-wrap" />
+
+### Endless
+
+An `endless` knob has no ends, like the encoders of hardware controllers: the value keeps counting past `max` and below `min`, and `min` … `max` is one turn. Use it to step through presets, move a selection or jog through time. `details.delta` gives each step, and a `format` can show what the count means:
+
+```tsx
+<Knob.Root endless max={24} step={1} onValueChange={(_, { delta }) => browser.move(delta)} />
+```
+
+<ComponentPreview name="knob-endless" />
+
+It is a `spinbutton` without a minimum or maximum, since a slider needs both. `Range` draws nothing, and `--knob-angle` counts on past a turn, so a rotation never jumps back.
+
 ### Modulation
 
 `Knob.Modulation` draws the arc from the knob's value to where modulation moves it now, as in Bitwig Studio and Ableton Live. Its `read` returns the modulated value in the knob's units; it is called once per animation frame, and the arc is drawn without rendering. Drag the knob: the modulation follows.
@@ -68,7 +86,7 @@ See [values and formats](/docs/guides/values-and-formats) for the scales and for
 | Wheel | 5% of the travel per notch. `wheel={false}` leaves the wheel to the page. |
 | <kbd>↑</kbd> <kbd>→</kbd> / <kbd>↓</kbd> <kbd>←</kbd> | 1% of the travel (<kbd>Shift</kbd>: 0.1%), or one `step`. |
 | <kbd>Page Up</kbd> / <kbd>Page Down</kbd> | 10% of the travel. |
-| <kbd>Home</kbd> / <kbd>End</kbd> | Minimum / maximum. |
+| <kbd>Home</kbd> / <kbd>End</kbd> | Minimum / maximum. A wrapping knob's End goes to the last step before `max`; an endless knob has neither. |
 | Double-click, <kbd>Delete</kbd>, <kbd>Backspace</kbd> | Reset to `resetValue`, `defaultValue` or `origin`. |
 
 Each of these is one [gesture](/docs/guides/gestures).
@@ -92,12 +110,12 @@ Every part carries these attributes, so `data-[zone=high]:stroke-red-500` works 
 
 | CSS variable | |
 | --- | --- |
-| `--knob-value` | Travel of the value, from 0 to 1. |
-| `--knob-angle` | Rotation of the value, e.g. `-135deg` at the minimum of a 270° sweep. |
+| `--knob-value` | Travel of the value, from 0 to 1; on an endless knob, one per turn, without bounds. |
+| `--knob-angle` | Rotation of the value, e.g. `-135deg` at the minimum of a 270° sweep; on an endless knob, without bounds. |
 
 ### Control
 
-The focusable element that takes drags, keys and the wheel. Renders a `<div>` with `role="slider"`, `aria-valuenow`, `aria-valuetext` (the formatted value) and the label.
+The focusable element that takes drags, keys and the wheel. Renders a `<div>` with `role="slider"` (`role="spinbutton"` when endless), `aria-valuenow`, `aria-valuetext` (the formatted value) and the label.
 
 <PropsTable part="Knob.Control" />
 
@@ -115,7 +133,7 @@ The whole sweep. Renders an SVG `<path>`.
 
 ### Range
 
-The arc from `origin` to the value. Renders an SVG `<path>`.
+The arc from `origin` to the value. Renders an SVG `<path>`, without `d` on an endless knob.
 
 <PropsTable part="Knob.Range" />
 

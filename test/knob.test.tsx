@@ -288,6 +288,75 @@ describe("styling", () => {
   });
 });
 
+describe("wrap", () => {
+  test("turns past the end come around, with the delta the way the user turned", () => {
+    const deltas: number[] = [];
+    render(<TestKnob min={0} max={8} step={1} wrap defaultValue={7} onValueChange={(_, { delta }) => deltas.push(delta)} />);
+    const slider = screen.getByRole("slider");
+    fireEvent.keyDown(slider, { key: "ArrowUp" });
+    expect(slider.getAttribute("aria-valuenow")).toBe("0");
+    fireEvent.keyDown(slider, { key: "ArrowDown" });
+    expect(slider.getAttribute("aria-valuenow")).toBe("7");
+    expect(deltas).toEqual([1, -1]);
+  });
+
+  test("a drag goes round and round", () => {
+    render(<TestKnob min={0} max={360} wrap sensitivity={100} />);
+    const slider = screen.getByRole("slider");
+    drag(slider, [{ y: 200 }, { y: 100 }, { y: 75 }]);
+    expect(slider.getAttribute("aria-valuenow")).toBe("90");
+    drag(slider, [{ y: 200 }, { y: 250 }]);
+    expect(slider.getAttribute("aria-valuenow")).toBe("270");
+  });
+
+  test("End goes to the last step, since max is min; the maximum announced is that step", () => {
+    render(<TestKnob min={0} max={360} step={15} wrap />);
+    const slider = screen.getByRole("slider");
+    expect(slider.getAttribute("aria-valuemax")).toBe("345");
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(slider.getAttribute("aria-valuenow")).toBe("345");
+  });
+
+  test("the sweep is a full circle, with the middle of the range at 12 o'clock", () => {
+    render(<TestKnob min={-180} max={180} wrap defaultValue={90} />);
+    expect(screen.getByTestId("root").style.getPropertyValue("--knob-angle")).toBe("90deg");
+  });
+});
+
+describe("endless", () => {
+  test("is a spinbutton without a minimum or maximum", () => {
+    render(<TestKnob endless />);
+    const control = screen.getByRole("spinbutton", { name: "Cutoff" });
+    expect(control.hasAttribute("aria-valuemin")).toBe(false);
+    expect(control.hasAttribute("aria-valuemax")).toBe(false);
+    expect(control.hasAttribute("aria-orientation")).toBe(false);
+  });
+
+  test("counts on past a turn, and its angle turns on without jumping back", () => {
+    const deltas: number[] = [];
+    render(
+      <TestKnob endless min={0} max={24} step={1} sensitivity={240} onValueChange={(_, { delta }) => deltas.push(delta)} />,
+    );
+    const control = screen.getByRole("spinbutton");
+    // 300 px is a turn and a quarter: 30 steps of 10 px.
+    drag(control, [{ y: 400 }, { y: 250 }, { y: 100 }]);
+    expect(control.getAttribute("aria-valuenow")).toBe("30");
+    expect(deltas).toEqual([15, 15]);
+    expect(screen.getByTestId("root").style.getPropertyValue("--knob-angle")).toBe("270deg");
+    drag(control, [{ y: 100 }, { y: 500 }]);
+    expect(control.getAttribute("aria-valuenow")).toBe("-10");
+  });
+
+  test("has no ends for Home and End, and draws no range", () => {
+    render(<TestKnob endless defaultValue={3} />);
+    const control = screen.getByRole("spinbutton");
+    expect(fireEvent.keyDown(control, { key: "End" })).toBe(true);
+    expect(fireEvent.keyDown(control, { key: "Home" })).toBe(true);
+    expect(control.getAttribute("aria-valuenow")).toBe("3");
+    expect(screen.getByTestId("range").hasAttribute("d")).toBe(false);
+  });
+});
+
 describe("render budget", () => {
   test("dragging a knob renders nothing, not even the knob", () => {
     const commits = { a: 0, b: 0 };

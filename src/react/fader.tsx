@@ -80,7 +80,7 @@ export function FaderRoot(props: FaderRoot.Props) {
   const [controlProps, { orientation = "vertical", ...elementProps }] = splitValueControlProps(props);
   const trackRef = useRef<HTMLElement | null>(null);
   const [rightToLeft, directionRef] = useRightToLeft();
-  const control = useValueControl(controlProps, {
+  const control = useValueControl({ ...controlProps, endless: false }, {
     orientation,
     // By default, dragging moves the thumb with the pointer: the full travel is the track's length.
     defaultSensitivity(element) {
@@ -109,7 +109,8 @@ export function FaderRoot(props: FaderRoot.Props) {
 export namespace FaderRoot {
   export type State = FaderState;
   export type Props = Omit<PartProps<"div", State>, keyof ValueControlProps> &
-    ValueControlProps & {
+    // A fader has two ends.
+    Omit<ValueControlProps, "endless"> & {
       /**
        * The direction of travel.
        * @default "vertical"

@@ -29,6 +29,8 @@ import { NumberBox } from '@addstack/daw-ui/react';
 
 Typed values go through the format's `parse`: `formats.frequency()` reads "1k" as 1000, `formats.decibel()` reads "-inf". Either decimal separator works, whatever the locale.
 
+An `endless` number box has no minimum or maximum, for values such as a transposition or an offset: it drags two pixels per `step` and ignores <kbd>Home</kbd> and <kbd>End</kbd>. With `wrap`, the value comes around past `max`, as on the [knob](/docs/components/knob#wrap).
+
 ## API reference
 
 ### Root

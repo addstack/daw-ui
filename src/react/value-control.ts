@@ -27,6 +27,11 @@ export type ValueChangeReason = "drag" | "keyboard" | "wheel" | "reset" | "input
 export type ValueChangeDetails = {
   reason: ValueChangeReason;
   event: Event;
+  /**
+   * The change from the previous value. On a wrapping control it goes the
+   * way the user moved: turning up from 350° to 10° is +20, not −340.
+   */
+  delta: number;
 };
 
 /** Props shared by `Knob.Root`, `Fader.Root` and `NumberBox.Root`. */
@@ -84,6 +89,22 @@ export type ValueControlProps = {
   /** Text for the value and `aria-valuetext`, and parsing of typed values. */
   format?: ValueFormat | undefined;
   /**
+   * Past `max`, the value comes around from `min`, and the other way round,
+   * as for a phase or a hue: `max` is the same point as `min`, so the value
+   * stays in `[min, max)`. A knob's sweep becomes a full circle.
+   * @default false
+   */
+  wrap?: boolean | undefined;
+  /**
+   * The control has no ends, like the endless encoders of hardware: the
+   * value keeps counting past `max` and below `min`, and `min` … `max` is
+   * one turn of a knob. Read `details.delta` to step through presets or
+   * move a selection. The control is a `spinbutton` without a minimum or
+   * maximum.
+   * @default false
+   */
+  endless?: boolean | undefined;
+  /**
    * Where the value's range starts when drawn: `origin={0}` on a -1 … 1 pan
    * knob draws from the center (`data-bipolar`).
    * @default min
@@ -121,7 +142,7 @@ export type ValueControlProps = {
 
 export type ValueControlState = {
   value: number;
-  /** Travel position in [0, 1]. */
+  /** Travel position in [0, 1]. On an endless control it counts on: 1 per `min` … `max`. */
   normalized: number;
   /** Travel position of `origin`. */
   originNormalized: number;
@@ -179,6 +200,29 @@ const WHEEL_GESTURE_MS = 400;
 // Share of the travel per pixel of wheel scroll: a mouse notch (100 px) moves 5%.
 const WHEEL_TRAVEL_PER_PIXEL = 0.0005;
 
+/**
+ * Travel after moving `amount` from `position`. At an end of a bounded
+ * range the position stops, so moving back responds at once; a wrapping or
+ * endless range lets it go on.
+ */
+function travelBy(range: Range, position: number, amount: number): number {
+  const next = position + amount;
+  return range.wrap || range.endless ? next : Math.min(1, Math.max(0, next));
+}
+
+/**
+ * The highest value the control reaches: `max`, or on a wrapping range the
+ * last step before it comes around. `undefined` when there is none: an
+ * endless range, or a continuous one that wraps.
+ */
+function lastValue(range: Range): number | undefined {
+  if (range.endless) return undefined;
+  if (!range.wrap) return range.max;
+  if (range.step === undefined) return undefined;
+  const steps = Math.ceil(Number(((range.max - range.min) / range.step).toPrecision(12)));
+  return range.constrain(range.min + (steps - 1) * range.step);
+}
+
 /** Pixels of scroll towards a higher value: wheel up, or a swipe to the right. */
 function wheelPixels(event: WheelEvent): number {
   // Shift turns a vertical wheel into a horizontal one on macOS and Windows; keep its direction.
@@ -202,6 +246,8 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     step,
     scale,
     format: formatProp,
+    wrap = false,
+    endless = false,
     origin: originProp,
     zones,
     sensitivity,
@@ -210,7 +256,10 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     disabled = false,
   } = props;
 
-  const range: Range = useMemo(() => createRange({ min, max, step, scale }), [min, max, step, scale]);
+  const range: Range = useMemo(
+    () => createRange({ min, max, step, scale, wrap, endless }),
+    [min, max, step, scale, wrap, endless],
+  );
   const format = useMemo(
     () => formatProp ?? formats.number({ digits: step !== undefined && Number.isInteger(step) ? 0 : 2 }),
     [formatProp, step],
@@ -267,15 +316,19 @@ export function useValueControl(props: ValueControlProps, options: Options) {
   const isControlled = useRef(controlled);
   isControlled.current = controlled;
 
+  /** Applies a value; `direction` is the way the user moved (+1 up, −1 down), which a wrapping value needs for its delta. */
   const change = useCallback(
-    (next: number, reason: ValueChangeReason, event: Event) => {
+    (next: number, reason: ValueChangeReason, event: Event, direction = 0) => {
       const constrained = range.constrain(next);
-      if (Object.is(constrained, latest.current)) return;
+      const previous = latest.current;
+      if (Object.is(constrained, previous)) return;
       beginGesture();
       latest.current = constrained;
       // Uncontrolled, the control shows the value at once, without rendering; controlled, when the parent passes it back.
       if (!isControlled.current) store.set(constrained);
-      callbacks.current.onValueChange?.(constrained, { reason, event });
+      let delta = constrained - previous;
+      if (range.wrap && delta * direction < 0) delta += direction * (range.max - range.min);
+      callbacks.current.onValueChange?.(constrained, { reason, event, delta });
     },
     [range, beginGesture, store],
   );
@@ -335,8 +388,8 @@ export function useValueControl(props: ValueControlProps, options: Options) {
         const pixelsMoved = orientation === "vertical" ? -dy : dx * towardsStart;
         if (pixelsMoved === 0) return;
         store.set(store.value, true);
-        position = Math.min(1, Math.max(0, position + (pixelsMoved / pixels) * (move.shiftKey ? FINE : 1)));
-        change(range.denormalize(position), "drag", move);
+        position = travelBy(range, position, (pixelsMoved / pixels) * (move.shiftKey ? FINE : 1));
+        change(range.denormalize(position), "drag", move, Math.sign(pixelsMoved));
       };
       const onEnd = (end: PointerEvent) => {
         if (end.pointerId !== pointerId) return;
@@ -366,6 +419,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
       const position = range.normalize(current);
       const byTravel = (amount: number) => range.denormalize(position + amount);
       const bySteps = (count: number) => current + count * range.step!;
+      const last = lastValue(range);
       const small = (direction: 1 | -1) =>
         range.step !== undefined ? bySteps(direction) : byTravel(direction * (event.shiftKey ? 0.001 : 0.01));
       const large = (direction: 1 | -1) =>
@@ -382,30 +436,36 @@ export function useValueControl(props: ValueControlProps, options: Options) {
         isRightToLeft(event.currentTarget);
 
       let next: number;
+      let direction: 1 | -1;
       switch (event.key) {
         case "ArrowUp":
-          next = small(1);
-          break;
         case "ArrowRight":
-          next = small(flip ? -1 : 1);
+          direction = event.key === "ArrowRight" && flip ? -1 : 1;
+          next = small(direction);
           break;
         case "ArrowDown":
-          next = small(-1);
-          break;
         case "ArrowLeft":
-          next = small(flip ? 1 : -1);
+          direction = event.key === "ArrowLeft" && flip ? 1 : -1;
+          next = small(direction);
           break;
         case "PageUp":
+          direction = 1;
           next = large(1);
           break;
         case "PageDown":
+          direction = -1;
           next = large(-1);
           break;
         case "Home":
+          // An endless control has no ends.
+          if (range.endless) return;
+          direction = -1;
           next = range.min;
           break;
         case "End":
-          next = range.max;
+          if (last === undefined) return;
+          direction = 1;
+          next = last;
           break;
         case "Delete":
         case "Backspace":
@@ -416,7 +476,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
           return;
       }
       event.preventDefault();
-      change(next, "keyboard", event.nativeEvent);
+      change(next, "keyboard", event.nativeEvent, direction);
       endGesture();
     },
     [range, change, endGesture, reset],
@@ -450,8 +510,8 @@ export function useValueControl(props: ValueControlProps, options: Options) {
         endGesture();
       }, WHEEL_GESTURE_MS);
       const amount = pixels * WHEEL_TRAVEL_PER_PIXEL * (event.shiftKey ? FINE : 1);
-      state.position = Math.min(1, Math.max(0, state.position + amount));
-      change(range.denormalize(state.position), "wheel", event);
+      state.position = travelBy(range, state.position, amount);
+      change(range.denormalize(state.position), "wheel", event, Math.sign(amount));
     },
     [range, change, endGesture],
   );
@@ -494,15 +554,17 @@ export function useValueControl(props: ValueControlProps, options: Options) {
 
   const state = derive(value, store.dragging);
 
+  // A slider needs a minimum and a maximum; an endless control has neither.
+  const role = endless ? "spinbutton" : options.role;
   /** The static props of the focusable element; its value attributes are live (`controlLive`). */
   const controlProps = {
     ref: controlRef,
     id: controlId,
-    role: options.role,
+    role,
     tabIndex: disabled ? -1 : 0,
-    "aria-valuemin": Number.isFinite(range.min) ? range.min : undefined,
-    "aria-valuemax": range.max,
-    "aria-orientation": options.role === "slider" ? options.orientation : undefined,
+    "aria-valuemin": !endless && Number.isFinite(range.min) ? range.min : undefined,
+    "aria-valuemax": endless ? undefined : (lastValue(range) ?? range.max),
+    "aria-orientation": role === "slider" ? options.orientation : undefined,
     "aria-disabled": disabled || undefined,
     "aria-labelledby": labelId,
     onPointerDown,
@@ -550,6 +612,8 @@ const VALUE_CONTROL_KEYS = [
   "step",
   "scale",
   "format",
+  "wrap",
+  "endless",
   "origin",
   "zones",
   "sensitivity",
