@@ -12,8 +12,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { createRange, formats, type Range, type Scale, type ValueFormat } from "../core/index.js";
+import { createRange, formats, zoneOf, type Range, type Scale, type ValueFormat, type Zones } from "../core/index.js";
 import { isRightToLeft } from "./direction.js";
+import { dataAttributes } from "./render.js";
 
 export const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -55,7 +56,10 @@ export type ValueControlProps = {
    * @default 1
    */
   max?: number | undefined;
-  /** Values snap to `min + k * step`, and arrow keys move one step. Leave it out for a continuous value. */
+  /**
+   * Values snap to `min + k * step` (to `k * step` when `min` is `-Infinity`),
+   * and arrow keys move one step. Leave it out for a continuous value.
+   */
   step?: number | undefined;
   /**
    * How travel maps to value: `scales.linear`, `scales.log`, `scales.power(n)` or `scales.decibel`.
@@ -70,6 +74,13 @@ export type ValueControlProps = {
    * @default min
    */
   origin?: number | undefined;
+  /**
+   * Named zones of the value by their lower bound, e.g. `{ hot: 0 }` on a
+   * fader in dB. Every part gets `data-zone` with the zone the value is in,
+   * which changes only when the value crosses a bound: style it in CSS
+   * instead of comparing values in code.
+   */
+  zones?: Zones | undefined;
   /**
    * Pixels of drag for the full travel. Shift divides the speed by 10.
    * @default 200 for a knob, the track length for a fader, two pixels per step for a number box
@@ -104,6 +115,8 @@ export type ValueControlState = {
   dragging: boolean;
   disabled: boolean;
   bipolar: boolean;
+  /** The zone of `zones` the value is in. */
+  zone: string | undefined;
 };
 
 type Options = {
@@ -142,6 +155,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     scale,
     format: formatProp,
     origin: originProp,
+    zones,
     sensitivity,
     wheel = true,
     pointerLock = false,
@@ -395,6 +409,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     dragging,
     disabled,
     bipolar: originNormalized > 0 && originNormalized < 1,
+    zone: zoneOf(value, zones),
   };
 
   const controlProps = {
@@ -415,7 +430,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     style: { touchAction: "none" },
   };
 
-  return { state, range, format, controlProps, controlId, setLabelId, change, endGesture };
+  return { state, range, format, zones, controlProps, controlId, setLabelId, change, endGesture };
 }
 
 export type ValueControl = ReturnType<typeof useValueControl>;
@@ -442,6 +457,7 @@ const VALUE_CONTROL_KEYS = [
   "scale",
   "format",
   "origin",
+  "zones",
   "sensitivity",
   "wheel",
   "pointerLock",
@@ -459,4 +475,14 @@ export function splitValueControlProps<Props extends ValueControlProps>(
     delete rest[key];
   }
   return [control as ValueControlProps, rest as Omit<Props, keyof ValueControlProps>];
+}
+
+/** The data attributes every part of a knob, fader or number box carries. */
+export function valueAttributes(state: ValueControlState): Record<string, unknown> {
+  return dataAttributes({
+    dragging: state.dragging,
+    disabled: state.disabled,
+    bipolar: state.bipolar,
+    zone: state.zone,
+  });
 }

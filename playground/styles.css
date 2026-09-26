@@ -374,6 +374,15 @@ select {
   background: var(--fader);
 }
 
+/* Above 0 dB (zones={{ hot: 0 }}), the fill and the + marks turn red. */
+.fader-range[data-zone="hot"] {
+  background: var(--clip);
+}
+
+.fader-tick[data-zone="hot"] {
+  color: var(--clip);
+}
+
 .fader-thumb {
   width: 24px;
   height: 12px;
@@ -384,7 +393,16 @@ select {
   box-shadow: 0 1px 3px #0008;
 }
 
-.fader[data-dragging] .fader-thumb {
+.fader[data-dragging] /* Above 0 dB (zones={{ hot: 0 }}), the fill and the + marks turn red. */
+.fader-range[data-zone="hot"] {
+  background: var(--clip);
+}
+
+.fader-tick[data-zone="hot"] {
+  color: var(--clip);
+}
+
+.fader-thumb {
   background: linear-gradient(#fff, #d6d6dc);
 }
 

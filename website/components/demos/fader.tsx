@@ -13,23 +13,30 @@ export default function FaderDemo() {
       defaultValue={0}
       scale={scales.decibel}
       format={formats.decibel()}
-      className="group flex flex-col items-center gap-2"
+      // Above 0 dB, every part gets data-zone="hot": the range, the +6 mark and the readout turn red.
+      zones={{ hot: 0 }}
+      className="flex flex-col items-center gap-2"
     >
       <Fader.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
         Volume
       </Fader.Label>
       <Fader.Control className="cursor-ns-resize rounded-md py-2 ps-3 pe-9 focus-visible:outline-2 focus-visible:outline-orange-500">
         <Fader.Track className="h-48 w-1 rounded-full bg-neutral-200 dark:bg-neutral-800">
-          <Fader.Range className="w-full rounded-full bg-orange-500" />
+          <Fader.Range className="w-full rounded-full bg-orange-500 data-[zone=hot]:bg-red-500" />
           {TICKS.map((db) => (
-            <Fader.Tick key={db} value={db} dir="ltr" className="start-4 font-mono text-[10px] text-neutral-400">
+            <Fader.Tick
+              key={db}
+              value={db}
+              dir="ltr"
+              className="start-4 font-mono text-[10px] text-neutral-400 data-[zone=hot]:text-red-500"
+            >
               {db > 0 ? `+${db}` : db}
             </Fader.Tick>
           ))}
-          <Fader.Thumb className="-ms-2.5 h-3 w-6 rounded-sm border border-black/20 bg-white shadow-sm group-data-dragging:bg-neutral-100" />
+          <Fader.Thumb className="-ms-2.5 h-3 w-6 rounded-sm border border-black/20 bg-white shadow-sm data-dragging:bg-neutral-100" />
         </Fader.Track>
       </Fader.Control>
-      <Fader.Value className="font-mono text-xs text-neutral-700 tabular-nums dark:text-neutral-300" />
+      <Fader.Value className="font-mono text-xs text-neutral-700 tabular-nums data-[zone=hot]:text-red-500 dark:text-neutral-300 dark:data-[zone=hot]:text-red-400" />
     </Fader.Root>
   );
 }

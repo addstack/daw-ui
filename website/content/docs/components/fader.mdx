@@ -35,6 +35,16 @@ import { Fader } from '@addstack/daw-ui/react';
 <Fader.Root min={-Infinity} max={6} defaultValue={0} scale={scales.decibel} format={formats.decibel()} />
 ```
 
+### Zones
+
+The fader above turns red above 0 dB, and so do its +6 mark and its readout. It declares the threshold once, with `zones={{ hot: 0 }}`, and every part gets `data-zone="hot"` while the value is above it:
+
+```tsx
+<Fader.Range className="bg-orange-500 data-[zone=hot]:bg-red-500" />
+```
+
+See [zones](/docs/guides/styling#zones).
+
 ### Horizontal
 
 `orientation="horizontal"` lays the fader out along the inline axis. In a right-to-left page it fills from the right, and dragging to the left increases it.
@@ -61,6 +71,9 @@ Groups the parts and holds the value. Renders a `<div>`.
 | `data-dragging` | While the value is being dragged. |
 | `data-disabled` | When `disabled`. |
 | `data-bipolar` | When `origin` lies inside the range. |
+| `data-zone` | The zone of `zones` the value is in. |
+
+Every part carries these attributes, except `Tick`, whose `data-zone` is the zone of its own value.
 
 | CSS variable | |
 | --- | --- |
@@ -98,7 +111,7 @@ The handle, centered on the value. Renders a `<div>`.
 
 ### Tick
 
-A mark of the scale, centered on `value`. Renders a `<div>` hidden from assistive technology; its children are yours, such as the dB number.
+A mark of the scale, centered on `value`. Renders a `<div>` hidden from assistive technology; its children are yours, such as the dB number. Its `data-zone` is the zone of its own value.
 
 <PropsTable part="Fader.Tick" />
 

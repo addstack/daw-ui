@@ -28,10 +28,14 @@ export type PartProps<Tag extends keyof JSX.IntrinsicElements, State> = Omit<
   ComponentPropsWithRef<Tag>,
   "className" | "style" | "children"
 > & {
-  /** A class name, or a function of the part's state that returns one. */
-  className?: string | ((state: State) => string | undefined) | undefined;
-  /** Merged over the part's own inline style (used for positioning). */
-  style?: CSSProperties | ((state: State) => CSSProperties | undefined) | undefined;
+  /**
+   * Class names. A plain value, never a function of state: the part's state
+   * reaches CSS through its `data-*` attributes and CSS variables, which cost
+   * no JavaScript when it changes (docs/principles.md, section 7).
+   */
+  className?: string | undefined;
+  /** Merged over the part's own inline style (used for positioning). A plain value, like `className`. */
+  style?: CSSProperties | undefined;
   /**
    * Replaces the rendered element: an element to merge the part's props into
    * (`render={<button />}`), or a function `(props, state) => element`.
@@ -111,21 +115,15 @@ export function dataAttributes(state: Record<string, unknown>): AnyProps {
 export function useRenderPart<State>(
   tag: keyof JSX.IntrinsicElements,
   state: State,
-  userProps: AnyProps & { className?: unknown; style?: unknown; render?: RenderProp<State> | undefined },
+  userProps: AnyProps & { render?: RenderProp<State> | undefined },
   ownProps: AnyProps,
 ): ReactElement {
-  const { render, className, style, ref: userRef, ...rest } = userProps;
+  const { render, ref: userRef, ...rest } = userProps;
   const { ref: ownRef, ...own } = ownProps;
   const renderRef = isValidElement<AnyProps>(render) ? render.props.ref : undefined;
   const ref = useMergedRef(ownRef as Ref<unknown>, userRef as Ref<unknown>, renderRef as Ref<unknown>);
 
-  const resolved: AnyProps = { ...rest };
-  const resolvedClassName = typeof className === "function" ? className(state) : className;
-  const resolvedStyle = typeof style === "function" ? style(state) : style;
-  if (resolvedClassName !== undefined) resolved.className = resolvedClassName;
-  if (resolvedStyle !== undefined) resolved.style = resolvedStyle;
-
-  const props = { ...mergeProps(own, resolved), ref };
+  const props = { ...mergeProps(own, rest), ref };
   if (typeof render === "function") return render(props, state);
   if (isValidElement<AnyProps>(render)) {
     const { ref: _ref, ...renderProps } = render.props;

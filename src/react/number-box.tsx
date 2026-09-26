@@ -18,6 +18,7 @@ import {
   splitValueControlProps,
   useLabel,
   useValueControl,
+  valueAttributes,
   type ValueControl,
   type ValueControlProps,
   type ValueControlState,
@@ -42,8 +43,10 @@ function useNumberBoxContext(part: string): NumberBoxContextValue {
   return context;
 }
 
-const stateAttributes = (state: NumberBoxState) =>
-  dataAttributes({ dragging: state.dragging, disabled: state.disabled, editing: state.editing });
+const stateAttributes = (state: NumberBoxState) => ({
+  ...valueAttributes(state),
+  ...dataAttributes({ editing: state.editing }),
+});
 
 // A character that starts typing a value, as in Ableton Live: focus a number box and type.
 const STARTS_A_VALUE = /^[0-9.,+\-−]$/;
@@ -196,6 +199,7 @@ export function NumberBoxLabel(props: NumberBoxLabel.Props) {
   useLabel(control, id);
   return useRenderPart("span", state, props, {
     id,
+    ...stateAttributes(state),
     onClick: () => document.getElementById(control.controlId)?.focus(),
   });
 }

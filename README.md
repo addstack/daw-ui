@@ -85,7 +85,7 @@ The parts carry no styles. Style them with classes, the `data-*` attributes they
 
 ## 🧩 Components
 
-Every root takes `className`, `style` (a value or a function of the state), `render` to replace its element, and the props of the element it renders. The types are exported per part, e.g. `Knob.Root.Props` and `Knob.Root.State`.
+Every part takes `className` and `style` (plain values: state reaches CSS through `data-*` attributes and CSS variables), `render` to replace its element, and the props of the element it renders. The types are exported per part, e.g. `Knob.Root.Props` and `Knob.Root.State`.
 
 ### Knob, Fader, NumberBox
 
@@ -99,6 +99,7 @@ Three views of one value model. They share these props:
 | `scale` | How travel maps to value: `scales.linear`, `scales.log` (Hz, ms), `scales.power(n)`, `scales.decibel` (a console fader law: 0 dB at about 80%). |
 | `format` | Text for the readout and `aria-valuetext`, and parsing of typed values. See [formats](#-values-and-formats). |
 | `origin` | Where the range is drawn from: `origin={0}` on a −1…1 pan knob fills from the center (`data-bipolar`). |
+| `zones` | Named thresholds, e.g. `{ hot: 0 }` on a dB fader: every part gets `data-zone="hot"` above 0 dB. See [zones](#-zones). |
 | `resetValue` | Where double-click and Delete go. Defaults to `defaultValue`, then `origin`. |
 | `sensitivity` | Pixels of drag for the full travel. Knob: 200. Fader: the track length, so the thumb follows the pointer. |
 | `wheel`, `pointerLock`, `disabled` | The wheel is on by default. Pointer lock hides the cursor during a drag, as desktop DAWs do. |
@@ -149,7 +150,7 @@ A peak meter with hold and a clip indicator. `read` is called once per animation
 </Meter.Root>
 ```
 
-`Bar` covers the track and is clipped to the level, so a gradient stays in place: green below, red at the top. The root sets `--meter-level`, `--meter-peak`, `data-active` while there is signal, and `data-clipped` after a clip. `fall`, `hold` and `clipAbove` tune the ballistics.
+`Bar` covers the track and is clipped to the level, so a gradient stays in place: green below, red at the top. The root sets `--meter-level`, `--meter-peak`, `data-active` while there is signal, `data-clipped` after a clip, and `data-zone` for its `zones`. `fall`, `hold` and `clipAbove` tune the ballistics.
 
 ### Toggle and ToggleGroup
 
@@ -199,6 +200,25 @@ Toggles subscribe to the group with selectors: painting one step of a 16 × 64 g
 
 A format is just `{ format(value): string; parse(text): number | null }`, so you can write your own.
 
+## 🚦 Zones
+
+Thresholds are declared, not computed per render. `zones` maps names to lower bounds in the control's units; every part gets `data-zone` with the zone the value is in, and the attribute changes only when a bound is crossed:
+
+```tsx
+<Fader.Root min={-Infinity} max={6} scale={scales.decibel} zones={{ hot: 0 }}>
+  <Fader.Control>
+    <Fader.Track>
+      <Fader.Range className="bg-orange-500 data-[zone=hot]:bg-red-500" />
+      <Fader.Tick value={6} className="data-[zone=hot]:text-red-500">+6</Fader.Tick>
+    </Fader.Track>
+  </Fader.Control>
+</Fader.Root>
+
+<Meter.Root read={peak} zones={{ warm: -18, hot: -6, clip: 0 }} />
+```
+
+A value at a bound belongs to the zone below it: 0 dB is not yet `hot`. Ticks carry the zone of their own value, and meters write `data-zone` from their frame loop, without React. `zoneOf(value, zones)` from the core gives the same answer in your own code, e.g. for a canvas.
+
 ## ↩️ Gestures, undo and automation
 
 ```tsx
@@ -227,7 +247,8 @@ The deterministic numbers fail CI when they get worse: React commits per interac
 
 The package ships behaviour only, so it can sit under your design system or a shadcn registry, the way Base UI sits under shadcn/ui. The [documentation's demos](https://github.com/addstack/daw-ui/tree/main/website/components/demos) show it with Tailwind, and the [playground](https://github.com/addstack/daw-ui/blob/main/playground/main.tsx) is written like that: its `components/ui` sections wrap the parts with `data-slot` and classes, and the app imports those.
 
-- State is exposed as attributes: `data-dragging`, `data-disabled`, `data-bipolar`, `data-orientation`, `data-pressed`, `data-painting="on" | "off"`, `data-editing`, `data-active`, `data-clipped`.
+- State is exposed as attributes: `data-dragging`, `data-disabled`, `data-bipolar`, `data-zone`, `data-orientation`, `data-pressed`, `data-painting="on" | "off"`, `data-editing`, `data-active`, `data-clipped`.
+- `className` and `style` are plain values, never functions of state. In a DAW everything renders often (every pointer event of a drag, every frame of automation), so styling must not run code per render; the browser applies attributes and CSS variables by itself.
 - Values are exposed as CSS variables: `--knob-value`, `--knob-angle`, `--fader-value`, `--meter-level`, `--meter-peak`.
 - `render` replaces a part's element: `<Knob.Control render={<button />} />`. Handlers are merged; call `event.preventDefault()` in yours to skip the part's own handling.
 - The only inline styles are positioning along a track (with logical properties) and `touch-action`.

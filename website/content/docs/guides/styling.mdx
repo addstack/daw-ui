@@ -5,25 +5,23 @@ description: Style the parts with classes, data attributes and CSS variables, re
 
 The components ship behaviour, not looks. The only inline styles they set are what the behaviour needs: positions along a track (with logical properties, so they follow right-to-left layouts), the clipping of a meter's bar, and `touch-action: none` on the elements you drag. Everything else is yours.
 
-## Class names
+## Styling runs no code per render
 
-Every part takes `className`, or a function of its state that returns one:
+In a DAW everything renders often: a drag commits on every pointer event, and automation changes controlled values on every frame, on every channel. So `className` and `style` take plain values, never functions of state, and a part's state reaches CSS only through data attributes and CSS variables. The browser applies them by itself, without running your code on each render ([principles, section 7](/docs/principles#7-performance)).
 
 ```tsx
-<Knob.Control className={(state) => (state.dragging ? 'cursor-grabbing' : 'cursor-ns-resize')} />
+<Knob.Control className="cursor-ns-resize data-dragging:cursor-grabbing" />
 ```
 
-`style` works the same way, and is merged over the part's own inline style.
+`style` is merged over the part's own inline style.
 
 ## Data attributes
 
-Parts mark their state with attributes, which work in plain CSS and as Tailwind variants:
+Every part of a control carries its state as attributes, which work in plain CSS and as Tailwind variants:
 
 ```tsx
 <Toggle className="bg-neutral-800 data-pressed:bg-orange-500 data-disabled:opacity-50" />
-<Knob.Root className="group">
-  <Knob.Range className="stroke-orange-500 group-data-dragging:stroke-orange-400" />
-</Knob.Root>
+<Knob.Range className="stroke-orange-500 data-dragging:stroke-orange-400" />
 ```
 
 | Attribute | Set on |
@@ -31,11 +29,32 @@ Parts mark their state with attributes, which work in plain CSS and as Tailwind 
 | `data-dragging` | Knob, Fader and NumberBox parts, while the value is dragged. |
 | `data-disabled` | Every part of a disabled control. |
 | `data-bipolar` | Knob and Fader parts, when `origin` lies inside the range. |
+| `data-zone` | Knob, Fader and NumberBox parts, and the Meter root: the zone of `zones` the value is in. |
 | `data-orientation` | Fader, Meter and ToggleGroup roots. |
 | `data-editing` | NumberBox root and field, while the value is typed. |
 | `data-pressed` | Toggle, while it is on. |
 | `data-painting` | ToggleGroup, during a paint stroke: `"on"` or `"off"`. |
 | `data-active`, `data-clipped` | Meter root while there is signal, and after a clip; `data-clipped` also on `Meter.Clip`. |
+
+## Zones
+
+A threshold, such as "red above 0 dB", is declared once instead of compared in code. `zones` maps names to lower bounds in the control's units, and every part gets `data-zone` with the zone the value is in. The attribute changes only when the value crosses a bound:
+
+```tsx
+<Fader.Root min={-Infinity} max={6} scale={scales.decibel} zones={{ hot: 0 }}>
+  <Fader.Control>
+    <Fader.Track>
+      <Fader.Range className="bg-orange-500 data-[zone=hot]:bg-red-500" />
+      <Fader.Tick value={6} className="data-[zone=hot]:text-red-500">+6</Fader.Tick>
+      <Fader.Thumb />
+    </Fader.Track>
+  </Fader.Control>
+</Fader.Root>
+```
+
+A value at a bound belongs to the zone below it: 0 dB is not yet `hot`. A tick carries the zone of its own value, so the marks of the hot zone can be red too. A meter takes `zones` for its level and writes `data-zone` from its frame loop, without React.
+
+For a colour that changes smoothly with the value, use the CSS variables below, e.g. `color-mix(in oklch, orange, red calc(var(--fader-value) * 100%))`.
 
 ## CSS variables
 
@@ -49,7 +68,7 @@ Roots expose their value as CSS variables, for styling that follows the value wi
 
 ## The render prop
 
-`render` replaces the element a part renders, keeping its behaviour. Pass an element to merge the part's props into, or a function that receives them:
+`render` replaces the element a part renders, keeping its behaviour. Pass an element to merge the part's props into, or a function that receives them and the state:
 
 ```tsx
 <Knob.Control render={<button type="button" />} />

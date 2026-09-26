@@ -71,6 +71,9 @@ Groups the parts and holds the value. Renders a `<div>`.
 | `data-dragging` | While the value is being dragged. |
 | `data-disabled` | When `disabled`. |
 | `data-bipolar` | When `origin` lies inside the range. |
+| `data-zone` | The zone of `zones` the value is in: `zones={{ high: 0.75 }}` sets `data-zone="high"` above 0.75. |
+
+Every part carries these attributes, so `data-[zone=high]:stroke-red-500` works on `Range` directly.
 
 | CSS variable | |
 | --- | --- |
@@ -79,7 +82,7 @@ Groups the parts and holds the value. Renders a `<div>`.
 
 ### Control
 
-The focusable element that takes drags, keys and the wheel. Renders a `<div>` with `role="slider"`, `aria-valuenow`, `aria-valuetext` (the formatted value) and the label. It sets the same data attributes as the root.
+The focusable element that takes drags, keys and the wheel. Renders a `<div>` with `role="slider"`, `aria-valuenow`, `aria-valuetext` (the formatted value) and the label.
 
 <PropsTable part="Knob.Control" />
 

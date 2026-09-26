@@ -8,7 +8,7 @@ const pan = formats.pan({ left: 'L', right: 'R', center: 'C' });
 
 export default function BipolarKnobDemo() {
   return (
-    <Knob.Root min={-1} max={1} origin={0} format={pan} className="group flex flex-col items-center gap-1.5">
+    <Knob.Root min={-1} max={1} origin={0} format={pan} className="flex flex-col items-center gap-1.5">
       <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
         Pan
       </Knob.Label>

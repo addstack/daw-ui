@@ -53,6 +53,12 @@ When the level lives in React state instead, pass it as `level`.
 .clip[data-clipped] { background: #ef4444; }
 ```
 
+To colour the whole meter by its level instead, declare `zones={{ warm: -18, hot: -6, clip: 0 }}`: the root gets `data-zone` with the zone the level is in, written from the frame loop only when it changes.
+
+```css
+.meter[data-zone="clip"] .bar { background: #ef4444; }
+```
+
 ## API reference
 
 ### Root
@@ -66,6 +72,7 @@ Reads the level and runs the ballistics. Renders a `<div>`.
 | `data-orientation` | `"vertical"` or `"horizontal"`. |
 | `data-active` | While the peak is above `min`. |
 | `data-clipped` | After the level went above `clipAbove`, until the clip indicator is pressed. |
+| `data-zone` | The zone of `zones` the level is in. |
 
 | CSS variable | |
 | --- | --- |

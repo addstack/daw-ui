@@ -267,6 +267,7 @@ function App() {
                 min={-Infinity}
                 max={6}
                 defaultValue={0}
+                zones={{ hot: 0 }}
                 scale={scales.decibel}
                 format={decibel}
                 onValueChange={(volume) => engine.setMaster({ volume })}
@@ -328,6 +329,7 @@ function ChannelStrip({ instrument, language, decibel }: { instrument: Instrumen
           min={-Infinity}
           max={6}
           defaultValue={0}
+          zones={{ hot: 0 }}
           scale={scales.decibel}
           format={decibel}
           onValueChange={(volume) => engine.setChannel(instrument, { volume })}

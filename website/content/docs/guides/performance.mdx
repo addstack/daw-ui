@@ -7,6 +7,7 @@ In a DAW, the interface competes with audio and with dozens of animated meters. 
 
 ## How the components work
 
+- **Styling runs no code per render.** `className` and `style` take plain values; state reaches CSS through data attributes and CSS variables, and thresholds through [zones](/docs/guides/styling#zones). A drag commits on every pointer event and automation on every frame, so anything computed per render is multiplied by the channel count and the frame rate.
 - **Meters never render through React.** One shared `requestAnimationFrame` loop reads every meter and writes CSS variables and attributes directly, and only when they change. The accessible value updates four times a second.
 - **An interaction renders only what it changes.** Dragging one knob does not render its siblings. Toggles in a group subscribe to their own state: painting one step of a 16 × 64 sequencer renders that step, not the grid.
 - **Layout is read once per gesture.** A paint stroke reads the boxes of the toggles when it starts, then tests the pointer's path against them.

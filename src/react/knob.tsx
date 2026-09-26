@@ -3,11 +3,12 @@
 import { createContext, useContext, useId, type CSSProperties, type ReactNode } from "react";
 
 import { arcPath, knobAngle, polar } from "../core/index.js";
-import { dataAttributes, useRenderPart, type PartProps } from "./render.js";
+import { useRenderPart, type PartProps } from "./render.js";
 import {
   splitValueControlProps,
   useLabel,
   useValueControl,
+  valueAttributes,
   type ValueControl,
   type ValueControlProps,
   type ValueControlState,
@@ -26,8 +27,6 @@ function useKnobContext(part: string): KnobContextValue {
   return context;
 }
 
-const stateAttributes = (state: ValueControlState) =>
-  dataAttributes({ dragging: state.dragging, disabled: state.disabled, bipolar: state.bipolar });
 
 /**
  * Groups the parts of a knob and holds its value. Sets `--knob-value` (travel
@@ -44,7 +43,7 @@ export function KnobRoot(props: KnobRoot.Props) {
   const { state } = control;
 
   const element = useRenderPart("div", state, elementProps, {
-    ...stateAttributes(state),
+    ...valueAttributes(state),
     style: {
       "--knob-value": state.normalized,
       "--knob-angle": `${knobAngle(state.normalized, sweep)}deg`,
@@ -68,7 +67,7 @@ export namespace KnobRoot {
 /** The focusable element (`role="slider"`) that takes drags, keys and the wheel. */
 export function KnobControl(props: KnobControl.Props) {
   const { control } = useKnobContext("Control");
-  return useRenderPart("div", control.state, props, { ...control.controlProps, ...stateAttributes(control.state) });
+  return useRenderPart("div", control.state, props, { ...control.controlProps, ...valueAttributes(control.state) });
 }
 
 export namespace KnobControl {
@@ -84,6 +83,7 @@ export function KnobLabel(props: KnobLabel.Props) {
   useLabel(control, id);
   return useRenderPart("span", control.state, props, {
     id,
+    ...valueAttributes(control.state),
     onClick: () => document.getElementById(control.controlId)?.focus(),
   });
 }
@@ -99,6 +99,7 @@ export function KnobTrack({ radius = 40, ...props }: KnobTrack.Props) {
   return useRenderPart("path", control.state, props, {
     d: arcPath(CENTER, CENTER, radius, -sweep / 2, sweep / 2),
     fill: "none",
+    ...valueAttributes(control.state),
   });
 }
 
@@ -120,6 +121,7 @@ export function KnobRange({ radius = 40, ...props }: KnobRange.Props) {
   return useRenderPart("path", control.state, props, {
     d: arcPath(CENTER, CENTER, radius, knobAngle(originNormalized, sweep), knobAngle(normalized, sweep)),
     fill: "none",
+    ...valueAttributes(control.state),
   });
 }
 
@@ -134,7 +136,13 @@ export function KnobPointer({ from = 0, to = 40, ...props }: KnobPointer.Props) 
   const angle = knobAngle(control.state.normalized, sweep);
   const start = polar(CENTER, CENTER, from, angle);
   const end = polar(CENTER, CENTER, to, angle);
-  return useRenderPart("line", control.state, props, { x1: start.x, y1: start.y, x2: end.x, y2: end.y });
+  return useRenderPart("line", control.state, props, {
+    x1: start.x,
+    y1: start.y,
+    x2: end.x,
+    y2: end.y,
+    ...valueAttributes(control.state),
+  });
 }
 
 export namespace KnobPointer {
@@ -166,6 +174,7 @@ export function KnobValue({ children, ...props }: KnobValue.Props) {
     htmlFor: control.controlId,
     "aria-live": "off",
     dir: "auto",
+    ...valueAttributes(state),
   });
 }
 

@@ -30,7 +30,7 @@ A component is a namespace of parts (`Knob.Root`, `Knob.Control`, …). A part m
 Each part:
 
 - renders one element (listed per part below) and passes through the props of that element;
-- accepts `className` and `style` as values or as functions of the part's state; a function's result is used as if it had been passed directly;
+- accepts `className` and `style` as plain values, never as functions of state: state reaches CSS through data attributes and CSS variables ([principles, section 7](./principles.md#7-performance));
 - accepts `render`: an element, which is cloned with the part's props merged into its own, or a function `(props, state) => element`;
 - merges props in this way: the user's event handler runs first, and if it calls `event.preventDefault()`, the part's own handler is skipped; class names are joined; the user's style is spread over the part's inline style; refs all receive the element.
 
@@ -42,7 +42,7 @@ Inline styles set by parts are limited to positioning (`position`, logical inset
 
 - requires `max > min` and `step > 0`, and throws a `RangeError` otherwise;
 - `clamp(v)` limits to `[min, max]`;
-- `constrain(v)` clamps, then snaps to `min + k·step` when `step` is set (rounded to the decimals of `step` and `min`, then clamped again), and otherwise rounds to 12 significant digits;
+- `constrain(v)` clamps, then snaps to `min + k·step` when `step` is set (to `k·step` when `min` is `−∞`; rounded to the decimals of `step` and `min`, then clamped again), and otherwise rounds to 12 significant digits;
 - `normalize(v)` returns the travel position in `[0, 1]` through the scale;
 - `denormalize(t)` clamps `t` to `[0, 1]`, maps it through the scale, and constrains the result.
 
@@ -54,6 +54,12 @@ Scales map a value in `[min, max]` to travel and back:
 | `log` | `ln(v / min) / ln(max / min)`; requires `min > 0` |
 | `power(e)` | `linear(v)^(1/e)` |
 | `decibel` | `(a(v)^¼ − a(min)^¼) / (a(max)^¼ − a(min)^¼)` with `a(dB) = 10^(dB/20)`; `min = −∞` is allowed and maps to travel 0 |
+
+### Zones
+
+`zoneOf(value, zones)` takes zones as a map from name to lower bound, in the value's units. The value is in the zone with the highest bound that it is strictly above; a value at a bound belongs to the zone below (0 dB is not in `{ clip: 0 }`). Below every bound, and without zones, it is in no zone (`undefined`). The order of the map does not matter.
+
+Controls that take `zones` expose the zone as `data-zone`, so that thresholds are styled in CSS and the attribute changes only when a bound is crossed.
 
 ## 4. Formats
 
@@ -81,7 +87,9 @@ Built-in formats:
 
 Each root holds a value: controlled when `value` is given, otherwise starting at `constrain(defaultValue ?? origin)`. `origin` defaults to `min` and is clamped. The displayed value is `clamp(value)`.
 
-State exposed to parts: `value`, `normalized`, `originNormalized`, `text` (formatted value), `dragging`, `disabled`, `bipolar` (`0 < originNormalized < 1`).
+State exposed to parts: `value`, `normalized`, `originNormalized`, `text` (formatted value), `dragging`, `disabled`, `bipolar` (`0 < originNormalized < 1`), `zone` (`zoneOf(value, zones)`, §3).
+
+Every part of a knob, fader or number box carries the data attributes `data-dragging`, `data-disabled`, `data-bipolar` and `data-zone` for this state; fader parts also carry `data-orientation`, number box parts `data-editing`. `Fader.Tick` is the exception: its `data-zone` is the zone of its own `value`.
 
 A change is **applied** as follows: the candidate is constrained; if it equals the last value this control produced or rendered (`Object.is`), nothing happens; otherwise a gesture starts if none is open (§6), the uncontrolled value is set, and `onValueChange(value, { reason, event })` is called. A controlled control shows the new value only when the parent passes it back.
 
@@ -119,7 +127,7 @@ Double-click (knob, fader) and Delete/Backspace apply `resetValue ?? defaultValu
 
 | Part | Element | Behaviour |
 | --- | --- | --- |
-| `*.Root` | `div` | Holds the value. Knob: `--knob-value`, `--knob-angle` (`−sweep/2 + normalized·sweep`, in deg). Fader: `--fader-value`, `data-orientation`. Data: `dragging`, `disabled`, `bipolar`. |
+| `*.Root` | `div` | Holds the value. Knob: `--knob-value`, `--knob-angle` (`−sweep/2 + normalized·sweep`, in deg). Fader: `--fader-value`. |
 | `Knob.Control`, `Fader.Control` | `div` | `role="slider"`, `tabindex` 0 (−1 disabled), `aria-valuemin` (omitted when infinite), `aria-valuemax`, `aria-valuenow` (omitted when infinite), `aria-valuetext` = formatted value, `aria-orientation`, `aria-disabled`, `aria-labelledby` = the mounted `Label`. Handles §5.2–5.5. |
 | `*.Label` | `span` | Its id labels the control while mounted. A click focuses the control. |
 | `*.Value` | `output` | The formatted value (or `children(text, value)`), `for` the control, `aria-live="off"`, `dir="auto"`. |
@@ -165,6 +173,7 @@ Options: `floor` (−70 dBFS; the meter root passes its `min`), `fall` (24 dB/s)
 - `--meter-level` and `--meter-peak` on the root: travel positions rounded to 0.001 (range `min` … `max`, default −60 … +6, scale `scale`);
 - `data-active` on the root while the peak is above `min`;
 - `data-clipped` on the root and on every mounted `Meter.Clip` while clipped;
+- `data-zone` on the root: the zone of `zones` the level is in (§3);
 - at most every 250 ms: `aria-valuenow` (level rounded to 0.1 dB) and `aria-valuetext` (`format`, default `formats.decibel()`) on the track.
 
 | Part | Element | Behaviour |

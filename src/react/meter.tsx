@@ -17,11 +17,13 @@ import {
   createMeterBallistics,
   createRange,
   formats,
+  zoneOf,
   type MeterBallistics,
   type MeterBallisticsOptions,
   type Range,
   type Scale,
   type ValueFormat,
+  type Zones,
 } from "../core/index.js";
 import { useRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
@@ -68,7 +70,8 @@ function setAttribute(element: Element, name: string, value: string | null): voi
  * state: a mixer of 64 running meters renders nothing.
  *
  * Sets `--meter-level` and `--meter-peak` (travel in [0, 1]) on its element,
- * `data-active` while there is signal, and `data-clipped` after a clip.
+ * `data-active` while there is signal, `data-clipped` after a clip, and
+ * `data-zone` with the zone of `zones` the level is in.
  */
 export function MeterRoot(props: MeterRoot.Props) {
   const {
@@ -82,6 +85,7 @@ export function MeterRoot(props: MeterRoot.Props) {
     hold,
     clipAbove,
     orientation = "vertical",
+    zones,
     ref: userRef,
     ...elementProps
   } = props;
@@ -100,29 +104,37 @@ export function MeterRoot(props: MeterRoot.Props) {
   const ref = useMergedRef(root, directionRef, userRef);
   const [labelId, setLabelId] = useState<string | undefined>(undefined);
 
-  const input = useRef({ read, level });
-  input.current = { read, level };
+  const input = useRef({ read, level, zones });
+  input.current = { read, level, zones };
 
   useEffect(() => {
-    let written = { level: -1, peak: -1, active: false, clipped: false };
+    let written: { level: number; peak: number; active: boolean; clipped: boolean; zone: string | undefined } = {
+      level: -1,
+      peak: -1,
+      active: false,
+      clipped: false,
+      zone: undefined,
+    };
     let accessibleAt = -Infinity;
     return onEveryFrame((now) => {
       const element = root.current;
       if (!element) return;
-      const { read, level } = input.current;
+      const { read, level, zones } = input.current;
       const reading = ballistics.update(read ? read() : (level ?? -Infinity), now);
       const levelTravel = Math.round(range.normalize(reading.level) * 1000) / 1000;
       const peakTravel = Math.round(range.normalize(reading.peak) * 1000) / 1000;
       const active = reading.peak > range.min;
+      const zone = zoneOf(reading.level, zones);
 
       if (levelTravel !== written.level) element.style.setProperty("--meter-level", String(levelTravel));
       if (peakTravel !== written.peak) element.style.setProperty("--meter-peak", String(peakTravel));
       if (active !== written.active) setAttribute(element, "data-active", active ? "" : null);
+      if (zone !== written.zone) setAttribute(element, "data-zone", zone ?? null);
       if (reading.clipped !== written.clipped) {
         setAttribute(element, "data-clipped", reading.clipped ? "" : null);
         for (const indicator of clipIndicators) setAttribute(indicator, "data-clipped", reading.clipped ? "" : null);
       }
-      written = { level: levelTravel, peak: peakTravel, active, clipped: reading.clipped };
+      written = { level: levelTravel, peak: peakTravel, active, clipped: reading.clipped, zone };
 
       if (track.current && now - accessibleAt >= ACCESSIBLE_UPDATE_MS) {
         accessibleAt = now;
@@ -184,6 +196,12 @@ export namespace MeterRoot {
        * @default "vertical"
        */
       orientation?: Orientation | undefined;
+      /**
+       * Named zones of the level by their lower bound in dBFS, e.g.
+       * `{ warm: -18, hot: -6, clip: 0 }`. The root gets `data-zone` with the
+       * zone the level is in, written only when it changes.
+       */
+      zones?: Zones | undefined;
     } & Omit<MeterBallisticsOptions, "floor">;
 }
 

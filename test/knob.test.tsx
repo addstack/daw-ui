@@ -240,20 +240,25 @@ describe("styling", () => {
     expect(screen.getByTestId("track").getAttribute("d")).toMatch(/^M [\d.]+ [\d.]+ A /);
   });
 
-  test("className and style can be functions of the state", () => {
+  test("className and style are plain values, merged with the part's own", () => {
     render(
       <Knob.Root defaultValue={0.4}>
-        <Knob.Control
-          className={(state) => (state.normalized > 0.5 ? "high" : "low")}
-          style={(state) => ({ opacity: state.normalized })}
-        />
+        <Knob.Control className="knob" style={{ opacity: 0.5 }} />
       </Knob.Root>,
     );
     const slider = screen.getByRole("slider");
-    expect(slider.className).toBe("low");
-    expect(slider.style.opacity).toBe("0.4");
+    expect(slider.className).toBe("knob");
+    expect(slider.style.opacity).toBe("0.5");
     // The part's own inline style stays.
     expect(slider.style.touchAction).toBe("none");
+  });
+
+  test("styling never runs a function per render (docs/principles.md, section 7)", () => {
+    // @ts-expect-error: className takes a value; state reaches CSS through data attributes.
+    const className: Knob.Control.Props["className"] = () => "high";
+    // @ts-expect-error: style takes a value; values reach CSS as variables.
+    const style: Knob.Control.Props["style"] = () => ({ opacity: 1 });
+    expect([typeof className, typeof style]).toEqual(["function", "function"]);
   });
 
   test("render replaces the element and keeps the part's behaviour", () => {

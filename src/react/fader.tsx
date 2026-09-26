@@ -2,12 +2,14 @@
 
 import { createContext, useContext, useId, useRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 
+import { zoneOf } from "../core/index.js";
 import { useRightToLeft } from "./direction.js";
 import { dataAttributes, useRenderPart, type PartProps } from "./render.js";
 import {
   splitValueControlProps,
   useLabel,
   useValueControl,
+  valueAttributes,
   type ValueControl,
   type ValueControlProps,
   type ValueControlState,
@@ -32,13 +34,10 @@ function useFaderContext(part: string): FaderContextValue {
 
 export type FaderState = ValueControlState & { orientation: Orientation };
 
-const stateAttributes = (state: FaderState) =>
-  dataAttributes({
-    dragging: state.dragging,
-    disabled: state.disabled,
-    bipolar: state.bipolar,
-    orientation: state.orientation,
-  });
+const stateAttributes = (state: FaderState) => ({
+  ...valueAttributes(state),
+  ...dataAttributes({ orientation: state.orientation }),
+});
 
 function useFaderState(context: FaderContextValue): FaderState {
   return { ...context.control.state, orientation: context.orientation };
@@ -110,8 +109,10 @@ export function FaderLabel(props: FaderLabel.Props) {
   const generatedId = useId();
   const id = props.id ?? generatedId;
   useLabel(context.control, id);
-  return useRenderPart("span", useFaderState(context), props, {
+  const state = useFaderState(context);
+  return useRenderPart("span", state, props, {
     id,
+    ...stateAttributes(state),
     onClick: () => document.getElementById(context.control.controlId)?.focus(),
   });
 }
@@ -173,12 +174,17 @@ export namespace FaderThumb {
   export type Props = PartProps<"div", State>;
 }
 
-/** A scale mark centered on `value`, e.g. `<Fader.Tick value={-6}>-6</Fader.Tick>`. */
+/**
+ * A scale mark centered on `value`, e.g. `<Fader.Tick value={-6}>-6</Fader.Tick>`.
+ * Its `data-zone` is the zone of its own value, so the marks of a zone can be
+ * coloured like it.
+ */
 export function FaderTick({ value, ...props }: FaderTick.Props) {
   const context = useFaderContext("Tick");
   const state = useFaderState(context);
   return useRenderPart("div", state, props, {
     "aria-hidden": true,
+    ...dataAttributes({ orientation: state.orientation, zone: zoneOf(value, context.control.zones) }),
     style: centeredAt(context, context.control.range.normalize(value)),
   });
 }
@@ -204,6 +210,7 @@ export function FaderValue({ children, ...props }: FaderValue.Props) {
     htmlFor: context.control.controlId,
     "aria-live": "off",
     dir: "auto",
+    ...stateAttributes(state),
   });
 }
 
