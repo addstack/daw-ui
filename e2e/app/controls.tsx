@@ -82,6 +82,11 @@ export function Controls() {
           <NumberBox.Label>Tempo</NumberBox.Label>
           <NumberBox.Field className="number-box" />
         </NumberBox.Root>
+
+        <NumberBox.Root min={0} max={400} defaultValue={0} format={formats.position({ locale: "en" })}>
+          <NumberBox.Label>Position</NumberBox.Label>
+          <NumberBox.Segments className="number-box" labels={{ bars: "Bar", beats: "Beat", divisions: "Sixteenth" }} />
+        </NumberBox.Root>
       </section>
 
       <section>

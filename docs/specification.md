@@ -73,7 +73,14 @@ Controls that take `zones` expose the zone as `data-zone`, so that thresholds ar
 
 ## 4. Formats
 
-A format is `{ format(value): string; parse(text): number | null }`. `parse` returns `null` for text it does not understand. Parsed values are constrained by the range afterwards.
+A format is `{ format(value): string; parse(text): number | null; segments? }`. `parse` returns `null` for text it does not understand. Parsed values are constrained by the range afterwards.
+
+`segments`, when present, is a fixed list of the value's fields and the literal text between them, for `NumberBox.Segments` (§5.8):
+
+- a field is `{ type: "field", name, step, get(value), format(value), min?, max? }`: `step` is the change of the value for one step of the field, in the value's units; `get` is the field's number in a value, `format` its text; `min` and `max` bound that number when it has bounds;
+- a literal is `{ type: "literal", text }`.
+
+Fields are views of the one value, so a step past a field's end carries into the next field. The built-in formats with segments build `format(value)` by joining the segments' texts.
 
 Built-in formats:
 
@@ -90,6 +97,16 @@ Built-in formats:
 | `percent({ digits = 0 })` | the fraction as a percentage in the locale's style | a number, optionally `%`; divided by 100 |
 | `pan({ left, right, center })` | `center` when `round(|v|·100) = 0`, else the amount followed by `left` or `right` | `center`; a number (÷100); a number followed by `left` (negative) or `right` |
 | `time()` | milliseconds: 2 decimals under 10, 1 under 100, else 0, then `ms`; from 1000: seconds with 2 decimals and `s` | a number, optionally `ms`; a number followed by `s` (×1000) |
+| `position({ beatsPerBar = 4, divisions = 4 })` | beats as `bar.beat.division`, each counted from 1: with `n = ⌊v·divisions + 10⁻⁹⌋`, bar `⌊n / (beatsPerBar·divisions)⌋ + 1`, beat `⌊(n mod beatsPerBar·divisions) / divisions⌋ + 1`, division `(n mod divisions) + 1` | one to three whole numbers (the first may be negative) separated by `.`, `:`, `,`, `;` or spaces, missing ones being 1: `(bar − 1)·beatsPerBar + (beat − 1) + (division − 1) / divisions` |
+| `timecode({ fps })` | seconds as `hh:mm:ss:ff`, two digits each, from `n = ⌊|v|·fps + 10⁻⁹⌋` frames; a minus sign before the hours when `v < 0` and `n > 0`. `fps` must be a whole number greater than 0, or it throws a `RangeError` | one to four whole numbers separated as for `position`, filled from the right (frames last); 3 to 8 digits alone are split into pairs from the right (`1500` is 15 s); a leading minus negates |
+
+Segments of the built-in formats:
+
+| Format | Fields (`name`: `step`, bounds) | Literals |
+| --- | --- | --- |
+| `number` | `integer`: 1, text with the sign of the rounded value (`-0` included); `fraction`: 10^−digits, 0 … 10^digits − 1, padded to `digits` (only when `digits > 0`). Both from the value rounded to `digits`. | the locale's decimal separator; `" " + unit` when `unit` is set |
+| `position` | `bars`: `beatsPerBar`; `beats`: 1, 1 … `beatsPerBar`; `divisions`: 1 / `divisions`, 1 … `divisions` | `.` |
+| `timecode` | `hours`: 3600, from 0; `minutes`: 60, 0 … 59; `seconds`: 1, 0 … 59; `frames`: 1 / `fps`, 0 … `fps` − 1 | `:` |
 
 ## 5. Value controls (Knob, Fader, NumberBox)
 
@@ -159,12 +176,31 @@ Double-click (knob, fader) and Delete/Backspace apply `resetValue ?? defaultValu
 | `Fader.Range` | `div` | Absolutely positioned from the lower of origin and value, with length equal to their distance. |
 | `Fader.Thumb`, `Fader.Tick` | `div` | Centred on the value (thumb) or on `normalize(value)` (tick). Ticks are `aria-hidden`. |
 | `NumberBox.Field` | `span`, or `input` while editing | Display: `role="spinbutton"` with the value attributes (without `aria-valuemin` and `aria-valuemax` when endless), `dir="auto"`. See §5.7. |
+| `NumberBox.Segments` | `div`, or `input` while editing | `role="group"` labelled by the `Label`, `dir="ltr"`. Renders the format's segments, through `children(segment)` when given (called when the format changes, not the value), else a `NumberBox.Segment` each. See §5.8. |
+| `NumberBox.Segment` | `span` | A field: `role="spinbutton"`, `tabindex` 0 (−1 disabled), `aria-label` = `labels[name]`, `aria-valuenow` = `get(value)`, `aria-valuemin`/`aria-valuemax` = the field's bounds, `data-segment` = `name`, text `format(value)`. A literal: its text, `aria-hidden`, `data-literal`. |
 
 Angles are in degrees, clockwise from 12 o'clock. `sweep` defaults to 270, and to 360 on a wrapping or endless knob.
 
 ### 5.7 Number box editing
 
 Editing starts on double-click, on Enter, or on a typed character matching `[0-9.,+−-]` without Ctrl, Meta or Alt (the draft is then that character). The draft starts as the formatted value, selected. While editing, the field is a text input with `inputmode="decimal"`, labelled by the `Label`, with `data-editing` on the root and the field. Enter applies `format.parse(draft)` with reason `"input"` as one gesture if it is not `null`, then gives focus back to the display. Escape discards the draft and gives focus back. Blur applies like Enter, without moving focus. Only the first of Enter or blur applies.
+
+### 5.8 Number box segments
+
+`NumberBox.Segments` throws when the root's format has no `segments`. Its `labels` prop maps field names to accessible names from the application. The first field has the control's id, so the `Label` focuses it on click.
+
+A field's text and `aria-valuenow` are written through the store (§5.1): a change of the value renders neither the group nor the segments. On a field, with `s` its step and `v` the last value (§5.1):
+
+| Input | Effect |
+| --- | --- |
+| ArrowUp / ArrowDown | applies `v ± s`, reason `"keyboard"`, one gesture |
+| ArrowLeft / ArrowRight | focuses the previous / next field of the group; the group is always left to right |
+| drag | as §5.2 up to the movement, then every 4 px up (40 px with Shift) applies `v + s`, and every 4 px down `v − s`, reason `"drag"`; the remainder carries to the next move |
+| wheel | as §5.4 up to the pixels, then every 100 px (a notch) applies one step, reason `"wheel"` |
+| Enter, double-click, a typed character that starts a value | edits the whole value as text (§5.7); Enter and Escape give focus back to this field |
+| PageUp, PageDown, Home, End, Delete, Backspace | as on the field (§5.3, §5.5), on the whole value |
+
+Each step's `delta` (§5.1) has the direction of the input.
 
 ## 6. Gestures
 
@@ -275,6 +311,6 @@ Checked on every change; a regression fails CI.
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 2.7 kB, React binding (with core) ≤ 14 kB. | `scripts/size.mjs` |
+| Minified and gzipped: core ≤ 4 kB, React binding (with core) ≤ 16.8 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

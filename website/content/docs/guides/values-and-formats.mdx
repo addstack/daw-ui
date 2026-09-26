@@ -73,5 +73,21 @@ type ValueFormat = {
 | `formats.percent()` | `50%` (`50 %` in German) | `50`, `50%` |
 | `formats.pan({ left, right, center })` | `50L`, `C`, `50R`, with your letters | `50L`, `-50`, `C` |
 | `formats.number({ digits, unit })` | `120.00 BPM` | `128`, `128 BPM` |
+| `formats.position({ beatsPerBar, divisions })` | beats as `12.3.2`: bars, beats, sixteenths | `12.3.2`, `12` |
+| `formats.timecode({ fps })` | seconds as `01:02:03:12`: hours to frames | `01:02:03:12`, `3:12`, `1500` |
 
 Numbers are printed with `Intl.NumberFormat` in the runtime's locale, or the `locale` you pass: `formats.frequency({ locale: 'pl' })` prints `1,50 kHz`. Parsing accepts either decimal separator. See [internationalization](/docs/guides/internationalization).
+
+## Segments
+
+A format can also split its value into fields that a [number box](/docs/components/number-box#segments) changes one at a time: `number`, `position` and `timecode` do. `segments` lists the fields and the text between them:
+
+```ts
+type ValueSegment =
+  | { type: 'field'; name: string; step: number; get(value: number): number; format(value: number): string; min?: number; max?: number }
+  | { type: 'literal'; text: string };
+```
+
+A field's `step` is how much one step of it changes the value, in the value's units: for a position in beats, a bar is `4` and a sixteenth `0.25`. `get` is the field's number in a value and `format` its text. The fields are views of the one value, so stepping one past its end carries into the next, and `format(value)` can be the fields' texts joined.
+
+`position` counts from 1, as DAWs do, and shows the division a position is in. `timecode` takes whole frame rates (24, 25, 30); drop-frame timecode is not supported. Both parse what they show, `position` a bar alone (`12`), and `timecode` fields from the right (`3:12` is 3 seconds and 12 frames) or digits alone in pairs (`1500` is 15 seconds), as editing systems do.

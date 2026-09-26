@@ -35,6 +35,27 @@ test("dragging a number box changes it", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Tempo" })).toHaveCount(0);
 });
 
+test("the fields of a position step on their own and carry, by drag, arrows and Tab", async ({ page }) => {
+  const position = page.getByRole("group", { name: "Position" });
+  const beat = page.getByRole("spinbutton", { name: "Beat" });
+  const { x, y } = await center(beat);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  // 4 px per step: five beats up is the second beat of bar 2.
+  await page.mouse.move(x, y - 20, { steps: 5 });
+  await page.mouse.up();
+  await expect(position).toHaveText("2.2.1");
+  await expect(beat).toBeFocused();
+
+  await page.keyboard.press("ArrowRight");
+  const sixteenth = page.getByRole("spinbutton", { name: "Sixteenth" });
+  await expect(sixteenth).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(position).toHaveText("2.1.4");
+  await page.keyboard.press("Shift+Tab");
+  await expect(beat).toBeFocused();
+});
+
 test("the meter follows the level and keeps a clip until it is reset", async ({ page }) => {
   const meter = page.getByTestId("meter");
   const levelVariable = () => meter.evaluate((element) => getComputedStyle(element).getPropertyValue("--meter-level"));

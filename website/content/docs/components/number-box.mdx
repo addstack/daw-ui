@@ -29,6 +29,41 @@ import { NumberBox } from '@addstack/daw-ui/react';
 
 Typed values go through the format's `parse`: `formats.frequency()` reads "1k" as 1000, `formats.decibel()` reads "-inf". Either decimal separator works, whatever the locale.
 
+## Segments
+
+With `NumberBox.Segments` in place of `Field`, the value shows as fields that change one at a time, as the tempo, position and timecode fields of a DAW do. The fields come from the format: the whole part and decimals of `formats.number()`, the bars, beats and sixteenths of `formats.position()`, the hours to frames of `formats.timecode()`.
+
+<ComponentPreview name="number-box-segments" />
+
+```tsx
+<NumberBox.Root min={0} max={999 * 4} format={formats.position()}>
+  <NumberBox.Label>Position</NumberBox.Label>
+  <NumberBox.Segments labels={{ bars: 'Bar', beats: 'Beat', divisions: 'Sixteenth' }} />
+</NumberBox.Root>
+```
+
+Every field is a view of the one value, so stepping the beats past 4 moves to the next bar. The group is labelled by `Label`, and each field is a `spinbutton` named by `labels`, which come from your app in its language.
+
+| Input on a field | Effect |
+| --- | --- |
+| Drag up / down | One step of the field per 4 px (<kbd>Shift</kbd>: per 40 px). |
+| <kbd>↑</kbd> / <kbd>↓</kbd>, wheel | One step of the field. |
+| <kbd>←</kbd> / <kbd>→</kbd>, <kbd>Tab</kbd> | The previous or next field. |
+| <kbd>Enter</kbd>, double-click, typing a digit | Edits the whole value as text: `12` goes to bar 12, `1500` to 15 seconds of timecode. |
+| <kbd>Page Up</kbd> / <kbd>Page Down</kbd>, <kbd>Home</kbd> / <kbd>End</kbd>, <kbd>Delete</kbd> | On the whole value, as on the field. |
+
+To style fields and the text between them apart, render each segment yourself. The function runs when the format changes, not when the value does; the fields write their text without rendering.
+
+```tsx
+<NumberBox.Segments labels={labels}>
+  {(segment) => <NumberBox.Segment segment={segment} className="focus:bg-orange-500 data-literal:opacity-50" />}
+</NumberBox.Segments>
+```
+
+Your own format can have segments too: see [values and formats](/docs/guides/values-and-formats#segments).
+
+## Ends
+
 An `endless` number box has no minimum or maximum, for values such as a transposition or an offset: it drags two pixels per `step` and ignores <kbd>Home</kbd> and <kbd>End</kbd>. With `wrap`, the value comes around past `max`, as on the [knob](/docs/components/knob#wrap).
 
 ## API reference
@@ -51,6 +86,18 @@ Holds the value. Renders a `<div>`.
 The value: a `<span>` with `role="spinbutton"`, replaced by an `<input>` while editing. Both have `dir="auto"` and the root's data attributes.
 
 <PropsTable part="NumberBox.Field" />
+
+### Segments
+
+The value as fields: a `<div>` with `role="group"` and `dir="ltr"`, replaced by an `<input>` while editing, with the root's data attributes. The format must have `segments`.
+
+<PropsTable part="NumberBox.Segments" />
+
+### Segment
+
+One segment: a field is a `<span>` with `role="spinbutton"`, `data-segment` set to the field's name (`bars`, `frames`) and the root's data attributes; the text between fields is a `<span>` with `data-literal` and `aria-hidden`.
+
+<PropsTable part="NumberBox.Segment" />
 
 ### Label
 

@@ -195,7 +195,8 @@ type Options = {
   role: "slider" | "spinbutton";
 };
 
-const FINE = 0.1;
+/** Shift makes drags and the wheel this much finer. */
+export const FINE = 0.1;
 const WHEEL_GESTURE_MS = 400;
 // Share of the travel per pixel of wheel scroll: a mouse notch (100 px) moves 5%.
 const WHEEL_TRAVEL_PER_PIXEL = 0.0005;
@@ -350,19 +351,21 @@ export function useValueControl(props: ValueControlProps, options: Options) {
   // While the pointer is down, `read` does not move the value from under it.
   const holding = useRef(false);
 
-  const onPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLElement>) => {
+  /**
+   * Follows a drag that starts with this pointerdown on the control, or on
+   * a part of it such as a segment, and passes `onDrag` each movement in
+   * pixels towards a higher value. The drag is one gesture.
+   */
+  const drag = useCallback(
+    (event: ReactPointerEvent<HTMLElement>, onDrag: (pixels: number, move: PointerEvent) => void) => {
       if (settings.current.disabled || event.button !== 0) return;
       const element = event.currentTarget;
       // No text selection while dragging; focus still moves to the control.
       event.preventDefault();
       element.focus({ preventScroll: true });
 
-      const { orientation, defaultSensitivity } = optionsRef.current;
-      const measured = defaultSensitivity(element);
-      const pixels = settings.current.sensitivity ?? (measured > 0 ? measured : 200);
+      const { orientation } = optionsRef.current;
       const towardsStart = orientation === "horizontal" && isRightToLeft(element) ? -1 : 1;
-      let position = range.normalize(latest.current);
       let lastX = event.clientX;
       let lastY = event.clientY;
       const pointerId = event.pointerId;
@@ -388,8 +391,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
         const pixelsMoved = orientation === "vertical" ? -dy : dx * towardsStart;
         if (pixelsMoved === 0) return;
         store.set(store.value, true);
-        position = travelBy(range, position, (pixelsMoved / pixels) * (move.shiftKey ? FINE : 1));
-        change(range.denormalize(position), "drag", move, Math.sign(pixelsMoved));
+        onDrag(pixelsMoved, move);
       };
       const onEnd = (end: PointerEvent) => {
         if (end.pointerId !== pointerId) return;
@@ -407,7 +409,20 @@ export function useValueControl(props: ValueControlProps, options: Options) {
       element.addEventListener("pointercancel", onEnd);
       element.addEventListener("lostpointercapture", onEnd);
     },
-    [range, change, endGesture, store],
+    [endGesture, store],
+  );
+
+  const onPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      const measured = optionsRef.current.defaultSensitivity(event.currentTarget);
+      const pixels = settings.current.sensitivity ?? (measured > 0 ? measured : 200);
+      let position = range.normalize(latest.current);
+      drag(event, (moved, move) => {
+        position = travelBy(range, position, (moved / pixels) * (move.shiftKey ? FINE : 1));
+        change(range.denormalize(position), "drag", move, Math.sign(moved));
+      });
+    },
+    [range, change, drag],
   );
 
   // --- keyboard ---
@@ -492,44 +507,39 @@ export function useValueControl(props: ValueControlProps, options: Options) {
 
   // --- wheel: a native listener, because React's is passive and cannot stop the page from scrolling ---
 
-  const wheelState = useRef<{ position: number; timer: ReturnType<typeof setTimeout> | undefined }>({
-    position: 0,
-    timer: undefined,
-  });
-  const onWheel = useCallback(
-    (event: WheelEvent) => {
+  const wheelTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(wheelTimer.current), []);
+
+  /**
+   * Takes a wheel event as part of a burst that is one gesture, ending
+   * 400 ms after its last event, and passes `onScroll` the pixels towards a
+   * higher value (Shift: a tenth), and whether they start the burst.
+   */
+  const wheelBurst = useCallback(
+    (event: WheelEvent, onScroll: (pixels: number, starting: boolean) => void) => {
       if (settings.current.disabled || !settings.current.wheel) return;
       const pixels = wheelPixels(event);
       if (pixels === 0) return;
       event.preventDefault();
-      const state = wheelState.current;
-      if (state.timer === undefined) state.position = range.normalize(latest.current);
-      else clearTimeout(state.timer);
-      state.timer = setTimeout(() => {
-        state.timer = undefined;
+      const starting = wheelTimer.current === undefined;
+      clearTimeout(wheelTimer.current);
+      wheelTimer.current = setTimeout(() => {
+        wheelTimer.current = undefined;
         endGesture();
       }, WHEEL_GESTURE_MS);
-      const amount = pixels * WHEEL_TRAVEL_PER_PIXEL * (event.shiftKey ? FINE : 1);
-      state.position = travelBy(range, state.position, amount);
-      change(range.denormalize(state.position), "wheel", event, Math.sign(amount));
+      onScroll(pixels * (event.shiftKey ? FINE : 1), starting);
     },
-    [range, change, endGesture],
-  );
-  const onWheelRef = useRef(onWheel);
-  onWheelRef.current = onWheel;
-  useEffect(
-    () => () => {
-      clearTimeout(wheelState.current.timer);
-    },
-    [],
+    [endGesture],
   );
 
-  const controlRef = useCallback((element: HTMLElement | null) => {
-    if (!element) return;
-    const listener = (event: WheelEvent) => onWheelRef.current(event);
-    element.addEventListener("wheel", listener, { passive: false });
-    return () => element.removeEventListener("wheel", listener);
-  }, []);
+  const wheelPosition = useRef(0);
+  const controlRef = useWheelListener((event) =>
+    wheelBurst(event, (pixels, starting) => {
+      if (starting) wheelPosition.current = range.normalize(latest.current);
+      wheelPosition.current = travelBy(range, wheelPosition.current, pixels * WHEEL_TRAVEL_PER_PIXEL);
+      change(range.denormalize(wheelPosition.current), "wheel", event, Math.sign(pixels));
+    }),
+  );
 
   // --- read: values that change on their own, read once per frame ---
 
@@ -582,10 +592,27 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     zones,
     controlProps,
     controlId,
+    labelId,
     setLabelId,
     change,
     endGesture,
+    drag,
+    wheelBurst,
+    /** The value as of the last change, which events build on. */
+    latestValue: () => latest.current,
   };
+}
+
+/** A ref that listens to the wheel on its element, not passively, so that the handler can stop the page from scrolling. */
+export function useWheelListener(onWheel: (event: WheelEvent) => void): (element: HTMLElement | null) => (() => void) | undefined {
+  const handler = useRef(onWheel);
+  handler.current = onWheel;
+  return useCallback((element: HTMLElement | null) => {
+    if (!element) return;
+    const listener = (event: WheelEvent) => handler.current(event);
+    element.addEventListener("wheel", listener, { passive: false });
+    return () => element.removeEventListener("wheel", listener);
+  }, []);
 }
 
 export type ValueControl = ReturnType<typeof useValueControl>;

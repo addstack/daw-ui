@@ -30,6 +30,9 @@ test("every component renders on the server", () => {
       <NumberBox.Root min={20} max={999} defaultValue={120}>
         <NumberBox.Field />
       </NumberBox.Root>
+      <NumberBox.Root min={0} max={400} defaultValue={5.25} format={formats.position({ locale: "en" })}>
+        <NumberBox.Segments labels={{}} />
+      </NumberBox.Root>
       <Meter.Root>
         <Meter.Track>
           <Meter.Bar />
@@ -45,5 +48,7 @@ test("every component renders on the server", () => {
   expect(html).toContain("50%");
   expect(html).toContain('role="spinbutton"');
   expect(html).toContain('role="meter"');
+  expect(html).toContain('role="group"');
+  expect(html).toContain('data-segment="beats"');
   expect(html).toContain('aria-pressed="true"');
 });

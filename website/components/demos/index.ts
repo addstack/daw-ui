@@ -8,6 +8,7 @@ import ModulationDemo from './knob-modulation';
 import WrapKnobDemo from './knob-wrap';
 import MeterDemo from './meter';
 import NumberBoxDemo from './number-box';
+import SegmentsDemo from './number-box-segments';
 import ToggleDemo from './toggle';
 import MixerDemo from './toggle-group-mixer';
 import SequencerDemo from './toggle-group-sequencer';
@@ -22,6 +23,7 @@ export const demos = {
   'knob-wrap': WrapKnobDemo,
   meter: MeterDemo,
   'number-box': NumberBoxDemo,
+  'number-box-segments': SegmentsDemo,
   toggle: ToggleDemo,
   'toggle-group-mixer': MixerDemo,
   'toggle-group-sequencer': SequencerDemo,

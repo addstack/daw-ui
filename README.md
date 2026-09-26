@@ -93,10 +93,11 @@ Three views of one value model. They share these props:
 
 | Prop | |
 | --- | --- |
-| `value`, `defaultValue`, `onValueChange(value, { reason, event })` | Controlled or uncontrolled. `reason` is `"drag"`, `"keyboard"`, `"wheel"`, `"reset"` or `"input"`. |
+| `value`, `defaultValue`, `onValueChange(value, { reason, event, delta })` | Controlled or uncontrolled. `reason` is `"drag"`, `"keyboard"`, `"wheel"`, `"reset"` or `"input"`; `delta` is the change, for relative uses such as preset browsing. |
 | `read` | For values that change on their own (automation, modulation, a control surface): called once per animation frame, shown without rendering. While the user drags, the user's value wins. |
 | `onGestureStart()`, `onGestureEnd(value)` | Around each user action: a drag, a key press, a burst of wheel events, a reset, a typed value. |
 | `min`, `max`, `step` | Defaults to 0…1, continuous. |
+| `wrap`, `endless` | What happens past the ends. `wrap` comes around, as a phase does (`max` is `min`). `endless` keeps counting, like a hardware encoder: `min`…`max` is one turn of a knob (not for faders). |
 | `scale` | How travel maps to value: `scales.linear`, `scales.log` (Hz, ms), `scales.power(n)`, `scales.decibel` (a console fader law: 0 dB at about 80%). |
 | `format` | Text for the readout and `aria-valuetext`, and parsing of typed values. See [formats](#-values-and-formats). |
 | `origin` | Where the range is drawn from: `origin={0}` on a −1…1 pan knob fills from the center (`data-bipolar`). |
@@ -114,7 +115,7 @@ Three views of one value model. They share these props:
 | Double-click, Delete, Backspace | Reset. |
 | Wheel | 5% per notch (Shift: finer). |
 
-**Knob** parts: `Root` (sets `--knob-value` and `--knob-angle`), `Control` (`role="slider"`), `Label`, `Value`, and the SVG parts `Track`, `Range`, `Pointer` and `Modulation` (the arc to where an LFO moves the value now, read once per frame), which draw into a `viewBox="0 0 100 100"`. `sweep` sets the rotation (270° by default).
+**Knob** parts: `Root` (sets `--knob-value` and `--knob-angle`), `Control` (`role="slider"`), `Label`, `Value`, and the SVG parts `Track`, `Range`, `Pointer` and `Modulation` (the arc to where an LFO moves the value now, read once per frame), which draw into a `viewBox="0 0 100 100"`. `sweep` sets the rotation (270° by default, a full circle when the knob wraps or is endless). An endless knob is a `spinbutton`, since it has no minimum or maximum.
 
 When a value changes, the parts write what they show straight to the DOM: dragging a knob, or 128 controls following automation through `read`, renders nothing in React.
 
@@ -137,6 +138,15 @@ When a value changes, the parts write what they show straight to the DOM: draggi
 ```
 
 **NumberBox** is the tempo field of a DAW: `Root`, `Label` and `Field` (`role="spinbutton"`). Drag it up and down. Double-click it, press Enter or type a digit to edit it as text, then Enter or leave the field to apply, or Escape to cancel.
+
+With `Segments` instead of `Field`, it shows the value as fields that change one at a time, from the format: the bars, beats and sixteenths of a song position, the frames of a timecode, the decimals of a tempo. Each field is a `spinbutton` named by the labels you pass; dragging it or pressing up and down steps it and carries into the next field, and left and right move between fields.
+
+```tsx
+<NumberBox.Root min={0} max={999 * 4} format={formats.position()}>
+  <NumberBox.Label>Position</NumberBox.Label>
+  <NumberBox.Segments labels={{ bars: "Bar", beats: "Beat", divisions: "Sixteenth" }} />
+</NumberBox.Root>
+```
 
 ### Meter
 
@@ -200,8 +210,12 @@ Toggles subscribe to the group with selectors: painting one step of a 16 × 64 g
 | `formats.percent()` | `50%` (`50 %` in German) | `50`, `50%` |
 | `formats.pan({ left, right, center })` | `50L`, `C`, `50R` with your letters | `50L`, `-50`, `C` |
 | `formats.number({ digits, unit })` | `120.00 BPM` | `128`, `128 BPM` |
+| `formats.position({ beatsPerBar, divisions })` | beats as `12.3.2` (bars, beats, sixteenths) | `12.3.2`, `12` |
+| `formats.timecode({ fps })` | seconds as `01:02:03:12` | `01:02:03:12`, `1500` (from the right) |
 
-A format is just `{ format(value): string; parse(text): number | null }`, so you can write your own.
+A format is just `{ format(value): string; parse(text): number | null; segments? }`, so you can write your own. `segments` lists its fields (a name, the step of the value per step of the field, and its number and text in a value) and the text between them, for `NumberBox.Segments`.
+
+`createRange` also takes `wrap` and `endless`, as the controls do.
 
 ## 🚦 Zones
 
@@ -248,7 +262,7 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 
 A 60 Hz frame has 16.7 ms. The last row is the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (12.7 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (15.2 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 

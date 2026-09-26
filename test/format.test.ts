@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { formats } from "../src/core/index.js";
+import { formats, type ValueFormat, type ValueSegment } from "../src/core/index.js";
+
+/** The text of every segment of a value, fields and literals, as a number box shows them. */
+const segmentsOf = (format: ValueFormat, value: number) =>
+  format.segments!.map((segment: ValueSegment) => (segment.type === "field" ? segment.format(value) : segment.text));
 
 describe("number formats follow the locale", () => {
   test("decimal separator", () => {
@@ -84,5 +88,78 @@ describe("formats", () => {
     expect(format.parse("128 bpm")).toBe(128);
     expect(format.parse("128")).toBe(128);
     expect(format.parse("128 Hz")).toBeNull();
+  });
+});
+
+describe("segments", () => {
+  test("a number is its whole part and its decimals, with the locale's separator", () => {
+    expect(segmentsOf(formats.number({ locale: "en", unit: "BPM" }), 120.5)).toEqual(["120", ".", "50", " BPM"]);
+    expect(segmentsOf(formats.number({ locale: "pl" }), 1.5)).toEqual(["1", ",", "50"]);
+    expect(segmentsOf(formats.number({ locale: "en", digits: 0 }), 7)).toEqual(["7"]);
+  });
+
+  test("a number's segments round as the number prints, and keep its sign", () => {
+    expect(segmentsOf(formats.number({ locale: "en" }), 120.999)).toEqual(["121", ".", "00"]);
+    expect(segmentsOf(formats.number({ locale: "en" }), -0.25)).toEqual(["-0", ".", "25"]);
+  });
+
+  test("a step of a field is the change of the value it stands for", () => {
+    const [integer, , fraction] = formats.number({ digits: 2 }).segments!;
+    expect(integer).toMatchObject({ name: "integer", step: 1 });
+    expect(fraction).toMatchObject({ name: "fraction", step: 0.01, min: 0, max: 99 });
+  });
+});
+
+describe("position", () => {
+  const position = formats.position({ locale: "en" });
+
+  test("shows beats as bars, beats and sixteenths, counted from 1", () => {
+    expect(position.format(0)).toBe("1.1.1");
+    expect(position.format(5.25)).toBe("2.2.2");
+    expect(position.format(15.75)).toBe("4.4.4");
+    expect(segmentsOf(position, 5.25)).toEqual(["2", ".", "2", ".", "2"]);
+  });
+
+  test("shows the division a position is in, as DAWs do", () => {
+    expect(position.format(0.99)).toBe("1.1.4");
+    // Floating-point noise just under a division counts as that division.
+    expect(position.format(2.9999999999)).toBe("1.4.1");
+  });
+
+  test("follows the time signature", () => {
+    const waltz = formats.position({ beatsPerBar: 3, divisions: 2 });
+    expect(waltz.format(3.5)).toBe("2.1.2");
+    expect(waltz.segments!.filter((segment) => segment.type === "field").map((field) => field.step)).toEqual([3, 1, 0.5]);
+  });
+
+  test("parses what it shows, and a bar alone as its start", () => {
+    expect(position.parse("2.2.2")).toBe(5.25);
+    expect(position.parse("12")).toBe(44);
+    expect(position.parse("3 2")).toBe(9);
+    expect(position.parse("1.x")).toBeNull();
+    expect(position.parse(position.format(-5))).toBe(-5);
+  });
+});
+
+describe("timecode", () => {
+  const timecode = formats.timecode({ fps: 25, locale: "en" });
+
+  test("shows seconds as hours, minutes, seconds and frames", () => {
+    expect(timecode.format(3723.5)).toBe("01:02:03:12");
+    expect(timecode.format(0.04)).toBe("00:00:00:01");
+    expect(segmentsOf(timecode, 61)).toEqual(["00", ":", "01", ":", "01", ":", "00"]);
+    expect(timecode.format(-1)).toBe("-00:00:01:00");
+  });
+
+  test("parses fields from the right, and digits alone two at a time", () => {
+    expect(timecode.parse("01:02:03:12")).toBe(3723.48);
+    expect(timecode.parse("3:12")).toBe(3.48);
+    expect(timecode.parse("1500")).toBe(15);
+    expect(timecode.parse("-00:00:01:00")).toBe(-1);
+    expect(timecode.parse("1:2:3:4:5")).toBeNull();
+  });
+
+  test("needs a whole frame rate", () => {
+    expect(() => formats.timecode({ fps: 29.97 })).toThrow(RangeError);
   });
 });

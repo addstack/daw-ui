@@ -58,6 +58,13 @@ function EveryComponent() {
       <NumberBox.Root min={20} max={999}>
         <NumberBox.Field />
       </NumberBox.Root>
+      {/* Only the application names the fields; with no labels, nothing is named. */}
+      <NumberBox.Root min={0} max={3600} format={formats.timecode({ fps: 25 })}>
+        <NumberBox.Segments labels={{}} />
+      </NumberBox.Root>
+      <NumberBox.Root min={20} max={999} format={formats.number({ unit: "%" })}>
+        <NumberBox.Segments labels={{}} />
+      </NumberBox.Root>
       <Meter.Root>
         <Meter.Track>
           <Meter.Bar />

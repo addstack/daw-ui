@@ -2,20 +2,26 @@
 
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useId,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
   type FocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 
-import { liveProps, type Live } from "./live.js";
+import type { ValueField, ValueSegment } from "../core/index.js";
+import { liveProps, mergeLive, type Live } from "./live.js";
 import { dataAttributes, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
+  FINE,
   splitValueControlProps,
   useLabel,
   controlLive,
@@ -23,6 +29,7 @@ import {
   useLivePart,
   useValueControl,
   useValueText,
+  useWheelListener,
   valueLive,
   type ValueControl,
   type ValueControlProps,
@@ -117,32 +124,75 @@ export namespace NumberBoxRoot {
   export type Props = Omit<PartProps<"div", State>, keyof ValueControlProps> & ValueControlProps;
 }
 
+/** The text of the value now: it changes without rendering. */
+const currentText = (control: ValueControl) => control.format.format(control.store.value);
+
+/**
+ * Starts editing on Enter, or on a typed character that starts a value;
+ * returns whether it did.
+ */
+function startsEditing(event: ReactKeyboardEvent<HTMLElement>, context: NumberBoxContextValue): boolean {
+  if (context.state.disabled || event.ctrlKey || event.metaKey || event.altKey) return false;
+  if (event.key === "Enter") context.startEditing(currentText(context.control));
+  else if (STARTS_A_VALUE.test(event.key)) context.startEditing(event.key);
+  else return false;
+  event.preventDefault();
+  return true;
+}
+
+function focusInput(element: HTMLInputElement | null) {
+  if (!element) return;
+  element.focus({ preventScroll: true });
+  // Typing replaces the formatted value; a typed first character stays.
+  if (element.value.length > 1) element.select();
+}
+
+/** The text input that replaces the value while editing. `onClose` runs on Enter and Escape, before focus goes back. */
+function inputProps(context: NumberBoxContextValue, state: NumberBoxState, onClose: () => void) {
+  const { control, editing, setDraft, finishEditing } = context;
+  return {
+    ref: focusInput,
+    id: control.controlId,
+    type: "text",
+    inputMode: "decimal" as const,
+    autoComplete: "off",
+    spellCheck: false,
+    dir: "auto",
+    value: editing?.draft ?? "",
+    "aria-labelledby": control.labelId,
+    ...stateAttributes(state),
+    ...liveAttributes(valueLive(state)),
+    onChange: (event: ChangeEvent<HTMLInputElement>) => setDraft(event.target.value),
+    onKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        finishEditing(event.key === "Enter", event.nativeEvent);
+      }
+    },
+    onBlur: (event: FocusEvent<HTMLInputElement>) => finishEditing(true, event.nativeEvent),
+  };
+}
+
 /**
  * The value: a focusable `spinbutton` that takes drags and keys, replaced by
  * a text input while editing. Enter or leaving the field applies the typed
  * value; Escape discards it.
  */
 export function NumberBoxField({ children, ...props }: NumberBoxField.Props) {
-  const { control, state: rendered, editing, startEditing, setDraft, finishEditing } = useNumberBoxContext("Field");
+  const context = useNumberBoxContext("Field");
+  const { control, state: rendered, editing, startEditing } = context;
   const returnFocus = useRef(false);
 
   // The plain text is written without rendering; a `children` function renders the field on every change.
   const live = useValueText(control, children, controlLive);
   const state: NumberBoxState = { ...live.state, editing: rendered.editing };
-  /** The text of the value now: it changes without rendering. */
-  const currentText = () => control.format.format(control.store.value);
 
   const displayRef = useCallback((element: HTMLElement | null) => {
     if (element && returnFocus.current) {
       returnFocus.current = false;
       element.focus({ preventScroll: true });
     }
-  }, []);
-  const inputRef = useCallback((element: HTMLInputElement | null) => {
-    if (!element) return;
-    element.focus({ preventScroll: true });
-    // Typing replaces the formatted value; a typed first character stays.
-    if (element.value.length > 1) element.select();
   }, []);
 
   const displayRefs = useMergedRef(displayRef, control.controlProps.ref, live.ref);
@@ -155,50 +205,18 @@ export function NumberBoxField({ children, ...props }: NumberBoxField.Props) {
     ...stateAttributes(state),
     ...live.attributes,
     onDoubleClick: () => {
-      if (!state.disabled) startEditing(currentText());
+      if (!state.disabled) startEditing(currentText(control));
     },
     onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
-      if (state.disabled || event.ctrlKey || event.metaKey || event.altKey) return control.controlProps.onKeyDown(event);
-      if (event.key === "Enter") {
-        event.preventDefault();
-        startEditing(currentText());
-      } else if (STARTS_A_VALUE.test(event.key)) {
-        event.preventDefault();
-        startEditing(event.key);
-      } else {
-        control.controlProps.onKeyDown(event);
-      }
+      if (!startsEditing(event, context)) control.controlProps.onKeyDown(event);
     },
-  };
-
-  const ownInputProps = {
-    ref: inputRef,
-    id: control.controlId,
-    type: "text",
-    inputMode: "decimal" as const,
-    autoComplete: "off",
-    spellCheck: false,
-    dir: "auto",
-    value: editing?.draft ?? "",
-    "aria-labelledby": control.controlProps["aria-labelledby"],
-    ...stateAttributes(state),
-    ...liveAttributes(valueLive(state)),
-    onChange: (event: ChangeEvent<HTMLInputElement>) => setDraft(event.target.value),
-    onKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Enter" || event.key === "Escape") {
-        event.preventDefault();
-        returnFocus.current = true;
-        finishEditing(event.key === "Enter", event.nativeEvent);
-      }
-    },
-    onBlur: (event: FocusEvent<HTMLInputElement>) => finishEditing(true, event.nativeEvent),
   };
 
   return useRenderPart(
     editing ? "input" : "span",
     state,
     editing ? props : { ...props, children: live.content },
-    editing ? ownInputProps : ownDisplayProps,
+    editing ? inputProps(context, state, () => (returnFocus.current = true)) : ownDisplayProps,
   );
 }
 
@@ -229,4 +247,232 @@ export function NumberBoxLabel(props: NumberBoxLabel.Props) {
 export namespace NumberBoxLabel {
   export type State = NumberBoxState;
   export type Props = PartProps<"span", State>;
+}
+
+// --- segments ---
+
+/** A segment of the format, as `NumberBox.Segments` passes it to its `children`. */
+export type NumberBoxSegmentItem = ValueSegment & {
+  /** The segment's place in the format's `segments`. */
+  index: number;
+};
+
+type SegmentsContextValue = {
+  labels: Readonly<Record<string, string>>;
+  group: RefObject<HTMLElement | null>;
+  /** The id of the first field, which the label focuses. */
+  firstField: number;
+  /** The segment editing started from, which gets focus back after Enter or Escape. */
+  editingFrom: { current: number };
+  returnFocusTo: { current: number | null };
+};
+
+const SegmentsContext = createContext<SegmentsContextValue | null>(null);
+
+// Pixels of drag, and of wheel scroll, for one step of a segment: a mouse notch is one step.
+const PIXELS_PER_STEP = 4;
+const WHEEL_PIXELS_PER_STEP = 100;
+
+/**
+ * The value as segments that change one at a time: the bars, beats and
+ * sixteenths of `formats.position()`, the hours to frames of
+ * `formats.timecode()`, the whole part and decimals of `formats.number()`.
+ * The segments come from the format; every field is a `spinbutton` in the
+ * tab order, and the arrows move between them. Replaced by a text input
+ * while editing, as the field is.
+ *
+ * Renders only when its props or the format change: the segments write
+ * their text straight to the DOM.
+ */
+export function NumberBoxSegments({ labels, children, ...props }: NumberBoxSegments.Props) {
+  const context = useNumberBoxContext("Segments");
+  const { control, state, editing } = context;
+  const segments = control.format.segments;
+  if (!segments) throw new Error("<NumberBox.Segments> needs a format with segments, such as formats.position().");
+
+  const items = useMemo(() => segments.map((segment, index): NumberBoxSegmentItem => ({ ...segment, index })), [segments]);
+  const group = useRef<HTMLElement | null>(null);
+  const editingFrom = useRef(0);
+  const returnFocusTo = useRef<number | null>(null);
+  const segmentsContext: SegmentsContextValue = {
+    labels,
+    group,
+    firstField: segments.findIndex((segment) => segment.type === "field"),
+    editingFrom,
+    returnFocusTo,
+  };
+
+  const live = useLivePart(control, valueLive);
+  const groupRef = useMergedRef(group, live.ref);
+  const ownGroupProps = {
+    ref: groupRef,
+    role: "group",
+    "aria-labelledby": control.labelId,
+    // Fields of a number read left to right in every language: "12.3.2" stays in order in a right-to-left page.
+    dir: "ltr",
+    ...stateAttributes(state),
+    ...live.attributes,
+  };
+  const content = items.map((item) => (
+    <Fragment key={item.index}>{children ? children(item) : <NumberBoxSegment segment={item} />}</Fragment>
+  ));
+
+  const element = useRenderPart(
+    editing ? "input" : "div",
+    state,
+    editing ? props : { ...props, children: content },
+    editing ? inputProps(context, state, () => (returnFocusTo.current = editingFrom.current)) : ownGroupProps,
+  );
+  return <SegmentsContext.Provider value={segmentsContext}>{element}</SegmentsContext.Provider>;
+}
+
+export namespace NumberBoxSegments {
+  export type State = NumberBoxState;
+  export type Segment = NumberBoxSegmentItem;
+  export type Props = Omit<PartProps<"div", State>, "children"> & {
+    /**
+     * Names each field for assistive technology, by the field's `name`:
+     * `{ bars: "Bar", beats: "Beat", divisions: "Sixteenth" }` for a
+     * position, in the application's language.
+     */
+    labels: Readonly<Record<string, string>>;
+    /**
+     * Renders each segment, for styling: `(segment) => <NumberBox.Segment
+     * segment={segment} className="…" />`. Called when the format changes,
+     * not when the value does.
+     * @default a NumberBox.Segment for each segment
+     */
+    children?: ((segment: NumberBoxSegmentItem) => ReactNode) | undefined;
+  };
+}
+
+/**
+ * One segment of `NumberBox.Segments`. A field is a `spinbutton` named by
+ * its label: dragging it up and down or pressing the arrows up and down
+ * changes the value by the field's step, and carries into the next field.
+ * The text between fields is hidden from assistive technology.
+ */
+export function NumberBoxSegment({ segment, ...props }: NumberBoxSegment.Props) {
+  return segment.type === "field" ? (
+    <FieldSegment segment={segment} {...props} />
+  ) : (
+    <LiteralSegment segment={segment} {...props} />
+  );
+}
+
+export namespace NumberBoxSegment {
+  export type State = NumberBoxState;
+  export type Props = Omit<PartProps<"span", State>, "children"> & {
+    /** The segment, as `NumberBox.Segments` passes it to its `children`. */
+    segment: NumberBoxSegmentItem;
+  };
+}
+
+function useSegmentsContext(): SegmentsContextValue {
+  const context = useContext(SegmentsContext);
+  if (!context) throw new Error("<NumberBox.Segment> must be placed inside <NumberBox.Segments>.");
+  return context;
+}
+
+function LiteralSegment({ segment, ...props }: NumberBoxSegment.Props & { segment: { type: "literal"; text: string } }) {
+  const { state } = useNumberBoxContext("Segment");
+  useSegmentsContext();
+  return useRenderPart("span", state, { ...props, children: segment.text }, {
+    "aria-hidden": true,
+    "data-literal": "",
+    ...stateAttributes(state),
+  });
+}
+
+function FieldSegment({ segment, ...props }: NumberBoxSegment.Props & { segment: ValueField & { index: number } }) {
+  const context = useNumberBoxContext("Segment");
+  const { control, state, startEditing } = context;
+  const { labels, group, firstField, editingFrom, returnFocusTo } = useSegmentsContext();
+  const { index, step } = segment;
+  const field = useRef(segment);
+  field.current = segment;
+
+  const live = useLivePart(control, (current) => {
+    const number = field.current.get(current.value);
+    return mergeLive(valueLive(current), {
+      attributes: { "aria-valuenow": Number.isFinite(number) ? number : null },
+      text: field.current.format(current.value),
+    });
+  });
+
+  /** Moves the value by whole steps of this field; one call is one change. */
+  const stepBy = (steps: number, reason: "drag" | "keyboard" | "wheel", event: Event) =>
+    control.change(control.latestValue() + steps * step, reason, event, Math.sign(steps));
+
+  const wheelRest = useRef(0);
+  const wheelRef = useWheelListener((event) =>
+    control.wheelBurst(event, (pixels, starting) => {
+      if (starting) wheelRest.current = 0;
+      wheelRest.current += pixels / WHEEL_PIXELS_PER_STEP;
+      const steps = Math.trunc(wheelRest.current);
+      if (steps === 0) return;
+      wheelRest.current -= steps;
+      stepBy(steps, "wheel", event);
+    }),
+  );
+  const returnFocus = useCallback(
+    (element: HTMLElement | null) => {
+      if (element && returnFocusTo.current === index) {
+        returnFocusTo.current = null;
+        element.focus({ preventScroll: true });
+      }
+    },
+    [returnFocusTo, index],
+  );
+  const ref = useMergedRef(live.ref, wheelRef, returnFocus);
+
+  const edit = (text: string) => {
+    editingFrom.current = index;
+    startEditing(text);
+  };
+
+  return useRenderPart("span", state, { ...props, children: live.text }, {
+    ref,
+    id: index === firstField ? control.controlId : `${control.controlId}-${index}`,
+    role: "spinbutton",
+    tabIndex: state.disabled ? -1 : 0,
+    "aria-label": labels[segment.name],
+    "aria-valuemin": segment.min,
+    "aria-valuemax": segment.max,
+    "aria-disabled": state.disabled || undefined,
+    "data-segment": segment.name,
+    ...stateAttributes(state),
+    ...live.attributes,
+    style: { touchAction: "none" },
+    onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
+      let rest = 0;
+      control.drag(event, (pixels, move) => {
+        rest += (pixels / PIXELS_PER_STEP) * (move.shiftKey ? FINE : 1);
+        const steps = Math.trunc(rest);
+        if (steps === 0) return;
+        rest -= steps;
+        stepBy(steps, "drag", move);
+      });
+    },
+    onDoubleClick: () => {
+      if (!state.disabled) edit(currentText(control));
+    },
+    onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+      if (state.disabled) return;
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        event.preventDefault();
+        stepBy(event.key === "ArrowUp" ? 1 : -1, "keyboard", event.nativeEvent);
+        control.endGesture();
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const fields = [...(group.current?.querySelectorAll<HTMLElement>("[data-segment]") ?? [])];
+        fields[fields.indexOf(event.currentTarget) + (event.key === "ArrowRight" ? 1 : -1)]?.focus();
+      } else if (startsEditing(event, context)) {
+        editingFrom.current = index;
+      } else {
+        // Page keys, Home, End and Delete act on the whole value, as on the field.
+        control.controlProps.onKeyDown(event);
+      }
+    },
+  });
 }

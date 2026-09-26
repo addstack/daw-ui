@@ -35,6 +35,8 @@ const PARTS = [
   "NumberBox.Root",
   "NumberBox.Label",
   "NumberBox.Field",
+  "NumberBox.Segments",
+  "NumberBox.Segment",
   "Meter.Root",
   "Meter.Label",
   "Meter.Track",
