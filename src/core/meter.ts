@@ -1,11 +1,23 @@
 export type MeterBallisticsOptions = {
-  /** Lowest level shown, in dBFS. Defaults to -70. */
+  /**
+   * Lowest level shown, in dBFS.
+   * @default -70
+   */
   floor?: number | undefined;
-  /** How fast the bar and the peak marker fall, in dB per second. Defaults to 24. */
+  /**
+   * How fast the bar and the peak marker fall, in dB per second.
+   * @default 24
+   */
   fall?: number | undefined;
-  /** How long the peak marker stays before it falls, in milliseconds. Defaults to 1000. */
+  /**
+   * How long the peak marker stays before it falls, in milliseconds.
+   * @default 1000
+   */
   hold?: number | undefined;
-  /** An input above this level, in dBFS, lights the clip indicator. Defaults to 0. */
+  /**
+   * An input above this level, in dBFS, lights the clip indicator.
+   * @default 0
+   */
   clipAbove?: number | undefined;
 };
 

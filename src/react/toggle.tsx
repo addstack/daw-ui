@@ -436,30 +436,47 @@ export function ToggleGroup(props: ToggleGroup.Props) {
 export namespace ToggleGroup {
   export type State = ToggleGroupState;
   export type Props = Omit<PartProps<"div", State>, "defaultValue" | "onChange"> & {
-    /** Values of the pressed toggles, for toggles that have a `value`. */
+    /** Values of the pressed toggles, for toggles that have a `value`. Controlled; use with `onValueChange`. */
     value?: readonly string[] | undefined;
+    /** Values of the toggles pressed at first, when uncontrolled. */
     defaultValue?: readonly string[] | undefined;
+    /** Called with the new values and why they changed. */
     onValueChange?: ((value: string[], details: ToggleChangeDetails) => void) | undefined;
-    /** Lets more than one toggle with a `value` be pressed. Defaults to `false`. */
+    /**
+     * Lets more than one toggle with a `value` be pressed.
+     * @default false
+     */
     multiple?: boolean | undefined;
     /**
      * Dragging from a toggle sets every toggle the pointer crosses to the
      * state the first one took. Shift+Arrow does the same from the keyboard.
+     * @default false
      */
     paint?: boolean | undefined;
-    /** `"secondary"`: dragging with the secondary (right) button turns toggles off, as in FL Studio. */
+    /**
+     * `"secondary"`: dragging with the secondary (right) button turns toggles off, as in FL Studio.
+     * @default false
+     */
     erase?: "secondary" | false | undefined;
     /**
      * Turning a toggle on turns the others in its lane off. `"click"`: a plain
      * press is exclusive and Cmd/Ctrl+press adds (Ableton Live's solo).
      * `"modifier"`: the other way around. A map sets it per lane, e.g.
      * `{ solo: "click" }` for a mixer whose mute buttons stay independent.
+     * @default false
      */
     exclusive?: ExclusiveMode | false | Partial<Record<string, ExclusiveMode | false>> | undefined;
-    /** Which arrow keys move focus. Defaults to `"horizontal"`. */
+    /**
+     * Which arrow keys move focus: along a row, a column, or a grid of `columns`.
+     * @default "horizontal"
+     */
     orientation?: Orientation | undefined;
     /** Toggles per row, for `orientation="grid"`. */
     columns?: number | undefined;
+    /**
+     * Disables every toggle in the group.
+     * @default false
+     */
     disabled?: boolean | undefined;
     /**
      * Called before the first change of a user action: a press, a paint
@@ -467,6 +484,7 @@ export namespace ToggleGroup {
      * `onGestureEnd` to make it one undo step.
      */
     onGestureStart?: (() => void) | undefined;
+    /** Called when that action ends. */
     onGestureEnd?: (() => void) | undefined;
   };
 }
@@ -639,8 +657,17 @@ export function Toggle(props: Toggle.Props) {
 export namespace Toggle {
   export type State = ToggleState;
   export type Props = Omit<PartProps<"button", State>, "value"> & {
+    /** Whether the toggle is on, when controlled. Use with `onPressedChange`. */
     pressed?: boolean | undefined;
+    /**
+     * Whether the toggle starts on, when uncontrolled.
+     * @default false
+     */
     defaultPressed?: boolean | undefined;
+    /**
+     * Called with the new state and why it changed: `"press"`, `"release"`,
+     * `"keyboard"`, `"paint"` or `"exclusive"`.
+     */
     onPressedChange?: ((pressed: boolean, details: ToggleChangeDetails) => void) | undefined;
     /** Inside a `ToggleGroup`: take the state from the group's `value`. */
     value?: string | undefined;
@@ -648,9 +675,13 @@ export namespace Toggle {
      * `"toggle"` flips on press. `"momentary"` is on only while held.
      * `"hybrid"` flips on press, and flips back on release when held longer
      * than `holdDelay`, like the buttons of hardware controllers.
+     * @default "toggle"
      */
     behavior?: ToggleBehavior | undefined;
-    /** Milliseconds a hybrid toggle must be held to act as momentary. Defaults to 250. */
+    /**
+     * Milliseconds a hybrid toggle must be held to act as momentary.
+     * @default 250
+     */
     holdDelay?: number | undefined;
     /**
      * Inside a `ToggleGroup`: toggles with the same lane form a line, such as
@@ -659,6 +690,10 @@ export namespace Toggle {
      * arrow keys move along the lane and across lanes.
      */
     lane?: string | undefined;
+    /**
+     * Ignores input.
+     * @default false
+     */
     disabled?: boolean | undefined;
   };
 }

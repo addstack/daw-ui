@@ -26,11 +26,16 @@ export type ValueChangeDetails = {
 
 /** Props shared by `Knob.Root`, `Fader.Root` and `NumberBox.Root`. */
 export type ValueControlProps = {
+  /** The value, when controlled. Use with `onValueChange`. */
   value?: number | undefined;
   /** Initial value when uncontrolled. Also where a reset goes, unless `resetValue` is set. */
   defaultValue?: number | undefined;
-  /** Where double-click and Delete reset to. Defaults to `defaultValue`, then `origin`. */
+  /**
+   * Where double-click and Delete reset to.
+   * @default defaultValue, then origin
+   */
   resetValue?: number | undefined;
+  /** Called with each new value and why it changed: `"drag"`, `"keyboard"`, `"wheel"`, `"reset"` or `"input"`. */
   onValueChange?: ((value: number, details: ValueChangeDetails) => void) | undefined;
   /**
    * Called before the first change of a user action: a drag, a key press, a
@@ -40,29 +45,51 @@ export type ValueControlProps = {
   onGestureStart?: (() => void) | undefined;
   /** Called when that action ends, with the final value. */
   onGestureEnd?: ((value: number) => void) | undefined;
-  /** Defaults to 0. */
+  /**
+   * The lowest value.
+   * @default 0
+   */
   min?: number | undefined;
-  /** Defaults to 1. */
+  /**
+   * The highest value.
+   * @default 1
+   */
   max?: number | undefined;
+  /** Values snap to `min + k * step`, and arrow keys move one step. Leave it out for a continuous value. */
   step?: number | undefined;
-  /** How travel maps to value. Defaults to `scales.linear`. */
+  /**
+   * How travel maps to value: `scales.linear`, `scales.log`, `scales.power(n)` or `scales.decibel`.
+   * @default scales.linear
+   */
   scale?: Scale | undefined;
   /** Text for the value and `aria-valuetext`, and parsing of typed values. */
   format?: ValueFormat | undefined;
   /**
-   * Where the value's range starts when drawn. Defaults to `min`; `origin={0}`
-   * on a -1 … 1 pan knob draws from the center (`data-bipolar`).
+   * Where the value's range starts when drawn: `origin={0}` on a -1 … 1 pan
+   * knob draws from the center (`data-bipolar`).
+   * @default min
    */
   origin?: number | undefined;
-  /** Pixels of drag for the full travel. Shift divides the speed by 10. */
+  /**
+   * Pixels of drag for the full travel. Shift divides the speed by 10.
+   * @default 200 for a knob, the track length for a fader, two pixels per step for a number box
+   */
   sensitivity?: number | undefined;
-  /** Changes the value on mouse wheel and trackpad scroll. Defaults to `true`. */
+  /**
+   * Changes the value on mouse wheel and trackpad scroll.
+   * @default true
+   */
   wheel?: boolean | undefined;
   /**
    * Hides the pointer during a drag so it never stops at the edge of the
    * screen, as desktop DAWs do. Browsers show a notice the first time.
+   * @default false
    */
   pointerLock?: boolean | undefined;
+  /**
+   * Ignores input and leaves the tab order.
+   * @default false
+   */
   disabled?: boolean | undefined;
 };
 

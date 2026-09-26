@@ -151,8 +151,7 @@ export function MeterRoot(props: MeterRoot.Props) {
 
 export namespace MeterRoot {
   export type State = MeterState;
-  export type Props = PartProps<"div", State> &
-    Omit<MeterBallisticsOptions, "floor"> & {
+  export type Props = PartProps<"div", State> & {
       /**
        * Returns the current level in dBFS; called once per animation frame.
        * Read an `AnalyserNode` or a value your audio code keeps up to date.
@@ -160,16 +159,32 @@ export namespace MeterRoot {
       read?: (() => number) | undefined;
       /** The current level in dBFS, when it comes from React state instead of `read`. */
       level?: number | undefined;
-      /** Bottom of the scale in dBFS; lower levels show as empty. Defaults to -60. */
+      /**
+       * Bottom of the scale in dBFS; lower levels show as empty.
+       * @default -60
+       */
       min?: number | undefined;
-      /** Top of the scale in dBFS. Defaults to 6. */
+      /**
+       * Top of the scale in dBFS.
+       * @default 6
+       */
       max?: number | undefined;
-      /** How dB map to the meter's length. Defaults to `scales.linear`. */
+      /**
+       * How dB map to the meter's length.
+       * @default scales.linear
+       */
       scale?: Scale | undefined;
-      /** Text for `aria-valuetext`. Defaults to `formats.decibel()`. */
+      /**
+       * Text for `aria-valuetext`.
+       * @default formats.decibel()
+       */
       format?: ValueFormat | undefined;
+      /**
+       * The direction the level rises in.
+       * @default "vertical"
+       */
       orientation?: Orientation | undefined;
-    };
+    } & Omit<MeterBallisticsOptions, "floor">;
 }
 
 /**

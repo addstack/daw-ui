@@ -21,7 +21,7 @@ type AnyProps = Record<string, unknown>;
  * Replaces the element a part renders, as in Base UI: an element to merge the
  * part's props into, or a function that receives them.
  */
-export type RenderProp<State> = ReactElement<AnyProps> | ((props: AnyProps, state: State) => ReactElement);
+export type RenderProp<State> = ReactElement | ((props: Record<string, unknown>, state: State) => ReactElement);
 
 /** Props every part takes, besides the ones of the element it renders. */
 export type PartProps<Tag extends keyof JSX.IntrinsicElements, State> = Omit<
@@ -32,6 +32,10 @@ export type PartProps<Tag extends keyof JSX.IntrinsicElements, State> = Omit<
   className?: string | ((state: State) => string | undefined) | undefined;
   /** Merged over the part's own inline style (used for positioning). */
   style?: CSSProperties | ((state: State) => CSSProperties | undefined) | undefined;
+  /**
+   * Replaces the rendered element: an element to merge the part's props into
+   * (`render={<button />}`), or a function `(props, state) => element`.
+   */
   render?: RenderProp<State> | undefined;
   children?: ReactNode;
 };

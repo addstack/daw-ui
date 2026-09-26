@@ -63,7 +63,10 @@ export type RangeOptions = {
   max: number;
   /** Values snap to `min + k * step`. Leave it out for a continuous parameter. */
   step?: number | undefined;
-  /** Defaults to `scales.linear`. */
+  /**
+   * How travel maps to value.
+   * @default scales.linear
+   */
   scale?: Scale | undefined;
 };
 

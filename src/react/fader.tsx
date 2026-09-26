@@ -84,7 +84,10 @@ export namespace FaderRoot {
   export type State = FaderState;
   export type Props = Omit<PartProps<"div", State>, keyof ValueControlProps> &
     ValueControlProps & {
-      /** Defaults to `"vertical"`, as on a mixer. */
+      /**
+       * The direction of travel.
+       * @default "vertical"
+       */
       orientation?: Orientation | undefined;
     };
 }
@@ -207,6 +210,7 @@ export function FaderValue({ children, ...props }: FaderValue.Props) {
 export namespace FaderValue {
   export type State = FaderState;
   export type Props = Omit<PartProps<"output", State>, "children"> & {
+    /** What to show instead of the formatted value, or a function of it. */
     children?: ReactNode | ((text: string, value: number) => ReactNode);
   };
 }

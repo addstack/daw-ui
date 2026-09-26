@@ -57,7 +57,10 @@ export namespace KnobRoot {
   export type State = ValueControlState;
   export type Props = Omit<PartProps<"div", State>, keyof ValueControlProps> &
     ValueControlProps & {
-      /** Degrees of rotation from the lowest to the highest value. Defaults to 270. */
+      /**
+       * Degrees of rotation from the lowest to the highest value.
+       * @default 270
+       */
       sweep?: number | undefined;
     };
 }
@@ -102,7 +105,10 @@ export function KnobTrack({ radius = 40, ...props }: KnobTrack.Props) {
 export namespace KnobTrack {
   export type State = ValueControlState;
   export type Props = PartProps<"path", State> & {
-    /** Radius in the 100 × 100 view box. Defaults to 40. */
+    /**
+     * Radius in the 100 × 100 view box.
+     * @default 40
+     */
     radius?: number | undefined;
   };
 }
@@ -134,9 +140,15 @@ export function KnobPointer({ from = 0, to = 40, ...props }: KnobPointer.Props) 
 export namespace KnobPointer {
   export type State = ValueControlState;
   export type Props = PartProps<"line", State> & {
-    /** Distance from the center where the line starts. Defaults to 0. */
+    /**
+     * Distance from the center where the line starts.
+     * @default 0
+     */
     from?: number | undefined;
-    /** Distance from the center where the line ends. Defaults to 40. */
+    /**
+     * Distance from the center where the line ends.
+     * @default 40
+     */
     to?: number | undefined;
   };
 }
@@ -160,6 +172,7 @@ export function KnobValue({ children, ...props }: KnobValue.Props) {
 export namespace KnobValue {
   export type State = ValueControlState;
   export type Props = Omit<PartProps<"output", State>, "children"> & {
+    /** What to show instead of the formatted value, or a function of it. */
     children?: ReactNode | ((text: string, value: number) => ReactNode);
   };
 }

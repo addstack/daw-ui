@@ -14,7 +14,10 @@ export type ValueFormat = {
 };
 
 export type LocaleOptions = {
-  /** Locale for digits and the decimal separator. Defaults to the runtime's. */
+  /**
+   * Locale for digits and the decimal separator.
+   * @default the runtime's locale
+   */
   locale?: Intl.LocalesArgument | undefined;
 };
 
@@ -48,7 +51,10 @@ function split(text: string): { number: number; rest: string } | null {
 }
 
 export type NumberFormatOptions = LocaleOptions & {
-  /** Digits after the decimal separator. Defaults to 2. */
+  /**
+   * Digits after the decimal separator.
+   * @default 2
+   */
   digits?: number | undefined;
   /** Appended after a space, and accepted (optionally) when parsing. */
   unit?: string | undefined;
