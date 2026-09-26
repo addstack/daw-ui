@@ -29,6 +29,13 @@ describe("createRange", () => {
     expect(range.constrain(10)).toBe(10);
   });
 
+  test("steps count from 0 when min is -Infinity, and silence stays silence", () => {
+    const range = createRange({ min: -Infinity, max: 6, step: 0.5, scale: scales.decibel });
+    expect(range.constrain(-6.3)).toBe(-6.5);
+    expect(range.constrain(0.2)).toBe(0);
+    expect(range.constrain(-Infinity)).toBe(-Infinity);
+  });
+
   test("rejects an empty range and a non-positive step", () => {
     expect(() => createRange({ min: 1, max: 1 })).toThrow(RangeError);
     expect(() => createRange({ min: 0, max: 1, step: 0 })).toThrow(RangeError);

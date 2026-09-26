@@ -61,7 +61,7 @@ export const scales = { linear, log, power, decibel };
 export type RangeOptions = {
   min: number;
   max: number;
-  /** Values snap to `min + k * step`. Leave it out for a continuous parameter. */
+  /** Values snap to `min + k * step` (to `k * step` when `min` is `-Infinity`). Leave it out for a continuous parameter. */
   step?: number | undefined;
   /**
    * How travel maps to value.
@@ -94,9 +94,11 @@ export function createRange({ min, max, step, scale = linear }: RangeOptions): R
     const clamped = clamp(value);
     // 12 significant digits drop noise such as 0.30000000000000004 and keep far more precision than any control shows.
     if (step === undefined) return Number(clamped.toPrecision(12));
-    const snapped = min + Math.round((clamped - min) / step) * step;
+    // Steps count from min, or from 0 when min is -Infinity (a fader down to silence in 0.5 dB steps).
+    const base = Number.isFinite(min) ? min : 0;
+    const snapped = base + Math.round((clamped - base) / step) * step;
     // Remove floating-point noise such as 0.30000000000000004, and stay in range when max - min is no multiple of step.
-    return clamp(Number(snapped.toFixed(decimalsOf(step) + decimalsOf(min))));
+    return clamp(Number(snapped.toFixed(decimalsOf(step) + decimalsOf(base))));
   };
 
   return {
