@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [".", "../perf", "../playwright.config.ts", "../playwright.perf.config.ts"]
+}
