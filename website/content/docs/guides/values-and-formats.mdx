@@ -19,6 +19,10 @@ cutoff.denormalize(0.5); // 632.5…
 
 `constrain` clamps a value and snaps it to the step; `denormalize` does so after mapping.
 
+## Values that change on their own
+
+A knob or fader takes its value from `value` (React state), `defaultValue` (uncontrolled), or `read`, a function called once per animation frame for values that change by themselves: automation playback, modulation, a control surface. `read` shows the value without rendering, and the user's drag wins while they hold the control. See [performance](/docs/guides/performance) for what the difference costs.
+
 ## Scales
 
 | Scale | Use | Travel |

@@ -8,7 +8,7 @@ import { build } from "vite";
 // About 10% above the current size: growth is a decision, taken by raising the budget in the same change.
 const BUDGETS = {
   "@addstack/daw-ui": { entry: "src/core/index.ts", limit: 2_700 },
-  "@addstack/daw-ui/react": { entry: "src/react/index.ts", limit: 12_500 },
+  "@addstack/daw-ui/react": { entry: "src/react/index.ts", limit: 14_000 },
 };
 
 let failed = false;

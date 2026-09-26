@@ -22,17 +22,20 @@ A drag on a fader sends dozens of values. An undo history should get one step fo
 
 A gesture starts with its first change, not with the press: a click that changes nothing leaves no empty undo step.
 
-## Recording automation
+## Playing and recording automation
 
-While a gesture is open, write the values to the automation lane instead of (or as well as) the parameter, and stop reading the lane for that parameter, so playback does not fight the user's hand:
+`read` plays automation: the knob calls it once per frame and shows the value without rendering. While the user holds the knob, `read` is ignored and the user's value wins, which is what DAWs call *touch* mode. Write what the user does into the lane while the gesture is open:
 
 ```tsx
 <Knob.Root
+  read={() => automation.valueAt('cutoff', transport.time)}
   onGestureStart={() => automation.touch('cutoff')}
   onValueChange={(hz) => automation.write('cutoff', transport.time, hz)}
   onGestureEnd={() => automation.release('cutoff')}
 />
 ```
+
+When the gesture ends, `read` takes over again and returns what was just recorded.
 
 ## Why a value changed
 

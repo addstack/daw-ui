@@ -94,6 +94,7 @@ Three views of one value model. They share these props:
 | Prop | |
 | --- | --- |
 | `value`, `defaultValue`, `onValueChange(value, { reason, event })` | Controlled or uncontrolled. `reason` is `"drag"`, `"keyboard"`, `"wheel"`, `"reset"` or `"input"`. |
+| `read` | For values that change on their own (automation, modulation, a control surface): called once per animation frame, shown without rendering. While the user drags, the user's value wins. |
 | `onGestureStart()`, `onGestureEnd(value)` | Around each user action: a drag, a key press, a burst of wheel events, a reset, a typed value. |
 | `min`, `max`, `step` | Defaults to 0…1, continuous. |
 | `scale` | How travel maps to value: `scales.linear`, `scales.log` (Hz, ms), `scales.power(n)`, `scales.decibel` (a console fader law: 0 dB at about 80%). |
@@ -113,7 +114,9 @@ Three views of one value model. They share these props:
 | Double-click, Delete, Backspace | Reset. |
 | Wheel | 5% per notch (Shift: finer). |
 
-**Knob** parts: `Root` (sets `--knob-value` and `--knob-angle`), `Control` (`role="slider"`), `Label`, `Value`, and the SVG parts `Track`, `Range` and `Pointer`, which draw into a `viewBox="0 0 100 100"`. `sweep` sets the rotation (270° by default).
+**Knob** parts: `Root` (sets `--knob-value` and `--knob-angle`), `Control` (`role="slider"`), `Label`, `Value`, and the SVG parts `Track`, `Range`, `Pointer` and `Modulation` (the arc to where an LFO moves the value now, read once per frame), which draw into a `viewBox="0 0 100 100"`. `sweep` sets the rotation (270° by default).
+
+When a value changes, the parts write what they show straight to the DOM: dragging a knob, or 128 controls following automation through `read`, renders nothing in React.
 
 **Fader** parts: `Root` (sets `--fader-value`, `orientation` is vertical by default), `Control`, `Label`, `Track`, `Range`, `Thumb`, `Tick` and `Value`.
 
@@ -235,13 +238,17 @@ A gesture starts with the first change, so a click that changes nothing leaves n
 
 In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders a stress page with 64 channel strips (running meters, pan knobs, faders, mute and solo) and a 16 × 64 step sequencer, in a production build, with the CPU slowed down 4×:
 
-| Scenario | Frame p50 / p99 (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
-| --- | --: | --: | --: | --: |
-| 64 meters running | 16.7 / 16.8 | 0 of 181 | – | 0 |
-| Fader drag, meters running | 16.7 / 16.8 | 0 of 90 | 9.4 / 11.2 | 62 for 60 moves |
-| Paint 64 steps, meters running | 16.7 / 33.2 | 1 of 90 | 9.5 / 12.9 | 32 for 30 moves |
+| Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
+| --- | --: | --: | --: | --: | --: |
+| 64 meters running | 5.0 | 0.2 | 0 of 181 | – | 0 |
+| Fader drag, meters running | 8.3 | 0.4 | 0 of 91 | 9.8 / 11.2 | 0 |
+| Paint 64 steps, meters running | 7.4 | 1.1 | 1 of 89 | 10.1 / 11.8 | 32 for 30 moves |
+| Automation on 128 knobs and faders, through `read` | 12.2 | 2.7 | 1 of 180 | – | 0 |
+| The same automation through React state (`value`) | 19.4 | 9.9 | 24 of 157 | – | one per frame |
 
-The deterministic numbers fail CI when they get worse: React commits per interaction, zero commits from running meters, renders per painted step (unit tests), and bundle size (11.3 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+A 60 Hz frame has 16.7 ms. The last row is the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
+
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (12.7 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 

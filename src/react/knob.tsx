@@ -1,20 +1,34 @@
 "use client";
 
-import { createContext, useContext, useId, type CSSProperties, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+} from "react";
 
 import { arcPath, knobAngle, polar } from "../core/index.js";
-import { useRenderPart, type PartProps } from "./render.js";
+import { onEveryFrame } from "./frame-loop.js";
+import { mergeLive, type Live } from "./live.js";
+import { useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
+  controlLive,
   splitValueControlProps,
+  staticAttributes,
   useLabel,
+  useLivePart,
   useValueControl,
-  valueAttributes,
+  useValueText,
+  valueLive,
   type ValueControl,
   type ValueControlProps,
   type ValueControlState,
 } from "./value-control.js";
 
-// The drawing parts (Track, Range, Pointer) draw into an `<svg viewBox="0 0 100 100">`.
+// The drawing parts (Track, Range, Pointer, Modulation) draw into an `<svg viewBox="0 0 100 100">`.
 const CENTER = 50;
 
 type KnobContextValue = { control: ValueControl; sweep: number };
@@ -27,10 +41,12 @@ function useKnobContext(part: string): KnobContextValue {
   return context;
 }
 
-
 /**
  * Groups the parts of a knob and holds its value. Sets `--knob-value` (travel
  * in [0, 1]) and `--knob-angle` on its element for styling in CSS.
+ *
+ * When the value changes, the parts write what they show straight to the
+ * DOM; nothing renders (docs/principles.md, section 7).
  */
 export function KnobRoot(props: KnobRoot.Props) {
   const [controlProps, { sweep = 270, ...elementProps }] = splitValueControlProps(props);
@@ -40,14 +56,17 @@ export function KnobRoot(props: KnobRoot.Props) {
     resetOnDoubleClick: true,
     role: "slider",
   });
-  const { state } = control;
+  const live = useLivePart(control, (state) =>
+    mergeLive(valueLive(state), {
+      style: { "--knob-value": String(state.normalized), "--knob-angle": `${knobAngle(state.normalized, sweep)}deg` },
+    }),
+  );
 
-  const element = useRenderPart("div", state, elementProps, {
-    ...valueAttributes(state),
-    style: {
-      "--knob-value": state.normalized,
-      "--knob-angle": `${knobAngle(state.normalized, sweep)}deg`,
-    } as CSSProperties,
+  const element = useRenderPart("div", control.state, elementProps, {
+    ref: live.ref,
+    ...staticAttributes(control.state),
+    ...live.attributes,
+    style: live.style,
   });
   return <KnobContext.Provider value={{ control, sweep }}>{element}</KnobContext.Provider>;
 }
@@ -67,7 +86,14 @@ export namespace KnobRoot {
 /** The focusable element (`role="slider"`) that takes drags, keys and the wheel. */
 export function KnobControl(props: KnobControl.Props) {
   const { control } = useKnobContext("Control");
-  return useRenderPart("div", control.state, props, { ...control.controlProps, ...valueAttributes(control.state) });
+  const live = useLivePart(control, controlLive);
+  const ref = useMergedRef(control.controlProps.ref, live.ref);
+  return useRenderPart("div", control.state, props, {
+    ...control.controlProps,
+    ref,
+    ...staticAttributes(control.state),
+    ...live.attributes,
+  });
 }
 
 export namespace KnobControl {
@@ -81,9 +107,12 @@ export function KnobLabel(props: KnobLabel.Props) {
   const generatedId = useId();
   const id = props.id ?? generatedId;
   useLabel(control, id);
+  const live = useLivePart(control, valueLive);
   return useRenderPart("span", control.state, props, {
     id,
-    ...valueAttributes(control.state),
+    ref: live.ref,
+    ...staticAttributes(control.state),
+    ...live.attributes,
     onClick: () => document.getElementById(control.controlId)?.focus(),
   });
 }
@@ -96,10 +125,13 @@ export namespace KnobLabel {
 /** The whole sweep, as an SVG path. */
 export function KnobTrack({ radius = 40, ...props }: KnobTrack.Props) {
   const { control, sweep } = useKnobContext("Track");
+  const live = useLivePart(control, valueLive);
   return useRenderPart("path", control.state, props, {
+    ref: live.ref,
     d: arcPath(CENTER, CENTER, radius, -sweep / 2, sweep / 2),
     fill: "none",
-    ...valueAttributes(control.state),
+    ...staticAttributes(control.state),
+    ...live.attributes,
   });
 }
 
@@ -117,11 +149,18 @@ export namespace KnobTrack {
 /** The arc from `origin` to the value, as an SVG path. */
 export function KnobRange({ radius = 40, ...props }: KnobRange.Props) {
   const { control, sweep } = useKnobContext("Range");
-  const { normalized, originNormalized } = control.state;
+  const live = useLivePart(control, (state) =>
+    mergeLive(valueLive(state), {
+      attributes: {
+        d: arcPath(CENTER, CENTER, radius, knobAngle(state.originNormalized, sweep), knobAngle(state.normalized, sweep)),
+      },
+    }),
+  );
   return useRenderPart("path", control.state, props, {
-    d: arcPath(CENTER, CENTER, radius, knobAngle(originNormalized, sweep), knobAngle(normalized, sweep)),
+    ref: live.ref,
     fill: "none",
-    ...valueAttributes(control.state),
+    ...staticAttributes(control.state),
+    ...live.attributes,
   });
 }
 
@@ -133,15 +172,16 @@ export namespace KnobRange {
 /** A line pointing at the value, as an SVG line. */
 export function KnobPointer({ from = 0, to = 40, ...props }: KnobPointer.Props) {
   const { control, sweep } = useKnobContext("Pointer");
-  const angle = knobAngle(control.state.normalized, sweep);
-  const start = polar(CENTER, CENTER, from, angle);
-  const end = polar(CENTER, CENTER, to, angle);
+  const live = useLivePart(control, (state): Live => {
+    const angle = knobAngle(state.normalized, sweep);
+    const start = polar(CENTER, CENTER, from, angle);
+    const end = polar(CENTER, CENTER, to, angle);
+    return mergeLive(valueLive(state), { attributes: { x1: start.x, y1: start.y, x2: end.x, y2: end.y } });
+  });
   return useRenderPart("line", control.state, props, {
-    x1: start.x,
-    y1: start.y,
-    x2: end.x,
-    y2: end.y,
-    ...valueAttributes(control.state),
+    ref: live.ref,
+    ...staticAttributes(control.state),
+    ...live.attributes,
   });
 }
 
@@ -162,26 +202,87 @@ export namespace KnobPointer {
 }
 
 /**
+ * The arc from the value to where modulation (an LFO, an envelope) moves it
+ * now, as in Bitwig Studio and Ableton Live. `read` returns the modulated
+ * value in the knob's units; it is called once per animation frame, and the
+ * arc is drawn without rendering.
+ */
+export function KnobModulation({ read, radius = 46, ...props }: KnobModulation.Props) {
+  const { control, sweep } = useKnobContext("Modulation");
+  const { store, range } = control;
+  const path = useRef<SVGPathElement | null>(null);
+  const readRef = useRef(read);
+  readRef.current = read;
+
+  const draw = useCallback(() => {
+    const element = path.current;
+    if (!element) return;
+    const from = knobAngle(range.normalize(store.value), sweep);
+    const to = knobAngle(range.normalize(readRef.current()), sweep);
+    const d = arcPath(CENTER, CENTER, radius, from, to);
+    if (element.getAttribute("d") !== d) element.setAttribute("d", d);
+  }, [store, range, sweep, radius]);
+  useEffect(() => onEveryFrame(draw), [draw]);
+
+  // `d` belongs to the frame loop alone, so that a render never draws a stale arc.
+  const drawOnMount = useCallback(
+    (element: SVGPathElement | null) => {
+      path.current = element;
+      draw();
+    },
+    [draw],
+  );
+  const live = useLivePart(control, valueLive);
+  const ref = useMergedRef(drawOnMount, live.ref);
+  return useRenderPart("path", control.state, props, {
+    ref,
+    fill: "none",
+    ...staticAttributes(control.state),
+    ...live.attributes,
+  });
+}
+
+export namespace KnobModulation {
+  export type State = ValueControlState;
+  export type Props = PartProps<"path", State> & {
+    /** Returns the modulated value, in the knob's units; called once per animation frame. */
+    read: () => number;
+    /**
+     * Radius in the 100 × 100 view box; outside the range's arc by default.
+     * @default 46
+     */
+    radius?: number | undefined;
+  };
+}
+
+/**
  * The formatted value. The control already announces it, so it is not a live
  * region. `dir="auto"` lets the text set its direction: "-6.0 dB" stays in
  * order inside a right-to-left page.
+ *
+ * The text is written without rendering. A `children` function renders this
+ * part on every change of the value, so keep it for values that change rarely.
  */
 export function KnobValue({ children, ...props }: KnobValue.Props) {
   const { control } = useKnobContext("Value");
-  const { state } = control;
-  const content = typeof children === "function" ? children(state.text, state.value) : (children ?? state.text);
+  const { state, content, ref, attributes } = useValueText(control, children);
   return useRenderPart("output", state, { ...props, children: content }, {
+    ref,
     htmlFor: control.controlId,
     "aria-live": "off",
     dir: "auto",
-    ...valueAttributes(state),
+    ...staticAttributes(state),
+    ...attributes,
   });
 }
 
 export namespace KnobValue {
   export type State = ValueControlState;
   export type Props = Omit<PartProps<"output", State>, "children"> & {
-    /** What to show instead of the formatted value, or a function of it. */
+    /**
+     * What to show instead of the formatted value, or a function of it. A
+     * function renders the part on every change of the value.
+     */
     children?: ReactNode | ((text: string, value: number) => ReactNode);
   };
 }

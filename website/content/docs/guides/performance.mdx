@@ -8,24 +8,29 @@ In a DAW, the interface competes with audio and with dozens of animated meters. 
 ## How the components work
 
 - **Styling runs no code per render.** `className` and `style` take plain values; state reaches CSS through data attributes and CSS variables, and thresholds through [zones](/docs/guides/styling#zones). A drag commits on every pointer event and automation on every frame, so anything computed per render is multiplied by the channel count and the frame rate.
-- **Meters never render through React.** One shared `requestAnimationFrame` loop reads every meter and writes CSS variables and attributes directly, and only when they change. The accessible value updates four times a second.
-- **An interaction renders only what it changes.** Dragging one knob does not render its siblings. Toggles in a group subscribe to their own state: painting one step of a 16 × 64 sequencer renders that step, not the grid.
+- **Values never render through React.** When the value of a knob, fader or number box changes, by a drag, a key, or automation, each part writes what it shows (an attribute, a CSS variable, its text) straight to the DOM, and only what differs. Dragging a knob renders nothing, not even the knob.
+- **Values that change on their own are read, not pushed.** Meters, `read` on knobs and faders, and `Knob.Modulation` are called once per animation frame by one shared `requestAnimationFrame` loop, instead of flowing through props and renders. The accessible value of a meter updates four times a second.
+- **An interaction renders only what it changes.** Toggles in a group subscribe to their own state: painting one step of a 16 × 64 sequencer renders that step, not the grid.
 - **Layout is read once per gesture.** A paint stroke reads the boxes of the toggles when it starts, then tests the pointer's path against them.
 - **Formatters are created once**, not per frame.
 
 ## What is measured
 
-Every change to the repository runs a stress page, in a production build, in Chromium with the CPU slowed down 4×: 64 channel strips with running meters, pan knobs, faders and mute and solo buttons, and a 16 × 64 step sequencer.
+Every change to the repository runs stress pages, in a production build, in Chromium with the CPU slowed down 4×: 64 channel strips with running meters, pan knobs, faders and mute and solo buttons, a 16 × 64 step sequencer, and 64 channels whose knobs and faders follow automation on every frame.
 
-| Scenario | Frame p50 / p99 (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
-| --- | --: | --: | --: | --: |
-| 64 meters running | 16.7 / 16.8 | 0 of 181 | – | 0 |
-| Fader drag, meters running | 16.7 / 16.8 | 0 of 90 | 9.4 / 11.2 | 62 for 60 moves |
-| Paint 64 steps, meters running | 16.7 / 33.2 | 1 of 90 | 9.5 / 12.9 | 32 for 30 moves |
+| Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
+| --- | --: | --: | --: | --: | --: |
+| 64 meters running | 5.0 | 0.2 | 0 of 181 | – | 0 |
+| Fader drag, meters running | 8.3 | 0.4 | 0 of 91 | 9.8 / 11.2 | 0 |
+| Paint 64 steps, meters running | 7.4 | 1.1 | 1 of 89 | 10.1 / 11.8 | 32 for 30 moves |
+| Automation on 128 knobs and faders, through `read` | 12.2 | 2.7 | 1 of 180 | – | 0 |
+| The same automation through React state (`value`) | 19.4 | 9.9 | 24 of 157 | – | one per frame |
 
-The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction, zero commits from running meters, renders per painted step, and the bundle size (11.3 kB minified and gzipped, everything included). Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
+A 60 Hz frame has 16.7 ms. The last two rows are the same page driven two ways: controlled `value` props updated on every frame spend more than the whole budget, `read` leaves room.
+
+The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction (zero for drags, for automation through `read`, and for running meters), renders per painted step, and the bundle size (12.7 kB minified and gzipped, everything included). Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
 
 ## In your application
 
-- Pass the level to meters with `read`, not with `level`: `level` goes through React state, `read` does not.
+- Pass values that change on their own with `read`, not with `value` or `level`: a meter's level, automation playback, a parameter moved by a control surface. `read` is called once per frame and renders nothing; a prop renders its parent.
 - Controlled components render when their parent does. For a mixer with many channels, keep each channel strip in a memoized component, or leave the controls uncontrolled and send `onValueChange` straight to your audio engine, as the [playground](https://github.com/addstack/daw-ui/blob/main/playground/main.tsx) does.

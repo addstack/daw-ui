@@ -13,12 +13,17 @@ import {
   type ReactNode,
 } from "react";
 
-import { dataAttributes, useRenderPart, type PartProps } from "./render.js";
+import { liveProps, type Live } from "./live.js";
+import { dataAttributes, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
   splitValueControlProps,
   useLabel,
+  controlLive,
+  staticAttributes,
+  useLivePart,
   useValueControl,
-  valueAttributes,
+  useValueText,
+  valueLive,
   type ValueControl,
   type ValueControlProps,
   type ValueControlState,
@@ -43,10 +48,13 @@ function useNumberBoxContext(part: string): NumberBoxContextValue {
   return context;
 }
 
+/** The attributes that change with the number box's props and editing, not with its value. */
 const stateAttributes = (state: NumberBoxState) => ({
-  ...valueAttributes(state),
+  ...staticAttributes(state),
   ...dataAttributes({ editing: state.editing }),
 });
+
+const liveAttributes = (live: Live) => liveProps(live).attributes;
 
 // A character that starts typing a value, as in Ableton Live: focus a number box and type.
 const STARTS_A_VALUE = /^[0-9.,+\-−]$/;
@@ -94,7 +102,8 @@ export function NumberBoxRoot(props: NumberBoxRoot.Props) {
   );
 
   const state: NumberBoxState = { ...control.state, editing: editing !== null };
-  const element = useRenderPart("div", state, elementProps, stateAttributes(state));
+  const live = useLivePart(control, valueLive);
+  const element = useRenderPart("div", state, elementProps, { ref: live.ref, ...stateAttributes(state), ...live.attributes });
   return (
     <NumberBoxContext.Provider value={{ control, state, editing, startEditing, setDraft, finishEditing }}>
       {element}
@@ -113,8 +122,14 @@ export namespace NumberBoxRoot {
  * value; Escape discards it.
  */
 export function NumberBoxField({ children, ...props }: NumberBoxField.Props) {
-  const { control, state, editing, startEditing, setDraft, finishEditing } = useNumberBoxContext("Field");
+  const { control, state: rendered, editing, startEditing, setDraft, finishEditing } = useNumberBoxContext("Field");
   const returnFocus = useRef(false);
+
+  // The plain text is written without rendering; a `children` function renders the field on every change.
+  const live = useValueText(control, children, controlLive);
+  const state: NumberBoxState = { ...live.state, editing: rendered.editing };
+  /** The text of the value now: it changes without rendering. */
+  const currentText = () => control.format.format(control.store.value);
 
   const displayRef = useCallback((element: HTMLElement | null) => {
     if (element && returnFocus.current) {
@@ -129,20 +144,23 @@ export function NumberBoxField({ children, ...props }: NumberBoxField.Props) {
     if (element.value.length > 1) element.select();
   }, []);
 
+  const displayRefs = useMergedRef(displayRef, control.controlProps.ref, live.ref);
+
   const ownDisplayProps = {
     ...control.controlProps,
-    ref: displayRef,
+    ref: displayRefs,
     // The text sets its direction, so "120.00 BPM" stays in order inside a right-to-left page.
     dir: "auto",
     ...stateAttributes(state),
+    ...live.attributes,
     onDoubleClick: () => {
-      if (!state.disabled) startEditing(state.text);
+      if (!state.disabled) startEditing(currentText());
     },
     onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
       if (state.disabled || event.ctrlKey || event.metaKey || event.altKey) return control.controlProps.onKeyDown(event);
       if (event.key === "Enter") {
         event.preventDefault();
-        startEditing(state.text);
+        startEditing(currentText());
       } else if (STARTS_A_VALUE.test(event.key)) {
         event.preventDefault();
         startEditing(event.key);
@@ -163,6 +181,7 @@ export function NumberBoxField({ children, ...props }: NumberBoxField.Props) {
     value: editing?.draft ?? "",
     "aria-labelledby": control.controlProps["aria-labelledby"],
     ...stateAttributes(state),
+    ...liveAttributes(valueLive(state)),
     onChange: (event: ChangeEvent<HTMLInputElement>) => setDraft(event.target.value),
     onKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => {
       if (event.key === "Enter" || event.key === "Escape") {
@@ -174,11 +193,10 @@ export function NumberBoxField({ children, ...props }: NumberBoxField.Props) {
     onBlur: (event: FocusEvent<HTMLInputElement>) => finishEditing(true, event.nativeEvent),
   };
 
-  const content = typeof children === "function" ? children(state.text, state.value) : (children ?? state.text);
   return useRenderPart(
     editing ? "input" : "span",
     state,
-    editing ? props : { ...props, children: content },
+    editing ? props : { ...props, children: live.content },
     editing ? ownInputProps : ownDisplayProps,
   );
 }
@@ -197,7 +215,10 @@ export function NumberBoxLabel(props: NumberBoxLabel.Props) {
   const generatedId = useId();
   const id = props.id ?? generatedId;
   useLabel(control, id);
+  const live = useLivePart(control, valueLive);
   return useRenderPart("span", state, props, {
+    ref: live.ref,
+    ...live.attributes,
     id,
     ...stateAttributes(state),
     onClick: () => document.getElementById(control.controlId)?.focus(),

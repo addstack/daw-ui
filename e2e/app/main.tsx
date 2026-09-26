@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { Automation } from "./automation.js";
 import { Controls } from "./controls.js";
 import { installHarness } from "./harness.js";
 import { Stress } from "./stress.js";
@@ -8,7 +9,11 @@ import { Stress } from "./stress.js";
 installHarness();
 
 const view = new URLSearchParams(location.search).get("view");
+const views = { stress: Stress, automation: Automation };
+const View = views[view as keyof typeof views] ?? Controls;
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>{view === "stress" ? <Stress /> : <Controls />}</StrictMode>,
+  <StrictMode>
+    <View />
+  </StrictMode>,
 );

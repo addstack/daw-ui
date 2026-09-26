@@ -289,7 +289,7 @@ describe("styling", () => {
 });
 
 describe("render budget", () => {
-  test("dragging one knob does not render another", () => {
+  test("dragging a knob renders nothing, not even the knob", () => {
     const commits = { a: 0, b: 0 };
     render(
       <>
@@ -304,7 +304,8 @@ describe("render budget", () => {
     commits.a = commits.b = 0;
     const [first] = screen.getAllByRole("slider");
     drag(first!, [{ y: 100 }, { y: 90 }, { y: 80 }, { y: 70 }]);
-    expect(commits.a).toBeGreaterThan(0);
-    expect(commits.b).toBe(0);
+    // The value moved: the parts wrote it to the DOM themselves.
+    expect(first!.getAttribute("aria-valuenow")).toBe("0.15");
+    expect(commits).toEqual({ a: 0, b: 0 });
   });
 });

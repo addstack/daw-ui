@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import FaderDemo from './fader';
 import KnobDemo from './knob';
 import BipolarKnobDemo from './knob-bipolar';
+import ModulationDemo from './knob-modulation';
 import MeterDemo from './meter';
 import NumberBoxDemo from './number-box';
 import ToggleDemo from './toggle';
@@ -14,6 +15,7 @@ export const demos = {
   fader: FaderDemo,
   knob: KnobDemo,
   'knob-bipolar': BipolarKnobDemo,
+  'knob-modulation': ModulationDemo,
   meter: MeterDemo,
   'number-box': NumberBoxDemo,
   toggle: ToggleDemo,

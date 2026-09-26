@@ -8,12 +8,16 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 
 import { createRange, formats, zoneOf, type Range, type Scale, type ValueFormat, type Zones } from "../core/index.js";
 import { isRightToLeft } from "./direction.js";
+import { onEveryFrame } from "./frame-loop.js";
+import { liveProps, mergeLive, useLive, type Live, type LiveListener } from "./live.js";
 import { dataAttributes } from "./render.js";
 
 export const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -27,8 +31,19 @@ export type ValueChangeDetails = {
 
 /** Props shared by `Knob.Root`, `Fader.Root` and `NumberBox.Root`. */
 export type ValueControlProps = {
-  /** The value, when controlled. Use with `onValueChange`. */
+  /**
+   * The value, when controlled by React state. Use with `onValueChange`.
+   * For values that change on every frame, such as automation, use `read`.
+   */
   value?: number | undefined;
+  /**
+   * Returns the value; called once per animation frame, for values that
+   * change on their own: automation, modulation, a control surface. The
+   * control shows it without rendering. While the user drags or types, the
+   * user's value wins; report it with `onValueChange`, and `read` returns
+   * it from then on.
+   */
+  read?: (() => number) | undefined;
   /** Initial value when uncontrolled. Also where a reset goes, unless `resetValue` is set. */
   defaultValue?: number | undefined;
   /**
@@ -119,6 +134,38 @@ export type ValueControlState = {
   zone: string | undefined;
 };
 
+/**
+ * The value of a control and whether it is being dragged, outside React.
+ * Parts subscribe and write what they show straight to the DOM.
+ */
+class ValueStore {
+  value: number;
+  dragging = false;
+  derive: (value: number, dragging: boolean) => ValueControlState;
+  private listeners = new Set<LiveListener<ValueControlState>>();
+
+  constructor(value: number, derive: (value: number, dragging: boolean) => ValueControlState) {
+    this.value = value;
+    this.derive = derive;
+  }
+
+  subscribe = (listener: LiveListener<ValueControlState>) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  set(value: number, dragging = this.dragging): void {
+    if (Object.is(value, this.value) && dragging === this.dragging) return;
+    this.value = value;
+    this.dragging = dragging;
+    if (this.listeners.size === 0) return;
+    const state = this.derive(value, dragging);
+    for (const listener of this.listeners) listener(state);
+  }
+}
+
 type Options = {
   orientation: "vertical" | "horizontal";
   /** Pixels for the full travel when `sensitivity` is not given; measured at the start of a drag. */
@@ -144,6 +191,7 @@ function wheelPixels(event: WheelEvent): number {
 export function useValueControl(props: ValueControlProps, options: Options) {
   const {
     value: controlledValue,
+    read,
     defaultValue,
     resetValue,
     onValueChange,
@@ -168,15 +216,38 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     [formatProp, step],
   );
   const origin = range.clamp(originProp ?? min);
+  const originNormalized = range.normalize(origin);
+  const bipolar = originNormalized > 0 && originNormalized < 1;
 
-  const [uncontrolledValue, setUncontrolledValue] = useState(() => range.constrain(defaultValue ?? origin));
-  const value = range.clamp(controlledValue ?? uncontrolledValue);
-  const [dragging, setDragging] = useState(false);
+  const derive = (value: number, dragging: boolean): ValueControlState => ({
+    value,
+    normalized: range.normalize(value),
+    originNormalized,
+    text: format.format(value),
+    dragging,
+    disabled,
+    bipolar,
+    zone: zoneOf(value, zones),
+  });
+
+  const controlled = controlledValue !== undefined;
+  const [store] = useState(
+    () => new ValueStore(controlled ? range.clamp(controlledValue) : range.constrain(defaultValue ?? origin), derive),
+  );
+  // Emitted states use the current range, format and zones.
+  store.derive = derive;
+  const value = controlled ? range.clamp(controlledValue) : range.clamp(store.value);
 
   // The value as of the last change this control made, so that events arriving
   // before the parent re-renders build on it rather than on a stale prop.
   const latest = useRef(value);
-  latest.current = value;
+
+  // A controlled value reaches the parts through the store, like any other.
+  useIsomorphicLayoutEffect(() => {
+    if (!controlled) return;
+    latest.current = value;
+    store.set(value);
+  });
 
   const callbacks = useRef({ onValueChange, onGestureStart, onGestureEnd });
   callbacks.current = { onValueChange, onGestureStart, onGestureEnd };
@@ -193,16 +264,20 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     callbacks.current.onGestureEnd?.(latest.current);
   }, []);
 
+  const isControlled = useRef(controlled);
+  isControlled.current = controlled;
+
   const change = useCallback(
     (next: number, reason: ValueChangeReason, event: Event) => {
       const constrained = range.constrain(next);
       if (Object.is(constrained, latest.current)) return;
       beginGesture();
       latest.current = constrained;
-      setUncontrolledValue(constrained);
+      // Uncontrolled, the control shows the value at once, without rendering; controlled, when the parent passes it back.
+      if (!isControlled.current) store.set(constrained);
       callbacks.current.onValueChange?.(constrained, { reason, event });
     },
-    [range, beginGesture],
+    [range, beginGesture, store],
   );
 
   const reset = useCallback(
@@ -219,6 +294,8 @@ export function useValueControl(props: ValueControlProps, options: Options) {
   optionsRef.current = options;
   const settings = useRef({ sensitivity, pointerLock, disabled, wheel });
   settings.current = { sensitivity, pointerLock, disabled, wheel };
+  // While the pointer is down, `read` does not move the value from under it.
+  const holding = useRef(false);
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
@@ -236,6 +313,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
       let lastX = event.clientX;
       let lastY = event.clientY;
       const pointerId = event.pointerId;
+      holding.current = true;
 
       try {
         element.setPointerCapture(pointerId);
@@ -256,7 +334,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
         lastY = move.clientY;
         const pixelsMoved = orientation === "vertical" ? -dy : dx * towardsStart;
         if (pixelsMoved === 0) return;
-        setDragging(true);
+        store.set(store.value, true);
         position = Math.min(1, Math.max(0, position + (pixelsMoved / pixels) * (move.shiftKey ? FINE : 1)));
         change(range.denormalize(position), "drag", move);
       };
@@ -267,7 +345,8 @@ export function useValueControl(props: ValueControlProps, options: Options) {
         element.removeEventListener("pointercancel", onEnd);
         element.removeEventListener("lostpointercapture", onEnd);
         if (document.pointerLockElement === element) document.exitPointerLock();
-        setDragging(false);
+        holding.current = false;
+        store.set(store.value, false);
         endGesture();
       };
       element.addEventListener("pointermove", onMove);
@@ -275,7 +354,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
       element.addEventListener("pointercancel", onEnd);
       element.addEventListener("lostpointercapture", onEnd);
     },
-    [range, change, endGesture],
+    [range, change, endGesture, store],
   );
 
   // --- keyboard ---
@@ -392,26 +471,30 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     return () => element.removeEventListener("wheel", listener);
   }, []);
 
+  // --- read: values that change on their own, read once per frame ---
+
+  const readRef = useRef(read);
+  readRef.current = read;
+  const reads = read !== undefined;
+  useEffect(() => {
+    if (!reads) return;
+    return onEveryFrame(() => {
+      if (!readRef.current || holding.current || inGesture.current) return;
+      const next = range.constrain(readRef.current());
+      if (Object.is(next, store.value)) return;
+      latest.current = next;
+      store.set(next);
+    });
+  }, [reads, range, store]);
+
   // --- labelling ---
 
   const controlId = useId();
   const [labelId, setLabelId] = useState<string | undefined>(undefined);
 
-  const normalized = range.normalize(value);
-  const originNormalized = range.normalize(origin);
-  const text = format.format(value);
+  const state = derive(value, store.dragging);
 
-  const state: ValueControlState = {
-    value,
-    normalized,
-    originNormalized,
-    text,
-    dragging,
-    disabled,
-    bipolar: originNormalized > 0 && originNormalized < 1,
-    zone: zoneOf(value, zones),
-  };
-
+  /** The static props of the focusable element; its value attributes are live (`controlLive`). */
   const controlProps = {
     ref: controlRef,
     id: controlId,
@@ -419,8 +502,6 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     tabIndex: disabled ? -1 : 0,
     "aria-valuemin": Number.isFinite(range.min) ? range.min : undefined,
     "aria-valuemax": range.max,
-    "aria-valuenow": Number.isFinite(value) ? value : undefined,
-    "aria-valuetext": text,
     "aria-orientation": options.role === "slider" ? options.orientation : undefined,
     "aria-disabled": disabled || undefined,
     "aria-labelledby": labelId,
@@ -430,7 +511,19 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     style: { touchAction: "none" },
   };
 
-  return { state, range, format, zones, controlProps, controlId, setLabelId, change, endGesture };
+  return {
+    state,
+    store,
+    subscribe: store.subscribe,
+    range,
+    format,
+    zones,
+    controlProps,
+    controlId,
+    setLabelId,
+    change,
+    endGesture,
+  };
 }
 
 export type ValueControl = ReturnType<typeof useValueControl>;
@@ -446,6 +539,7 @@ export function useLabel(control: Pick<ValueControl, "setLabelId">, id: string):
 
 const VALUE_CONTROL_KEYS = [
   "value",
+  "read",
   "defaultValue",
   "resetValue",
   "onValueChange",
@@ -477,12 +571,58 @@ export function splitValueControlProps<Props extends ValueControlProps>(
   return [control as ValueControlProps, rest as Omit<Props, keyof ValueControlProps>];
 }
 
-/** The data attributes every part of a knob, fader or number box carries. */
-export function valueAttributes(state: ValueControlState): Record<string, unknown> {
-  return dataAttributes({
-    dragging: state.dragging,
-    disabled: state.disabled,
-    bipolar: state.bipolar,
-    zone: state.zone,
+/** The data attributes every part of a knob, fader or number box carries that do not change with the value. */
+export function staticAttributes(state: ValueControlState): Record<string, unknown> {
+  return dataAttributes({ disabled: state.disabled, bipolar: state.bipolar });
+}
+
+/** What every part of a knob, fader or number box shows of the value: `data-dragging` and `data-zone`. */
+export function valueLive(state: ValueControlState): Live {
+  return { attributes: { "data-dragging": state.dragging ? "" : null, "data-zone": state.zone ?? null } };
+}
+
+/** What the focusable element shows of the value: its accessible value, and the value attributes. */
+export function controlLive(state: ValueControlState): Live {
+  return mergeLive(valueLive(state), {
+    attributes: {
+      "aria-valuenow": Number.isFinite(state.value) ? state.value : null,
+      "aria-valuetext": state.text,
+    },
   });
+}
+
+/**
+ * A part's live description (`live`) applied for the render, and the ref
+ * that keeps it current when only the value changes, without rendering.
+ */
+export function useLivePart(control: ValueControl, live: (state: ValueControlState) => Live) {
+  const ref = useLive(control.subscribe, live);
+  const current = live(control.state);
+  return { ref, ...liveProps(current), text: current.text };
+}
+
+const noSubscription = () => () => {};
+
+/**
+ * The state and content of a part that shows the formatted value. The plain
+ * text is written without rendering; a `children` function renders the part
+ * (alone) on every change of the value.
+ */
+export function useValueText(
+  control: ValueControl,
+  children: ReactNode | ((text: string, value: number) => ReactNode),
+  live: (state: ValueControlState) => Live = valueLive,
+) {
+  const renders = typeof children === "function";
+  const snapshot = useSyncExternalStore(
+    renders ? control.subscribe : noSubscription,
+    () => control.store.value,
+    () => control.state.value,
+  );
+  const state = renders ? control.store.derive(snapshot, control.store.dragging) : control.state;
+  const part = useLivePart(control, (current) =>
+    children === undefined ? mergeLive(live(current), { text: current.text }) : live(current),
+  );
+  const content = typeof children === "function" ? children(state.text, state.value) : (children ?? part.text);
+  return { state, content, ref: part.ref, attributes: part.attributes };
 }

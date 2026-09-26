@@ -199,6 +199,10 @@ h1 {
   margin-inline-start: -5px;
 }
 
+.stress .value {
+  font: 9px/1 ui-monospace, monospace;
+}
+
 .sequencer {
   display: grid;
   gap: 2px;

@@ -55,10 +55,10 @@ Every user action is wrapped in `onGestureStart` / `onGestureEnd`: a drag, a key
 Performance is a requirement, measured on every change.
 
 - **Assume that everything renders often.** A drag commits on every pointer event, and automation changes controlled values on every frame, on every channel. Work done per render is multiplied by the number of channels and the frame rate, so it is never "negligible". Parts therefore run no application code per render to style themselves: `className` and `style` take values, not functions of state, and state reaches CSS only through attributes and CSS variables, which the browser applies without JavaScript. An API that invites per-render work in the hot path is a performance bug, even when each call is cheap.
-- **Values that change at audio-visual rates never go through React state.** Meters (and later playheads) are read once per animation frame by one shared loop and written straight to the DOM.
+- **Values that change at audio-visual rates never go through React state.** Meters, and the value of knobs, faders and number boxes, are written straight to the DOM: a drag, a key or automation changes what the parts show without rendering anything. Values that change on their own (meter levels, automation, modulation) are read once per animation frame by one shared loop (`read`), not pushed through props.
 - An interaction re-renders only what it changes: dragging one knob does not render its siblings.
 - Layout is read at the start of a gesture, not on every pointer move.
-- **Budgets that are deterministic gate CI**: React render counts per interaction, zero React renders from running meters, bundle size.
+- **Budgets that are deterministic gate CI**: React render counts per interaction (zero for a drag, zero for automation through `read`, zero for running meters), bundle size.
 - **Timings are measured and reported**: frame times and input latency in Chromium under 4× CPU throttling on a stress page (64 channel strips, a 16×64 step grid). CI runners are too noisy to gate on them; the numbers go to the job summary.
 - Core functions have micro-benchmarks (`vitest bench`).
 

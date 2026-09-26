@@ -16,6 +16,7 @@ import { Knob } from '@addstack/daw-ui/react';
     <svg viewBox="0 0 100 100">
       <Knob.Track />
       <Knob.Range />
+      <Knob.Modulation />
       <Knob.Pointer />
     </svg>
   </Knob.Control>
@@ -23,7 +24,7 @@ import { Knob } from '@addstack/daw-ui/react';
 </Knob.Root>
 ```
 
-`Track`, `Range` and `Pointer` draw into a 100 × 100 view box around its center. You can leave them out and draw the knob yourself: the root sets `--knob-angle`, so `rotate: var(--knob-angle)` turns any element.
+`Track`, `Range`, `Modulation` and `Pointer` draw into a 100 × 100 view box around its center. You can leave them out and draw the knob yourself: the root sets `--knob-angle`, so `rotate: var(--knob-angle)` turns any element.
 
 ## Examples
 
@@ -32,6 +33,20 @@ import { Knob } from '@addstack/daw-ui/react';
 With `origin`, the range is drawn from that value instead of from `min`: a pan knob fills from the center in both directions, and its root gets `data-bipolar`.
 
 <ComponentPreview name="knob-bipolar" />
+
+### Modulation
+
+`Knob.Modulation` draws the arc from the knob's value to where modulation moves it now, as in Bitwig Studio and Ableton Live. Its `read` returns the modulated value in the knob's units; it is called once per animation frame, and the arc is drawn without rendering. Drag the knob: the modulation follows.
+
+<ComponentPreview name="knob-modulation" />
+
+### Automation
+
+`read` on the root plays automation the same way: called once per frame, shown without rendering. While the user holds the knob, their value wins. See [gestures](/docs/guides/gestures#playing-and-recording-automation).
+
+```tsx
+<Knob.Root read={() => automation.valueAt('cutoff', transport.time)} />
+```
 
 ### Scales and steps
 
@@ -110,8 +125,14 @@ A line at the value's angle. Renders an SVG `<line>`.
 
 <PropsTable part="Knob.Pointer" />
 
+### Modulation
+
+The arc from the value to the modulated value. Renders an SVG `<path>`.
+
+<PropsTable part="Knob.Modulation" />
+
 ### Value
 
-The formatted value. Renders an `<output>` with `dir="auto"`, which is not a live region: the control already announces the value.
+The formatted value. Renders an `<output>` with `dir="auto"`, which is not a live region: the control already announces the value. The text changes without rendering; a `children` function renders this part on every change.
 
 <PropsTable part="Knob.Value" />

@@ -85,13 +85,17 @@ Built-in formats:
 
 ### 5.1 State
 
-Each root holds a value: controlled when `value` is given, otherwise starting at `constrain(defaultValue ?? origin)`. `origin` defaults to `min` and is clamped. The displayed value is `clamp(value)`.
+Each root holds a value in a store outside React: controlled when `value` is given, otherwise starting at `constrain(defaultValue ?? origin)`. `origin` defaults to `min` and is clamped. The displayed value is `clamp(value)`.
+
+Every part describes what it shows of the value: attributes (e.g. `aria-valuenow`, `d`, `data-zone`), CSS properties (e.g. `--knob-value`, `bottom`) and text. React applies the description when the part renders. When only the value or `dragging` changes, the store gives the new state to every part, which writes the differences from its element to the DOM (attributes and styles compared with the DOM, text written into React's own text node); **no component renders**. A controlled value reaches the parts through the store as well, after the parent renders.
+
+With `read`, the root calls it once per animation frame through the frame loop shared with meters (§7.2), and shows `constrain(read())` through the store, except while the pointer is down on the control or a gesture is open (§6): the user's value wins until they let go.
 
 State exposed to parts: `value`, `normalized`, `originNormalized`, `text` (formatted value), `dragging`, `disabled`, `bipolar` (`0 < originNormalized < 1`), `zone` (`zoneOf(value, zones)`, §3).
 
 Every part of a knob, fader or number box carries the data attributes `data-dragging`, `data-disabled`, `data-bipolar` and `data-zone` for this state; fader parts also carry `data-orientation`, number box parts `data-editing`. `Fader.Tick` is the exception: its `data-zone` is the zone of its own `value`.
 
-A change is **applied** as follows: the candidate is constrained; if it equals the last value this control produced or rendered (`Object.is`), nothing happens; otherwise a gesture starts if none is open (§6), the uncontrolled value is set, and `onValueChange(value, { reason, event })` is called. A controlled control shows the new value only when the parent passes it back.
+A change is **applied** as follows: the candidate is constrained; if it equals the last value this control produced or showed (`Object.is`), nothing happens; otherwise a gesture starts if none is open (§6), an uncontrolled control shows the value through the store, and `onValueChange(value, { reason, event })` is called. A controlled control shows the new value only when the parent passes it back.
 
 ### 5.2 Drag
 
@@ -130,10 +134,11 @@ Double-click (knob, fader) and Delete/Backspace apply `resetValue ?? defaultValu
 | `*.Root` | `div` | Holds the value. Knob: `--knob-value`, `--knob-angle` (`−sweep/2 + normalized·sweep`, in deg). Fader: `--fader-value`. |
 | `Knob.Control`, `Fader.Control` | `div` | `role="slider"`, `tabindex` 0 (−1 disabled), `aria-valuemin` (omitted when infinite), `aria-valuemax`, `aria-valuenow` (omitted when infinite), `aria-valuetext` = formatted value, `aria-orientation`, `aria-disabled`, `aria-labelledby` = the mounted `Label`. Handles §5.2–5.5. |
 | `*.Label` | `span` | Its id labels the control while mounted. A click focuses the control. |
-| `*.Value` | `output` | The formatted value (or `children(text, value)`), `for` the control, `aria-live="off"`, `dir="auto"`. |
+| `*.Value` | `output` | The formatted value, `for` the control, `aria-live="off"`, `dir="auto"`. With `children` as a function, `children(text, value)` is rendered instead, and that part (alone) renders on every change of the value. |
 | `Knob.Track` | `path` | Arc over the full sweep, radius `radius` (40) around (50, 50), `fill="none"`. |
 | `Knob.Range` | `path` | Arc from the origin's angle to the value's angle. An empty arc is a bare move command. |
 | `Knob.Pointer` | `line` | From radius `from` (0) to `to` (40) at the value's angle. |
+| `Knob.Modulation` | `path` | The arc at radius `radius` (46) from the value's angle to the angle of `read()`, the modulated value in the knob's units. `read` is called once per animation frame and the arc (`d`) is written by the frame loop only, never by a render. |
 | `Fader.Track` | `div` | `position: relative`; its length is the default sensitivity. |
 | `Fader.Range` | `div` | Absolutely positioned from the lower of origin and value, with length equal to their distance. |
 | `Fader.Thumb`, `Fader.Tick` | `div` | Centred on the value (thumb) or on `normalize(value)` (tick). Ticks are `aria-hidden`. |
@@ -250,10 +255,10 @@ Checked on every change; a regression fails CI.
 
 | Budget | Where |
 | --- | --- |
-| Dragging one knob renders no other knob. | `test/knob.test.tsx` |
+| Dragging a knob renders nothing, not even the knob; `read` and `Knob.Modulation` render nothing per frame. | `test/knob.test.tsx`, `test/live.test.tsx` |
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
-| In a production build with 64 strips: 0 React commits while meters run; for a fader drag, at most one commit per pointer event plus two; for a paint stroke, plus three. | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 2.7 kB, React binding (with core) ≤ 12.5 kB. | `scripts/size.mjs` |
+| In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
+| Minified and gzipped: core ≤ 2.7 kB, React binding (with core) ≤ 14 kB. | `scripts/size.mjs` |
 
-Frame times and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.
+Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

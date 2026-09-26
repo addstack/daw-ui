@@ -22,6 +22,7 @@ const PARTS = [
   "Knob.Track",
   "Knob.Range",
   "Knob.Pointer",
+  "Knob.Modulation",
   "Knob.Value",
   "Fader.Root",
   "Fader.Control",
