@@ -67,6 +67,12 @@ const PARTS = [
   "Curve.Dots",
   "Curve.Handle",
   "Curve.Bend",
+  "MultiSlider.Root",
+  "MultiSlider.Label",
+  "MultiSlider.Control",
+  "MultiSlider.Item",
+  "MultiSlider.Range",
+  "MultiSlider.Value",
   "Keys.Root",
   "Keys.Key",
   "XYPad.Root",
@@ -139,7 +145,7 @@ function describe(list: string[]): { full: string; short: string } {
 
 const exportName = (part: string) => part.replace(".", "_");
 const content = [
-  `import type { Curve, Fader, Keys, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "@addstack/daw-ui/react";`,
+  `import type { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "@addstack/daw-ui/react";`,
   ...PARTS.map((part) => `export type ${exportName(part)} = ${part}.Props;`),
 ].join("\n");
 

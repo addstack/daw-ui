@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -105,6 +105,15 @@ function EveryComponent() {
         </XYPad.Control>
         <XYPad.Value />
       </XYPad.Root>
+      <MultiSlider.Root defaultValue={[0.2, 0.9]}>
+        <MultiSlider.Control>
+          <MultiSlider.Item index={0}>
+            <MultiSlider.Range />
+          </MultiSlider.Item>
+          <MultiSlider.Item index={1} />
+        </MultiSlider.Control>
+        <MultiSlider.Value />
+      </MultiSlider.Root>
       <Keys.Root range={[59, 62]} held={[60]}>
         {[59, 60, 61, 62].map((note) => (
           <Keys.Key key={note} note={note} />
@@ -170,6 +179,10 @@ test("text the components show is not selectable, except a value being typed (se
         <Meter.Clip data-testid="meter clip">f</Meter.Clip>
       </Meter.Root>
       <Toggle data-testid="toggle">g</Toggle>
+      <MultiSlider.Root defaultValue={[0.5]}>
+        <MultiSlider.Label data-testid="multi-slider label">k</MultiSlider.Label>
+        <MultiSlider.Value data-testid="multi-slider value" />
+      </MultiSlider.Root>
       <Keys.Root range={[60, 60]}>
         <Keys.Key note={60} data-testid="key">
           j
@@ -202,6 +215,8 @@ test("text the components show is not selectable, except a value being typed (se
     "meter clip",
     "toggle",
     "key",
+    "multi-slider label",
+    "multi-slider value",
     "ruler",
     "region header",
     "region label",

@@ -400,3 +400,19 @@ h1 {
   width: 1040px;
   height: 80px;
 }
+
+/* Multi-sliders: 320 × 100 px; 640 px for 64 steps. */
+.multi-slider {
+  width: 320px;
+  height: 100px;
+  background: #222;
+}
+
+.multi-slider.wide {
+  width: 640px;
+}
+
+.multi-slider-range {
+  inset-inline: 2px;
+  background: #ff9f0a;
+}

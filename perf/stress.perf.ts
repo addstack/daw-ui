@@ -271,3 +271,16 @@ test("a glissando across 88 keys", async ({ page }) => {
   // Budget: every key a pointer crosses goes down and up without rendering.
   expect(result.reactCommits).toBe(0);
 });
+
+test("painting 64 values of a multi-slider", async ({ page }) => {
+  await openStress(page, "multi-slider");
+  const control = (await page.getByTestId("Steps control").boundingBox())!;
+  const result = await measure(page, "Paint 64 values of a multi-slider", 1500, () =>
+    glide(page, { x: control.x + 5, y: control.y + control.height - 5 }, { x: control.x + control.width - 5, y: control.y + 5 }, 30),
+  );
+  const values = await page.evaluate(() => window.e2e.events.filter((event) => event.source === "Steps" && event.type === "change").at(-1)?.value as number[]);
+  // Every value set, though the pointer moved two or three steps per event.
+  expect(values.filter((value) => value > 0)).toHaveLength(64);
+  // Budget: the bars follow the stroke in the DOM; nothing renders.
+  expect(result.reactCommits).toBe(0);
+});

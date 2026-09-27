@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -71,6 +71,14 @@ test("every component renders on the server", () => {
         </XYPad.Control>
         <XYPad.Value />
       </XYPad.Root>
+      <MultiSlider.Root defaultValue={[0.25, 1]}>
+        <MultiSlider.Control>
+          <MultiSlider.Item index={0}>
+            <MultiSlider.Range />
+          </MultiSlider.Item>
+          <MultiSlider.Item index={1} />
+        </MultiSlider.Control>
+      </MultiSlider.Root>
       <Keys.Root range={[60, 62]} held={[61]} format={formats.pitch({ names: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"] })}>
         <Keys.Key note={60} />
         <Keys.Key note={61} />
@@ -93,6 +101,9 @@ test("every component renders on the server", () => {
   // A modulation range with its depth given is drawn before any script runs; so is its handle's value.
   expect(html).toMatch(/<path d="M 50 4 A 46 46 0 0 1 [^"]+" fill="none"/);
   expect(html).toContain('aria-valuetext="25%"');
+  // The bars of a multi-slider are placed and filled before any script runs.
+  expect(html).toContain("inset-inline-start:50%;width:50%");
+  expect(html).toContain("bottom:0%;height:25%");
   // Keys are placed, named and held down before any script runs.
   expect(html).toContain('aria-label="C♯4"');
   expect(html).toMatch(/aria-label="C♯4"[^>]*data-held=""/);

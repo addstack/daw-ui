@@ -14,6 +14,8 @@ export * as Keys from "./keys.parts.js";
 export type { KeysPressDetails, KeysReason, KeysReleaseDetails } from "./keys.js";
 export * as Knob from "./knob.parts.js";
 export * as Meter from "./meter.parts.js";
+export * as MultiSlider from "./multi-slider.parts.js";
+export type { MultiSliderChangeDetails, MultiSliderChangeReason } from "./multi-slider.js";
 export * as Notes from "./notes.parts.js";
 export type { Note } from "./notes.js";
 export * as NumberBox from "./number-box.parts.js";
