@@ -6,7 +6,7 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [2. Parts](#2-parts)
 - [3. Value model](#3-value-model)
 - [4. Formats](#4-formats)
-- [5. Value controls](#5-value-controls-knob-fader-numberbox)
+- [5. Value controls](#5-value-controls-knob-fader-numberbox-xy-pad)
 - [6. Gestures](#6-gestures)
 - [7. Meter](#7-meter)
 - [8. Toggle](#8-toggle)
@@ -35,7 +35,7 @@ Each part:
 - accepts `render`: an element, which is cloned with the part's props merged into its own, or a function `(props, state) => element`;
 - merges props in this way: the user's event handler runs first, and if it calls `event.preventDefault()`, the part's own handler is skipped; class names are joined; the user's style is spread over the part's inline style; refs all receive the element.
 
-Inline styles set by parts are limited to positioning (`position`, logical insets, `translate`, `clip-path`), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header` and `Region.Label`. The text input of a number box being edited is selectable.
+Inline styles set by parts are limited to positioning (`position`, logical insets, `translate`, `clip-path`), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label` and `XYPad.Value`. The text input of a number box being edited is selectable.
 
 ## 3. Value model
 
@@ -109,7 +109,7 @@ Segments of the built-in formats:
 | `position` | `bars`: `beatsPerBar`; `beats`: 1, 1 … `beatsPerBar`; `divisions`: 1 / `divisions`, 1 … `divisions` | `.` |
 | `timecode` | `hours`: 3600, from 0; `minutes`: 60, 0 … 59; `seconds`: 1, 0 … 59; `frames`: 1 / `fps`, 0 … `fps` − 1 | `:` |
 
-## 5. Value controls (Knob, Fader, NumberBox)
+## 5. Value controls (Knob, Fader, NumberBox, XY pad)
 
 ### 5.1 State
 
@@ -202,6 +202,14 @@ A field's text and `aria-valuenow` are written through the store (§5.1): a chan
 | PageUp, PageDown, Home, End, Delete, Backspace | as on the field (§5.3, §5.5), on the whole value |
 
 Each step's `delta` (§5.1) has the direction of the input.
+
+### 5.9 XY pad
+
+`XYPad.Root` (`div`, `role="group"`, named by `XYPad.Label`) holds a list of values `[x, y]`, one per thumb: controlled by `value`, or starting at `defaultValue` (default one thumb at `[x.min, y.min]`), each constrained to the ranges `createRange(x)` and `createRange(y)` (defaults 0 … 1). A change constrains the thumb's value, and does nothing if it is the same; otherwise it starts a gesture if none is under way, shows it at once when uncontrolled (controlled, when the parent passes it back), and calls `onValueChange(values, { reason, event, thumb })` with every thumb's value. Thumbs do not constrain each other. With `read`, `read()` once per animation frame gives the values, unless a thumb is held or a gesture is under way.
+
+- **Drag.** A primary press on `XYPad.Thumb index={i}` drags thumb `i`; on `XYPad.Control` away from the thumbs, the thumb nearest in travel to the pointer first takes the pointer's position, then is dragged. The control's box is read at the press. Each move adds to the thumb's travel `Δx / width` across (negated right to left) and `−Δy / height` up, times 0.1 with Shift, clamped to 0 … 1, and changes the value to `denormalize` of it, reason `"drag"`. The pointer is captured; release ends the gesture. `data-dragging` is on the thumb meanwhile.
+- **Keys** on a thumb, each one gesture, reason `"keyboard"`: ArrowLeft and ArrowRight move `x` (ArrowRight towards `max` left to right, towards `min` right to left), ArrowUp and ArrowDown move `y`, by the axis's `step`, else by 0.01 of travel (0.001 with Shift); PageUp and PageDown move `y` by 0.1 of travel; Home and End set `x` to `min` and `max`. Delete and Backspace, and a double-click, reset the thumb to `resetValue[i]`, else `defaultValue[i]`, reason `"reset"`.
+- **Parts.** `XYPad.Control` (`div`, `position: relative`, `touch-action: none`). `XYPad.Thumb` (`div`, `role="slider"`, `tabindex` 0, `aria-valuemin`/`aria-valuemax` the finite bounds of `x`, `aria-valuenow` its finite `x`, `aria-valuetext` = `format.x(x) + ", " + format.y(y)`, `data-xy-thumb`; `position: absolute`, `inset-inline-start` and `bottom` the travel of `x` and `y` in percent, `translate: −50% 50%` (`50% 50%` right to left), `--xy-pad-x` and `--xy-pad-y` the travel, `touch-action: none`). `XYPad.Value` (`output`, `dir="auto"`, `user-select: none`) the text of thumb `index` (default 0): both formats joined with ", ", or one with `axis`. Positions, attributes and texts are rewritten without rendering. `disabled` ignores input, sets `data-disabled` and removes the thumbs from the tab order. Default formats: `formats.number({ digits: 2 })`.
 
 ## 6. Gestures
 
@@ -409,9 +417,10 @@ Checked on every change; a regression fails CI.
 | Dragging a knob renders nothing, not even the knob; `read` and `Knob.Modulation` render nothing per frame. | `test/knob.test.tsx`, `test/live.test.tsx` |
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
+| Dragging a thumb of an XY pad renders nothing. | `test/xy-pad.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
 | Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
 | In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, while the view pages along with a MIDI track of 3760 notes more, while it zooms with an automation lane of 2000 bent points more, and at most 2 for a drag of one of those points when editable (the press, and the application keeping the points); 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 30.5 kB. | `scripts/size.mjs` |
+| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 34 kB; an application importing only a knob ≤ 9 kB, only an XY pad ≤ 7.6 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 14.8 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

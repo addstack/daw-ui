@@ -313,3 +313,17 @@ h1 {
   height: 8px;
   background: #f59e0b;
 }
+
+/* XY pads: 200 × 100 px. */
+.xy-pad-control {
+  width: 200px;
+  height: 100px;
+  background: #222;
+}
+
+.xy-pad-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+}

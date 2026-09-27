@@ -148,6 +148,22 @@ With `Segments` instead of `Field`, it shows the value as fields that change one
 </NumberBox.Root>
 ```
 
+### XY pad
+
+One or more thumbs, each moving two values at once: a filter's cutoff and resonance, the bands of an EQ, the sources in a panner. Each axis has the `min`, `max`, `step` and `scale` of a knob's range, and the value is a list of `[x, y]` pairs, one per thumb.
+
+```tsx
+<XYPad.Root x={{ min: 20, max: 20_000, scale: scales.log }} y={{ min: 0, max: 1 }} defaultValue={[[1000, 0.3]]}>
+  <XYPad.Label>Filter</XYPad.Label>
+  <XYPad.Control className="size-48">
+    <XYPad.Thumb index={0} aria-label="Cutoff and resonance" />
+  </XYPad.Control>
+  <XYPad.Value />
+</XYPad.Root>
+```
+
+**XYPad** parts: `Root` (a `group`, with `value`, `defaultValue`, `resetValue`, `onValueChange(values, { reason, event, thumb })`, `read`, `onGestureStart`/`onGestureEnd`, `x`, `y`, `format`), `Label`, `Control` (the area: a press away from the thumbs brings the nearest one there), `Thumb` (a `slider` per value, `index`; Left/Right across, Up/Down up and down, Shift finer, double-click or Delete to reset; `--xy-pad-x` and `--xy-pad-y`) and `Value` (both axes, or one with `axis`). Thumbs do not stop each other, and nothing renders as they move.
+
 ### Meter
 
 A peak meter with hold and a clip indicator. `read` is called once per animation frame: return the level in dBFS from an `AnalyserNode` or from your audio code. One shared `requestAnimationFrame` loop drives every meter and writes to the DOM directly, so running meters cause no React renders.
@@ -308,7 +324,7 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (24.8 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (30.9 kB for everything; 8.2 kB for a knob alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 

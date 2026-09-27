@@ -1,14 +1,29 @@
-// Bundle size budget: what an application adds when it imports everything,
-// minified and gzipped, with React left out. Fails over the budget.
+// Bundle size budgets: what an application adds when it imports everything,
+// and when it imports only some components, minified and gzipped, with React
+// left out. The second kind checks that what an application does not import
+// is left out of its bundle. Fails over a budget.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
 import { build } from "vite";
 
+// An entry that imports only `names` from the React binding, as an application would.
+const CACHE = "node_modules/.cache/size";
+function only(names) {
+  mkdirSync(CACHE, { recursive: true });
+  const file = `${CACHE}/${names.join("-")}.ts`;
+  writeFileSync(file, `export { ${names.join(", ")} } from "../../../src/react/index.ts";\n`);
+  return file;
+}
+
 // About 10% above the current size: growth is a decision, taken by raising the budget in the same change.
 const BUDGETS = {
   "@addstack/daw-ui": { entry: "src/core/index.ts", limit: 6_700 },
-  "@addstack/daw-ui/react": { entry: "src/react/index.ts", limit: 30_500 },
+  "@addstack/daw-ui/react": { entry: "src/react/index.ts", limit: 34_000 },
+  "a knob alone": { entry: only(["Knob"]), limit: 9_000 },
+  "an XY pad alone": { entry: only(["XYPad"]), limit: 7_600 },
+  "a timeline with regions and waveforms": { entry: only(["Timeline", "Region", "Waveform"]), limit: 8_600 },
+  "an editable curve": { entry: only(["Curve", "useCurveEditing"]), limit: 14_800 },
 };
 
 let failed = false;
@@ -34,7 +49,8 @@ for (const [name, { entry, limit }] of Object.entries(BUDGETS)) {
   const gzip = gzipSync(code, { level: 9 }).length;
   const ok = gzip <= limit;
   failed ||= !ok;
-  rows.push(`| \`${name}\` | ${(gzip / 1000).toFixed(2)} kB | ${(limit / 1000).toFixed(2)} kB | ${ok ? "✅" : "❌"} |`);
+  const label = name.startsWith("@") ? `\`${name}\`` : name;
+  rows.push(`| ${label} | ${(gzip / 1000).toFixed(2)} kB | ${(limit / 1000).toFixed(2)} kB | ${ok ? "✅" : "❌"} |`);
   console.log(`${ok ? "ok  " : "FAIL"} ${name}: ${gzip} B gzip (budget ${limit} B)`);
 }
 

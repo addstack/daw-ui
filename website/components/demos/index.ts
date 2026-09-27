@@ -24,6 +24,8 @@ import SequencerDemo from './toggle-group-sequencer';
 import WaveformDemo from './waveform';
 import RecordingDemo from './waveform-recording';
 import SampleDemo from './waveform-sample';
+import XYPadDemo from './xy-pad';
+import EqualizerDemo from './xy-pad-eq';
 
 /** Demos by file name, for `<ComponentPreview name="…" />`. */
 export const demos = {
@@ -51,6 +53,8 @@ export const demos = {
   waveform: WaveformDemo,
   'waveform-recording': RecordingDemo,
   'waveform-sample': SampleDemo,
+  'xy-pad': XYPadDemo,
+  'xy-pad-eq': EqualizerDemo,
 } satisfies Record<string, ComponentType>;
 
 export type DemoName = keyof typeof demos;

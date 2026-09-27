@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
+import { Curve, Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -96,6 +96,13 @@ function EveryComponent() {
         </Waveform.Root>
         <Timeline.Playhead />
       </Timeline.Root>
+      <XYPad.Root defaultValue={[[0.5, 0.5], [0.2, 0.8]]}>
+        <XYPad.Control>
+          <XYPad.Thumb index={0} />
+          <XYPad.Thumb index={1} />
+        </XYPad.Control>
+        <XYPad.Value />
+      </XYPad.Root>
       <ToggleGroup paint exclusive="click">
         <Toggle />
         <Toggle behavior="momentary" />
@@ -158,6 +165,10 @@ test("text the components show is not selectable, except a value being typed (se
       <Toggle data-testid="toggle">g</Toggle>
       <Timeline.Root start={0} end={1}>
         <Timeline.Ruler grid={clockGrid()} data-testid="ruler" />
+        <XYPad.Root>
+          <XYPad.Label data-testid="xy pad label">i</XYPad.Label>
+          <XYPad.Value data-testid="xy pad value" />
+        </XYPad.Root>
         <Region.Root at={0} duration={1}>
           <Region.Header data-testid="region header">
             <Region.Label data-testid="region label">h</Region.Label>
@@ -181,6 +192,8 @@ test("text the components show is not selectable, except a value being typed (se
     "ruler",
     "region header",
     "region label",
+    "xy pad label",
+    "xy pad value",
   ];
   expect(parts.filter((part) => screen.getByTestId(part).style.userSelect !== "none")).toEqual([]);
 

@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
+import { Curve, Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -62,6 +62,13 @@ test("every component renders on the server", () => {
         </Waveform.Root>
         <Timeline.Playhead />
       </Timeline.Root>
+      <XYPad.Root defaultValue={[[0.5, 0.5], [0.2, 0.8]]}>
+        <XYPad.Control>
+          <XYPad.Thumb index={0} />
+          <XYPad.Thumb index={1} />
+        </XYPad.Control>
+        <XYPad.Value />
+      </XYPad.Root>
       <ToggleGroup multiple defaultValue={["a"]}>
         <Toggle value="a">A</Toggle>
         <Toggle value="b">B</Toggle>

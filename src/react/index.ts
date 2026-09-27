@@ -26,5 +26,7 @@ export {
   type ToggleChangeReason,
 } from "./toggle.js";
 export * as Waveform from "./waveform.parts.js";
+export * as XYPad from "./xy-pad.parts.js";
+export type { XYAxis, XYPadChangeDetails, XYPadChangeReason, XYValue } from "./xy-pad.js";
 export { mergeProps, type PartProps, type RenderProp } from "./render.js";
 export type { ValueChangeDetails, ValueChangeReason, ValueControlProps, ValueControlState } from "./value-control.js";

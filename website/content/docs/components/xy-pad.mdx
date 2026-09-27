@@ -1,0 +1,100 @@
+---
+title: XY Pad
+description: A pad that moves one or more thumbs across two axes at once, for a filter's cutoff and resonance, the bands of an EQ, sources in a panner.
+---
+
+<ComponentPreview name="xy-pad" />
+
+## Anatomy
+
+```tsx
+import { formats, scales } from '@addstack/daw-ui';
+import { XYPad } from '@addstack/daw-ui/react';
+
+<XYPad.Root
+  x={{ min: 20, max: 20_000, scale: scales.log }}
+  y={{ min: 0, max: 1 }}
+  defaultValue={[[1000, 0.3]]}
+  format={{ x: formats.frequency(), y: formats.percent() }}
+>
+  <XYPad.Label>Filter</XYPad.Label>
+  <XYPad.Control className="size-48">
+    <XYPad.Thumb index={0} aria-label={t('cutoffAndResonance')} />
+  </XYPad.Control>
+  <XYPad.Value axis="x" />
+  <XYPad.Value axis="y" />
+</XYPad.Root>
+```
+
+A pad controls two values with one thumb: across, the `x` axis, and up, the `y` axis, each with the `min`, `max`, `step` and `scale` of a knob's or a fader's range. It is the XY pad of synthesizers and effects, not a drum pad: a drum pad is a [`Toggle`](/docs/components/toggle) with `behavior="momentary"`.
+
+## One thumb or several
+
+A pad's value is a list of `[x, y]` pairs, one per thumb, even for one thumb: `defaultValue={[[1000, 0.3]]}`. An EQ has one thumb per band on the same axes:
+
+<ComponentPreview name="xy-pad-eq" />
+
+```tsx
+<XYPad.Root x={{ min: 20, max: 20_000, scale: scales.log }} y={{ min: -18, max: 18 }} value={bands} onValueChange={setBands}>
+  <XYPad.Control className="h-40 w-96">
+    {bands.map((band, index) => (
+      <XYPad.Thumb key={index} index={index} aria-label={t('band', { n: index + 1 })} />
+    ))}
+  </XYPad.Control>
+</XYPad.Root>
+```
+
+Thumbs do not stop each other: bands cross, sources overlap. How many there are is your application's: render one `XYPad.Thumb` per value, with its `index`. `onValueChange` receives every thumb's value, and `details.thumb` says which moved.
+
+## Behaviour
+
+- **Drag** a thumb, and it moves as far as the pointer, on both axes; with Shift, a tenth as far. A press on the pad away from the thumbs brings the nearest thumb to the pointer, and the drag goes on from there.
+- **Keys** on a thumb: Left and Right move it across, along the reading direction; Up and Down, up and down; Shift is finer, and an axis with a `step` moves by it. Page Up and Page Down move it a tenth up or down, Home and End to the ends across.
+- **Reset:** a double-click, Delete or Backspace returns a thumb to its `resetValue`, or its `defaultValue`.
+- **Nothing renders** as a thumb moves: the thumbs, their text and `XYPad.Value` are written straight to the DOM. `read` gives values that change on their own, as automation, once per animation frame.
+- **Gestures:** each drag, key or reset is wrapped in `onGestureStart` and `onGestureEnd`, one undo step.
+
+Right to left, the pad runs along the reading direction: the minimum across is on the right, the thumbs, drags and arrows follow. The vertical axis does not change.
+
+The root is a `group` named by `XYPad.Label`. Each thumb is a `slider`, named with `aria-label`, whose `aria-valuetext` says both its values in their formats, and whose `aria-valuenow` is its value across.
+
+## Styling
+
+The thumbs are placed with `inset-inline-start` and `bottom` in percent of the control, centred on their value, and carry `--xy-pad-x` and `--xy-pad-y`, their travel from 0 to 1, for styles that follow them. Size the control with CSS; give the thumbs a size and a look.
+
+| Data attribute | |
+| --- | --- |
+| `data-dragging` | On a thumb while it is dragged. |
+| `data-disabled` | On the root, the control and the thumbs while disabled. |
+
+## API reference
+
+### Root
+
+Holds the values. Renders a `<div>` with `role="group"`.
+
+<PropsTable part="XYPad.Root" />
+
+### Label
+
+Names the pad. Renders a `<span>`.
+
+<PropsTable part="XYPad.Label" />
+
+### Control
+
+The area the thumbs move on. Renders a `<div>` with `position: relative`.
+
+<PropsTable part="XYPad.Control" />
+
+### Thumb
+
+A thumb, for the value at `index`. Renders a `<div>` with `role="slider"`.
+
+<PropsTable part="XYPad.Thumb" />
+
+### Value
+
+The text of a thumb's value: both axes, or one with `axis`. Renders an `<output>`.
+
+<PropsTable part="XYPad.Value" />
