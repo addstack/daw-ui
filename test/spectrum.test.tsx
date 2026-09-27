@@ -105,9 +105,11 @@ describe("Spectrum", () => {
       </Spectrum.Root>,
     );
     expect(screen.getByRole("img", { name: "Analyser" })).toBeTruthy();
-    // The fill: from the bottom left, along the levels, to the bottom right, closed.
+    // The fill: one shape from the bottom left, along the levels, to the bottom right, closed along the bottom.
     const [fill, line] = drawn.paths.slice(-2);
     expect(fill![0]).toEqual(["M", 0, 90]);
+    expect(fill!.filter(([command]) => command === "M")).toHaveLength(1);
+    expect(fill![1]).toEqual(["L", 1, 45]);
     expect(fill!.at(-1)).toEqual(["L", 100, 90]);
     expect(drawn.ends).toEqual(["close", "fill", "stroke"]);
     // −45 dB is halfway from −90 to 0 dB: 45 px down a 90 px spectrum, in every one of 100 columns.

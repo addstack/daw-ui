@@ -225,13 +225,16 @@ export namespace SpectrumRoot {
 const heightOf = (frame: SpectrumFrame, level: number, height: number) =>
   (1 - Math.min(1, Math.max(0, (level - frame.floor) / (frame.ceiling - frame.floor || 1)))) * height;
 
-/** The path through the levels, one point in the middle of each column. */
-function trace(context: CanvasRenderingContext2D, frame: SpectrumFrame, levels: Float32Array, width: number, height: number) {
+/**
+ * The path through the levels, one point in the middle of each column: a new
+ * path, or with `continuing`, on from where the path is.
+ */
+function trace(context: CanvasRenderingContext2D, frame: SpectrumFrame, levels: Float32Array, width: number, height: number, continuing = false) {
   const step = width / levels.length;
   for (let column = 0; column < levels.length; column++) {
     const x = (column + 0.5) * step;
     const y = heightOf(frame, levels[column]!, height);
-    if (column === 0) context.moveTo(x, y);
+    if (column === 0 && !continuing) context.moveTo(x, y);
     else context.lineTo(x, y);
   }
 }
@@ -314,7 +317,7 @@ export function SpectrumFill(props: SpectrumFill.Props) {
   return useCanvasPart("Fill", props, (context, frame, _ratio, width, height) => {
     context.beginPath();
     context.moveTo(0, height);
-    trace(context, frame, frame.levels, width, height);
+    trace(context, frame, frame.levels, width, height, true);
     context.lineTo(width, height);
     context.closePath();
     context.fill();
