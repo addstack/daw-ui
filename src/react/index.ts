@@ -20,6 +20,8 @@ export * as Notes from "./notes.parts.js";
 export type { Note } from "./notes.js";
 export * as NumberBox from "./number-box.parts.js";
 export * as Region from "./region.parts.js";
+export * as Slider from "./slider.parts.js";
+export type { SliderChangeDetails, SliderChangeReason } from "./slider.js";
 export * as Timeline from "./timeline.parts.js";
 export {
   Toggle,

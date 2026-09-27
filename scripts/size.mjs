@@ -24,6 +24,7 @@ const BUDGETS = {
   "an XY pad alone": { entry: only(["XYPad"]), limit: 6_200 },
   "a keyboard alone": { entry: only(["Keys"]), limit: 5_300 },
   "a multi-slider alone": { entry: only(["MultiSlider"]), limit: 6_500 },
+  "a slider alone": { entry: only(["Slider"]), limit: 6_900 },
   "a timeline with regions and waveforms": { entry: only(["Timeline", "Region", "Waveform"]), limit: 8_600 },
   "an editable curve": { entry: only(["Curve", "useCurveEditing"]), limit: 13_500 },
 };

@@ -40,7 +40,7 @@ Every change to the repository runs stress pages, in a production build, in Chro
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the same page driven two ways: controlled `value` props updated on every frame spend more than the whole budget, `read` leaves room.
 
-The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction (zero for drags, for automation through `read`, for running meters, for waveforms and for keys), canvas tiles drawn (none during playback), renders per painted step, and the bundle size, minified and gzipped: 35.4 kB for everything, and what an application adds when it imports only some components, such as 7.8 kB for a knob alone or 4.8 kB for a keyboard alone, which checks that the rest is left out. Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
+The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction (zero for drags, for automation through `read`, for running meters, for waveforms and for keys), canvas tiles drawn (none during playback), renders per painted step, and the bundle size, minified and gzipped: 37.1 kB for everything, and what an application adds when it imports only some components, such as 7.8 kB for a knob alone or 4.8 kB for a keyboard alone, which checks that the rest is left out. Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
 
 ## In your application
 

@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
-import { clockGrid, createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { clockGrid, createPeaks, formats, scales } from "../src/core/index.js";
+import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -105,6 +105,18 @@ function EveryComponent() {
         </XYPad.Control>
         <XYPad.Value />
       </XYPad.Root>
+      <Slider.Root min={20} max={20_000} scale={scales.log} defaultValue={[200, 2000]}>
+        <Slider.Control>
+          <Slider.Track>
+            <Slider.Range />
+            <Slider.Band index={1} />
+            <Slider.Thumb index={0}>
+              <Slider.Value index={0} />
+            </Slider.Thumb>
+            <Slider.Thumb index={1} />
+          </Slider.Track>
+        </Slider.Control>
+      </Slider.Root>
       <MultiSlider.Root defaultValue={[0.2, 0.9]}>
         <MultiSlider.Control>
           <MultiSlider.Item index={0}>
@@ -179,6 +191,10 @@ test("text the components show is not selectable, except a value being typed (se
         <Meter.Clip data-testid="meter clip">f</Meter.Clip>
       </Meter.Root>
       <Toggle data-testid="toggle">g</Toggle>
+      <Slider.Root>
+        <Slider.Label data-testid="slider label">l</Slider.Label>
+        <Slider.Value data-testid="slider value" />
+      </Slider.Root>
       <MultiSlider.Root defaultValue={[0.5]}>
         <MultiSlider.Label data-testid="multi-slider label">k</MultiSlider.Label>
         <MultiSlider.Value data-testid="multi-slider value" />
@@ -215,6 +231,8 @@ test("text the components show is not selectable, except a value being typed (se
     "meter clip",
     "toggle",
     "key",
+    "slider label",
+    "slider value",
     "multi-slider label",
     "multi-slider value",
     "ruler",

@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -71,6 +71,13 @@ test("every component renders on the server", () => {
         </XYPad.Control>
         <XYPad.Value />
       </XYPad.Root>
+      <Slider.Root defaultValue={[0.25, 0.75]}>
+        <Slider.Track>
+          <Slider.Range />
+          <Slider.Thumb index={0} aria-label="Low" />
+          <Slider.Thumb index={1} aria-label="High" />
+        </Slider.Track>
+      </Slider.Root>
       <MultiSlider.Root defaultValue={[0.25, 1]}>
         <MultiSlider.Control>
           <MultiSlider.Item index={0}>
@@ -101,6 +108,9 @@ test("every component renders on the server", () => {
   // A modulation range with its depth given is drawn before any script runs; so is its handle's value.
   expect(html).toMatch(/<path d="M 50 4 A 46 46 0 0 1 [^"]+" fill="none"/);
   expect(html).toContain('aria-valuetext="25%"');
+  // A slider's thumbs and range are placed, and its values set as variables, before any script runs.
+  expect(html).toContain("inset-inline-start:25%;width:50%");
+  expect(html).toContain("--slider-value-1:0.75");
   // The bars of a multi-slider are placed and filled before any script runs.
   expect(html).toContain("inset-inline-start:50%;width:50%");
   expect(html).toContain("bottom:0%;height:25%");

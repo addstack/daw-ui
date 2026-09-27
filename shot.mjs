@@ -1,0 +1,15 @@
+import { chromium } from "@playwright/test";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1200, height: 900 }, deviceScaleFactor: 2, colorScheme: "dark" });
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+await page.goto("http://localhost:5321/docs/components/timeline");
+await page.waitForTimeout(1500);
+const preview = page.locator("main").locator("div").filter({ has: page.getByRole("group", { name: "Drums" }) }).last();
+await page.getByRole("group", { name: "Drums" }).first().scrollIntoViewIfNeeded();
+await page.screenshot({ path: process.argv[2] + "/timeline.png", clip: await (async () => { const b = await page.getByRole("group", { name: "Drums" }).first().boundingBox(); return { x: b.x - 140, y: b.y - 60, width: 780, height: 280 }; })() });
+await page.goto("http://localhost:5321/docs/components/region");
+await page.waitForTimeout(1000);
+console.log("region groups:", await page.getByRole("group", { name: "Beat" }).count(), "errors:", errors);
+await browser.close();

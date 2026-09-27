@@ -416,3 +416,66 @@ h1 {
   inset-inline: 2px;
   background: #ff9f0a;
 }
+
+/* Sliders: a track 300 px long (200 px tall when vertical), thumbs 12 px, bands over a 60 px graph. */
+.slider-graph {
+  position: relative;
+  width: 300px;
+  height: 60px;
+  background: #222;
+}
+
+.slider-band {
+  inset-block: 0;
+  border-inline-start: 1px dashed #888;
+  font-size: 10px;
+}
+
+.slider-control {
+  width: 300px;
+  padding-block: 10px;
+}
+
+.slider-control.vertical {
+  width: auto;
+  padding-inline: 10px;
+}
+
+.slider-track {
+  height: 4px;
+  background: #444;
+}
+
+.slider-track.vertical {
+  width: 4px;
+  height: 200px;
+}
+
+.slider-range {
+  inset-block: 0;
+  background: #d946ef;
+}
+
+.slider-track.vertical .slider-range {
+  inset-inline: 0;
+}
+
+.slider-thumb {
+  top: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #eee;
+}
+
+.slider-track.vertical .slider-thumb {
+  top: auto;
+  left: -4px;
+}
+
+.slider-value {
+  position: absolute;
+  bottom: 14px;
+  font-size: 10px;
+  white-space: nowrap;
+}

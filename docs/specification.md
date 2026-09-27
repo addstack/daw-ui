@@ -6,7 +6,7 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [2. Parts](#2-parts)
 - [3. Value model](#3-value-model)
 - [4. Formats](#4-formats)
-- [5. Value controls](#5-value-controls-knob-fader-numberbox-xy-pad-multi-slider)
+- [5. Value controls](#5-value-controls-knob-fader-numberbox-xy-pad-multi-slider-slider)
 - [6. Gestures](#6-gestures)
 - [7. Meter](#7-meter)
 - [8. Toggle](#8-toggle)
@@ -38,7 +38,7 @@ Each part:
 
 A part that moves focus because of a pointer press, or of a click on a `Label`, calls `focus({ preventScroll: true, focusVisible: false })`: it shows no focus ring, as the browser's own focusing on a click shows none. Focus moved by keys keeps the ring.
 
-Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value`, `MultiSlider.Label`, `MultiSlider.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
+Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value`, `Slider.Label`, `Slider.Value`, `MultiSlider.Label`, `MultiSlider.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
 
 ## 3. Value model
 
@@ -113,7 +113,7 @@ Segments of the built-in formats:
 | `position` | `bars`: `beatsPerBar`; `beats`: 1, 1 … `beatsPerBar`; `divisions`: 1 / `divisions`, 1 … `divisions` | `.` |
 | `timecode` | `hours`: 3600, from 0; `minutes`: 60, 0 … 59; `seconds`: 1, 0 … 59; `frames`: 1 / `fps`, 0 … `fps` − 1 | `:` |
 
-## 5. Value controls (Knob, Fader, NumberBox, XY pad, multi-slider)
+## 5. Value controls (Knob, Fader, NumberBox, XY pad, multi-slider, slider)
 
 ### 5.1 State
 
@@ -224,6 +224,14 @@ Each step's `delta` (§5.1) has the direction of the input.
 - **Strokes.** A primary press on `MultiSlider.Control` prevents the default action and reads, once, the control's box and each item's left and right; the value at a height `y` is `denormalize(clamp01(1 − (y − top) / height))`. Items whose span contains the pointer's `x` take the value at its `y` (reason `"paint"`), and the nearest of them is focused. On each move, from the previous point to the current one, every item whose span meets the segment's horizontal extent takes the value at the height of the segment where it crosses the item's middle, clamped to the segment: reason `"paint"`. With Shift at the press, the item nearest the pointer alone moves, its travel changed by `−Δy / height × 0.1` per move, clamped to 0 … 1: reason `"drag"`. The control captures the pointer and has `data-painting` until release, cancel or lost capture, which end the gesture.
 - **Keys** on an item, each one gesture: ArrowUp and ArrowDown change it by `step`, else by 0.01 of travel (0.001 with Shift); PageUp and PageDown by 0.1 of travel; Home and End set `min` and `max` (reason `"keyboard"`). ArrowLeft and ArrowRight focus the previous or next item along the reading direction; with Shift, that item first takes this one's value (reason `"paint"`). Delete and Backspace, and a double-click, reset the item to `resetValue`, else its `defaultValue`, else `origin` (default `min`): reason `"reset"`.
 - **Parts.** `MultiSlider.Control` (`div`, `position: relative`, `touch-action: none`). `MultiSlider.Item index={i}` (`div`, `role="slider"`, `aria-orientation="vertical"`, `aria-label` the number `i + 1` unless given, `aria-valuemin`/`aria-valuemax` the finite bounds, `aria-valuenow` its finite value, `aria-valuetext` its format; `tabindex` 0 on the focusable item, at first item 0, then the last focused, −1 on the others and on all while disabled; `position: absolute`, `inset-block: 0`, `inset-inline-start: i / n` and `width: 1 / n` in percent of `n` values, `--multi-slider-value` its travel). `MultiSlider.Range` (`div` in an item, `position: absolute`, `bottom` the lower and `height` the distance of the travels of `origin` and the value, in percent). `MultiSlider.Value` (`output`, `dir="auto"`, `user-select: none`) the text of value `index`, else of the item last focused or changed. What they show is rewritten without rendering. `disabled` ignores input and sets `data-disabled`.
+
+### 5.11 Slider
+
+`Slider.Root` (`div`, `role="group"`, named by `Slider.Label`, `data-orientation`, default `"horizontal"`) holds a list of values on one range `createRange({ min, max, step, scale })` (defaults 0 … 1), in order: controlled by `value`, or starting at `defaultValue` (default one thumb at `min`), each constrained and then raised to the one before it. Thumb `i` moves between its neighbours, `values[i − 1]` (else `min`) and `values[i + 1]` (else `max`). A change constrains the value, clamps it to those bounds, and does nothing if it is the same; otherwise it starts a gesture if none is under way, shows it at once when uncontrolled (controlled, when the parent passes it back), and calls `onValueChange(values, { reason, event, thumb })`. With `read`, `read()` once per animation frame gives the values, put in order, unless a thumb is held or a gesture is under way. The root sets `--slider-value-i`, each thumb's travel, and `data-dragging` while a thumb is dragged. Default format: `formats.number({ digits: 2 })`, 0 digits when `step` is whole.
+
+- **Drag.** A primary press on `Slider.Thumb index={i}` focuses it and drags it; on `Slider.Control` away from the thumbs, the thumb nearest in travel to the pointer (of thumbs at the same distance, the later one when the pointer is past them) first takes the pointer's position on `Slider.Track`, then is dragged. The track's box is read at the press. Each move adds to the thumb's travel `Δx / width` (negated right to left) or `−Δy / height` when vertical, times 0.1 with Shift, clamped to the travels of its neighbours, and changes the value to `denormalize` of it, reason `"drag"`. At the first move, if the thumb shares its value with a neighbour, the drag goes to the last thumb of that value when moving up, the first when moving down, which is then focused. The pointer is captured; release ends the gesture. `data-dragging` is on the thumb meanwhile.
+- **Keys** on a thumb, each one gesture, reason `"keyboard"`: ArrowUp and ArrowRight raise it, ArrowDown and ArrowLeft lower it (Left and Right follow the reading direction when horizontal), by `step`, else by 0.01 of travel (0.001 with Shift); PageUp and PageDown by 0.1 of travel; Home and End set it to its lower and upper bound. Delete and Backspace, and a double-click, reset it to `resetValue[i]`, else `defaultValue[i]`, within its bounds: reason `"reset"`.
+- **Parts.** `Slider.Control` (`div`, `touch-action: none`). `Slider.Track` (`div`, `position: relative`). `Slider.Thumb index={i}` (`div`, `role="slider"`, `tabindex` 0 (−1 disabled), `aria-orientation`, `aria-valuemin`/`aria-valuemax` its finite bounds, `aria-valuenow` its finite value, `aria-valuetext` its format, `data-slider-thumb`; `position: absolute`, `inset-inline-start` (or `bottom` when vertical) its travel in percent, `translate: −50% 0` (`50% 0` right to left; `0 50%` vertical), `--slider-value` its travel, `touch-action: none`). `Slider.Range` (`div`, `position: absolute`) from the first thumb's travel to the last's, or from `origin`'s (default `min`) to the value with one thumb. `Slider.Band index={b}` (`div`, `position: absolute`) from the travel of thumb `b − 1` (0 for `b = 0`) to that of thumb `b` (1 past the last thumb). Range and bands are placed with `inset-inline-start` and `width` (`bottom` and `height` when vertical) in percent of what holds them. `Slider.Value` (`output`, `dir="auto"`, `user-select: none`) the text of thumb `index` (default 0). Positions, attributes and texts are rewritten without rendering. `disabled` ignores input, sets `data-disabled` and removes the thumbs from the tab order.
 
 ## 6. Gestures
 
@@ -433,6 +441,7 @@ The direction is read from the DOM (`getComputedStyle(element).direction`): at p
 - Horizontal value controls: dragging towards the inline end increases the value; in RTL, ArrowLeft increases and ArrowRight decreases. Positions use `inset-inline-start`; the thumb and ticks are centred with `translate` of −50% (LTR) or +50% (RTL).
 - Horizontal meters clip the bar from the inline end.
 - Toggle groups and multi-sliders: Left and Right move along the reading direction; a multi-slider's items lie along it.
+- Horizontal sliders run along the reading direction, their thumbs, range and bands with them, as horizontal faders do.
 - Vertical controls, knobs, Up and Down do not depend on direction.
 - Time on a timeline and the fields of number box segments run left to right in every direction (§10, §5.8).
 - Keys run from low to high left to right, or bottom to top, in every direction, and their arrow keys do not change; the back of the keys of a vertical keyboard is at the inline start (§11).
@@ -449,12 +458,13 @@ Checked on every change; a regression fails CI.
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | Dragging a thumb of an XY pad renders nothing. | `test/xy-pad.test.tsx` |
 | A stroke across a multi-slider renders nothing. | `test/multi-slider.test.tsx` |
+| Dragging a thumb of a slider renders nothing. | `test/slider.test.tsx` |
 | Pressing keys, gliding across them and reading keys held elsewhere renders nothing. | `test/keys.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
 | Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
 | In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, while the view pages along with a MIDI track of 3760 notes more, while it zooms with an automation lane of 2000 bent points more, and at most 2 for a drag of one of those points when editable (the press, and the application keeping the points); 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
 | In a production build, a stroke across 64 values of a multi-slider sets every one and makes 0 React commits. | `perf/stress.perf.ts` |
 | With 88 keys in a production build: 0 React commits while `read` holds keys that change every 50 ms, and during a glissando across the keyboard. | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 39 kB; an application importing only a knob ≤ 8.6 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, only a multi-slider ≤ 6.5 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
+| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 39 kB; an application importing only a knob ≤ 8.6 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, only a multi-slider ≤ 6.5 kB, only a slider ≤ 6.9 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

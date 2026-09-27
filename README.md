@@ -148,6 +148,24 @@ With `Segments` instead of `Field`, it shows the value as fields that change one
 </NumberBox.Root>
 ```
 
+### Slider
+
+One track with one or more thumbs whose values stay in order, and the bands between them: the split frequencies of a multiband processor, a velocity range, the ends of a loop. For one value, a level, there is `Fader`.
+
+```tsx
+<Slider.Root min={20} max={20_000} scale={scales.log} format={formats.frequency()} value={splits} onValueChange={setSplits}>
+  <Slider.Control>
+    <Slider.Track>
+      <Slider.Range />
+      <Slider.Thumb index={0} aria-label="Low to mid" />
+      <Slider.Thumb index={1} aria-label="Mid to high" />
+    </Slider.Track>
+  </Slider.Control>
+</Slider.Root>
+```
+
+**Slider** parts: `Root` (a `group`, with `value`, `defaultValue`, `resetValue`, `onValueChange(values, { reason, event, thumb })`, `read`, `onGestureStart`/`onGestureEnd`, `min`, `max`, `step`, `scale`, `origin`, `format`, `orientation`; sets `--slider-value-0`, `--slider-value-1`, …), `Label`, `Control` (a press away from the thumbs brings the nearest one there), `Track`, `Range` (from the first thumb to the last), `Band` (the part between two thumbs, placed in the track or over a graph as wide as it, where its edges mark the splits), `Thumb` (a `slider` per value, whose bounds are its neighbours) and `Value`. A thumb stops at its neighbours, and nothing renders as it moves.
+
 ### XY pad
 
 One or more thumbs, each moving two values at once: a filter's cutoff and resonance, the bands of an EQ, the sources in a panner. Each axis has the `min`, `max`, `step` and `scale` of a knob's range, and the value is a list of `[x, y]` pairs, one per thumb.
@@ -364,7 +382,7 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (35.4 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a multi-slider alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (37.1 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a multi-slider alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 

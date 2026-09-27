@@ -1,0 +1,121 @@
+---
+title: Slider
+description: One track with one or more thumbs whose values stay in order, and the bands between them, for the split frequencies of a multiband processor, a velocity range, the ends of a loop.
+---
+
+<ComponentPreview name="slider" />
+
+## Anatomy
+
+```tsx
+import { formats, scales } from '@addstack/daw-ui';
+import { Slider } from '@addstack/daw-ui/react';
+
+<Slider.Root min={20} max={20_000} scale={scales.log} format={formats.frequency()} value={splits} onValueChange={setSplits}>
+  <Slider.Label>Crossover</Slider.Label>
+  <Slider.Control>
+    <Slider.Track className="h-1">
+      <Slider.Range />
+      <Slider.Thumb index={0} aria-label={t('lowToMid')}>
+        <Slider.Value index={0} />
+      </Slider.Thumb>
+      <Slider.Thumb index={1} aria-label={t('midToHigh')}>
+        <Slider.Value index={1} />
+      </Slider.Thumb>
+    </Slider.Track>
+  </Slider.Control>
+</Slider.Root>
+```
+
+A slider's value is a list, one value per thumb, on one range with the `min`, `max`, `step` and `scale` of a knob's or a fader's. The values stay in order: a thumb stops at its neighbours, and two thumbs can meet. For a single value, a level, use a [`Fader`](/docs/components/fader); a slider is for values that divide a range, or bound part of it:
+
+<ComponentPreview name="slider-range" />
+
+## Bands
+
+`Slider.Band index={i}` is the part between two thumbs: `index` 0 from the start of the track to the first thumb, then one band per gap, and the last from the last thumb to the end. The bands of a multiband processor are these parts, with their names, colours and solo buttons.
+
+A band is placed along whatever holds it, in percent: in the track, or over a graph as wide as the track, from top to bottom, where its edges are the lines that mark the splits, as in the demo above. Its extent across is yours: `inset-y-0` makes it as tall as its container. It moves with the thumbs without rendering.
+
+```tsx
+<div className="relative h-28">
+  <Slider.Band index={0} className="inset-y-0">Low</Slider.Band>
+  <Slider.Band index={1} className="inset-y-0 border-s border-dashed">Mid</Slider.Band>
+  <Slider.Band index={2} className="inset-y-0 border-s border-dashed">High</Slider.Band>
+</div>
+```
+
+The root also sets `--slider-value-0`, `--slider-value-1` and so on, each thumb's travel from 0 to 1, for anything else that follows the thumbs.
+
+## Behaviour
+
+- **Drag** a thumb, and it moves as far as the pointer along the track, up to its neighbours; with Shift, a tenth as far. Past a neighbour, moving back responds at once. Of two thumbs at the same value, the first move up takes the upper one, a move down the lower one.
+- **A press on the track** away from the thumbs brings the nearest thumb to the pointer, and the drag goes on from there.
+- **Keys** on a thumb: the arrows move it, by `step` or 1% of the travel, Shift finer; Left and Right follow the reading direction. Page Up and Page Down move it by 10%; Home and End as far as its neighbours let it.
+- **Reset:** a double-click, Delete or Backspace returns a thumb to its `resetValue`, or its `defaultValue`, as far as its neighbours let it.
+- **Nothing renders** as a thumb moves: the thumbs, the range, the bands and `Slider.Value` are written straight to the DOM. `read` gives values that change on their own, as automation, once per animation frame.
+- **Gestures:** each drag, key or reset is one `onGestureStart` / `onGestureEnd`.
+
+`onValueChange` receives every value, and `details.thumb` says which moved. `orientation="vertical"` runs the track from the bottom up; horizontal, it runs along the reading direction.
+
+The root is a `group` named by `Slider.Label`. Each thumb is a `slider` of its own, in the tab order, named with `aria-label`; its `aria-valuemin` and `aria-valuemax` are its neighbours' values, the range it can move in.
+
+## Styling
+
+Thumbs are `position: absolute`, placed with `inset-inline-start` (or `bottom`) in percent of the track and centred with `translate`; give them a size, and centre them across the track with a margin. `Slider.Range` and `Slider.Band` are placed along with `inset-inline-start` and `width` (or `bottom` and `height`); their extent across is yours.
+
+| Data attribute | |
+| --- | --- |
+| `data-dragging` | On the root and the thumb being dragged. |
+| `data-orientation` | On the root and its parts: `"horizontal"` or `"vertical"`. |
+| `data-disabled` | On the root and its parts while disabled. |
+
+## API reference
+
+### Root
+
+Holds the values. Renders a `<div>` with `role="group"`.
+
+<PropsTable part="Slider.Root" />
+
+### Label
+
+Names the slider. Renders a `<span>`.
+
+<PropsTable part="Slider.Label" />
+
+### Control
+
+The area that takes presses. Renders a `<div>`.
+
+<PropsTable part="Slider.Control" />
+
+### Track
+
+The line the thumbs travel along: its length is the full travel of a drag. Renders a `<div>` with `position: relative`.
+
+<PropsTable part="Slider.Track" />
+
+### Range
+
+The filled part, from the first thumb to the last, or from `origin` with one thumb. Renders a `<div>`.
+
+<PropsTable part="Slider.Range" />
+
+### Band
+
+A part between two thumbs, or a thumb and an end. Renders a `<div>`.
+
+<PropsTable part="Slider.Band" />
+
+### Thumb
+
+A thumb, for the value at `index`. Renders a `<div>` with `role="slider"`.
+
+<PropsTable part="Slider.Thumb" />
+
+### Value
+
+The text of a thumb's value. Renders an `<output>`.
+
+<PropsTable part="Slider.Value" />
