@@ -71,6 +71,16 @@ async function openStress(page: Page, view = "stress", query = ""): Promise<void
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU_SLOWDOWN });
   // Let the page settle (fonts, first meter frames) before measuring.
   await page.waitForTimeout(500);
+  // Waveforms draw their first tiles over the first frames, within a budget per frame: on a slow machine
+  // that takes longer than the pause above. Measure once no tile has been drawn for half a second; pages
+  // opened with ?start=manual stand still until then.
+  let draws = -1;
+  for (let waited = 0; waited < 10_000; waited += 500) {
+    const now = await page.evaluate(() => window.e2e.canvasDraws);
+    if (now === draws) break;
+    draws = now;
+    await page.waitForTimeout(500);
+  }
   await page.evaluate(() => {
     window.reactCommits = 0;
     window.e2e.inputLatencies = [];
@@ -116,6 +126,9 @@ async function measure(
   results.push(result);
   return result;
 }
+
+/** Starts the motion of a page opened with ?start=manual, as measuring starts. */
+const start = (page: Page) => () => page.evaluate(() => window.e2e.start?.());
 
 /** Moves the mouse like a hand does: one event per frame, not as fast as the test can send them. */
 async function glide(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, events: number) {
@@ -178,16 +191,16 @@ test("automation: 64 knobs and 64 faders, driven with read", async ({ page }) =>
 });
 
 test("32 waveforms on one timeline: playback", async ({ page }) => {
-  await openStress(page, "waveforms", "&mode=play");
-  const result = await measure(page, "32 waveforms, playback", 3000);
+  await openStress(page, "waveforms", "&mode=play&start=manual");
+  const result = await measure(page, "32 waveforms, playback", 3000, start(page));
   // Budget: the playhead and the played parts move in CSS; nothing renders or draws.
   expect(result.reactCommits).toBe(0);
   expect(result.canvasDraws).toBe(0);
 });
 
 test("32 waveforms on one timeline: the view pages along", async ({ page }) => {
-  await openStress(page, "waveforms", "&mode=scroll");
-  const result = await measure(page, "32 waveforms, scrolling with playback", 3000);
+  await openStress(page, "waveforms", "&mode=scroll&start=manual");
+  const result = await measure(page, "32 waveforms, scrolling with playback", 3000, start(page));
   // Budget: scrolling moves the tiles in CSS and draws only those that come into view,
   // at most once each: 64 layers crossing no more than two tiles in 12 seconds of timeline.
   expect(result.reactCommits).toBe(0);
@@ -195,16 +208,16 @@ test("32 waveforms on one timeline: the view pages along", async ({ page }) => {
 });
 
 test("32 waveforms on one timeline: recording a take", async ({ page }) => {
-  await openStress(page, "waveforms", "&mode=record");
-  const result = await measure(page, "32 waveforms, recording one more", 3000);
+  await openStress(page, "waveforms", "&mode=record&start=manual");
+  const result = await measure(page, "32 waveforms, recording one more", 3000, start(page));
   // Budget: nothing renders; the recording draws the tile it grows into, at most once per frame.
   expect(result.reactCommits).toBe(0);
   expect(result.canvasDraws).toBeLessThanOrEqual(result.frames + 2);
 });
 
 test("32 waveforms on one timeline: zooming", async ({ page }) => {
-  await openStress(page, "waveforms", "&mode=zoom");
-  const result = await measure(page, "32 waveforms, zooming", 3000);
+  await openStress(page, "waveforms", "&mode=zoom&start=manual");
+  const result = await measure(page, "32 waveforms, zooming", 3000, start(page));
   // Budget: nothing renders; tiles are stretched in CSS and redrawn only past twice or half their scale.
   expect(result.reactCommits).toBe(0);
 });

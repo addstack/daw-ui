@@ -30,8 +30,13 @@ function take(): Peaks {
 const peaks = take();
 const grid = musicalGrid({ bpm: 120, locale: "en" });
 const recording = createPeaksRecorder({ sampleRate: SAMPLE_RATE, channels: 1 });
-const started = performance.now() / 1000;
-const elapsed = () => performance.now() / 1000 - started;
+// With ?start=manual, time stands at 0 until window.e2e.start(): the perf tests let the first tiles be drawn,
+// then start playback, scrolling, zooming or recording when they start measuring.
+let started: number | null = new URLSearchParams(location.search).get("start") === "manual" ? null : performance.now() / 1000;
+const start = () => {
+  started = performance.now() / 1000;
+};
+const elapsed = () => (started === null ? 0 : performance.now() / 1000 - started);
 
 const views = {
   play: () => [0, 60] as const,
@@ -66,6 +71,9 @@ export function Waveforms() {
   const mode = (new URLSearchParams(location.search).get("mode") ?? "play") as keyof typeof views;
   const view = views[mode] ?? views.play;
   useRecording(mode === "record");
+  useEffect(() => {
+    window.e2e.start = start;
+  }, []);
   // For comparing costs: ?ruler=0 and ?grid=0 leave them out.
   const search = new URLSearchParams(location.search);
   const showRuler = search.get("ruler") !== "0";

@@ -24,6 +24,8 @@ declare global {
       inputLatencies: number[];
       /** Canvas tiles drawn: waveform tiles clear their canvas once per draw. */
       canvasDraws: number;
+      /** Starts the motion of a page opened with ?start=manual. */
+      start?: () => void;
       measureFrames(durationMs: number): Promise<FrameStats>;
     };
   }
