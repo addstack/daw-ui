@@ -280,3 +280,38 @@ h1 {
   width: 1px;
   background: #fff;
 }
+
+/* Arrangement: tracks of 48 px, regions with a header and handles. */
+.arrangement {
+  width: 1000px;
+  flex-basis: auto;
+}
+
+.tall {
+  height: 48px;
+}
+
+.region {
+  display: flex;
+  flex-direction: column;
+}
+
+.region[data-selected] {
+  outline: 1px solid #fff;
+}
+
+.region-header {
+  height: 14px;
+  padding-inline-start: 4px;
+  font-size: 10px;
+  background: #2b4a66;
+}
+
+.region-content {
+  flex: 1;
+}
+
+.region-handle {
+  width: 8px;
+  cursor: ew-resize;
+}

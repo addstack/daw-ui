@@ -2,8 +2,17 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties } from "react";
 
+import type { TimeGrid, ValueFormat } from "../core/index.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import {
+  TimelineEditing,
+  TrackEntry,
+  type RegionChange,
+  type RegionEntry,
+  type RegionsChangeDetails,
+  type SelectionChangeDetails,
+} from "./timeline-editing.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
 
 /**
@@ -69,7 +78,7 @@ export class TimelineView {
   }
 }
 
-type TimelineContextValue = { view: TimelineView };
+type TimelineContextValue = { view: TimelineView; editing: TimelineEditing };
 
 const TimelineContext = createContext<TimelineContextValue | null>(null);
 
@@ -175,11 +184,49 @@ export function useTimelineView({ start, end, readView, position = 0, read }: Ti
  * number of regions. The playhead is written only into the parts that
  * follow it. Nothing renders.
  */
-export function TimelineRoot({ start, end, readView, position, read, ...props }: TimelineRoot.Props) {
+export function TimelineRoot({
+  start,
+  end,
+  readView,
+  position,
+  read,
+  snap,
+  selected,
+  defaultSelected,
+  onSelectedChange,
+  onRegionsChange,
+  onGestureStart,
+  onGestureEnd,
+  format,
+  ...props
+}: TimelineRoot.Props) {
   const axis = useTimelineView({ start, end, readView, position, read });
+  const [editing] = useState(() => {
+    const created = new TimelineEditing(axis.view);
+    created.setSelection(selected ?? defaultSelected ?? []);
+    return created;
+  });
+  editing.options = { snap, onRegionsChange, onGestureStart, onGestureEnd, onSelectedChange, selected, format };
+  editing.editable = onRegionsChange !== undefined;
+  useIsomorphicLayoutEffect(() => {
+    if (selected !== undefined) editing.setSelection(selected);
+  });
+
+  const root = useCallback(
+    (element: HTMLElement | null) => {
+      editing.root = element;
+    },
+    [editing],
+  );
+  const ref = useMergedRef(axis.ref, root);
   const state: TimelineState = { start, end };
-  const rendered = useRenderPart("div", state, props, { ref: axis.ref, style: { position: "relative", ...axis.style } });
-  return <TimelineContext.Provider value={{ view: axis.view }}>{rendered}</TimelineContext.Provider>;
+  const rendered = useRenderPart("div", state, props, {
+    ref,
+    // Editable, the tracks are rows of regions, one tab stop for them all, and arrows between them.
+    ...(editing.editable ? { role: "grid", "aria-multiselectable": true } : {}),
+    style: { position: "relative", ...axis.style },
+  });
+  return <TimelineContext.Provider value={{ view: axis.view, editing }}>{rendered}</TimelineContext.Provider>;
 }
 
 export namespace TimelineRoot {
@@ -201,6 +248,36 @@ export namespace TimelineRoot {
     position?: number | undefined;
     /** Returns the playhead in seconds; called once per animation frame. */
     read?: (() => number) | undefined;
+    /**
+     * Makes regions editable: called with where the regions of a gesture
+     * go, as it goes (a drag, a key), with the `value` of each region and of
+     * its track. Regions show where they go without rendering; when the
+     * gesture ends they return to their props, so update them to keep the
+     * changes, here or in `onGestureEnd`.
+     */
+    onRegionsChange?: ((changes: RegionChange[], details: RegionsChangeDetails) => void) | undefined;
+    /** Called before the first change of a gesture on regions. */
+    onGestureStart?: (() => void) | undefined;
+    /** Called when a gesture on regions ends, with its last changes: one undo step. */
+    onGestureEnd?: ((changes: RegionChange[]) => void) | undefined;
+    /**
+     * Moves and trims snap to the finest lines of this grid at least 12 px
+     * apart, those of a `Timeline.Grid` with its default spacing; Shift
+     * does not snap.
+     */
+    snap?: TimeGrid | undefined;
+    /** The `value`s of the selected regions, when controlled. */
+    selected?: readonly string[] | undefined;
+    /** The `value`s of the regions selected at first, when uncontrolled. */
+    defaultSelected?: readonly string[] | undefined;
+    /** Called with the selection a press or a key makes. */
+    onSelectedChange?: ((selected: string[], details: SelectionChangeDetails) => void) | undefined;
+    /**
+     * Text of a time in seconds, for what a region's handles announce, such
+     * as a song position.
+     * @default formats.number({ digits: 2, unit: "s" })
+     */
+    format?: ValueFormat | undefined;
   };
 }
 
@@ -232,27 +309,59 @@ export namespace TimelinePlayhead {
   export type Props = PartProps<"div", State>;
 }
 
+type TrackContextValue = { track: TrackEntry | null };
+
+const TrackContext = createContext<TrackContextValue>({ track: null });
+
+/** The track around a region, if there is one. */
+export const useTrack = () => useContext(TrackContext).track;
+
 /**
  * A row of the timeline, such as one track of an arrangement, that holds
- * its regions. A `group`: name it with `aria-label`, in the application's
- * language. It spans the timeline's width, so that regions in it line up
- * with the axis.
+ * its regions: a `group`, or a `row` when regions are editable. Name it with
+ * `aria-label`, in the application's language. It spans the timeline's
+ * width, so that regions in it line up with the axis. A press on it outside
+ * its regions clears the selection.
  */
-export function TimelineTrack(props: TimelineTrack.Props) {
-  const { view } = useTimelineContext("Timeline.Track");
-  return useRenderPart("div", { start: view.start, end: view.end }, props, {
-    role: "group",
+export function TimelineTrack({ value, ...props }: TimelineTrack.Props) {
+  const { view, editing } = useTimelineContext("Timeline.Track");
+  const [track, setTrack] = useState<TrackEntry | null>(null);
+  const register = useCallback(
+    (element: HTMLElement | null) => {
+      if (!element) return;
+      const entry = new TrackEntry(value, element);
+      setTrack(entry);
+      const remove = editing.addTrack(entry);
+      return () => {
+        remove();
+        setTrack(null);
+      };
+    },
+    [editing, value],
+  );
+  const rendered = useRenderPart("div", { start: view.start, end: view.end }, props, {
+    ref: register,
+    role: editing.editable ? "row" : "group",
     style: { position: "relative" },
+    onPointerDown: (event: { target: EventTarget; nativeEvent: PointerEvent }) => {
+      if (!(event.target instanceof Element) || !event.target.closest("[data-region]")) editing.pressTrack(event.nativeEvent);
+    },
   });
+  return <TrackContext.Provider value={{ track }}>{rendered}</TrackContext.Provider>;
 }
 
 export namespace TimelineTrack {
   export type State = TimelineState;
-  export type Props = PartProps<"div", State>;
+  export type Props = PartProps<"div", State> & {
+    /** Names the track in the changes a gesture reports, when regions move between tracks. */
+    value?: string | undefined;
+  };
 }
 
 /** Where a region is, outside React: parts inside follow it without rendering. */
 export class RegionPlacement {
+  /** CSS pixels up or down, while a gesture moves the region towards another track. */
+  lift = 0;
   private listeners = new Set<() => void>();
 
   constructor(
@@ -268,18 +377,25 @@ export class RegionPlacement {
     };
   };
 
-  set(at: number, duration: number, offset: number): void {
-    if (at === this.at && duration === this.duration && offset === this.offset) return;
+  set(at: number, duration: number, offset: number, lift = this.lift): void {
+    if (at === this.at && duration === this.duration && offset === this.offset && lift === this.lift) return;
     this.at = at;
     this.duration = duration;
     this.offset = offset;
+    this.lift = lift;
     for (const listener of this.listeners) listener();
   }
 }
 
-type RegionContextValue = { view: TimelineView; placement: RegionPlacement };
+export type RegionContextValue = { view: TimelineView; placement: RegionPlacement; entry: RegionEntry; editing: TimelineEditing };
 
-const RegionContext = createContext<RegionContextValue | null>(null);
+export const RegionContext = createContext<RegionContextValue | null>(null);
+
+export function useRegionContext(part: string): RegionContextValue {
+  const context = useContext(RegionContext);
+  if (!context) throw new Error(`<${part}> must be placed inside <Timeline.Region>.`);
+  return context;
+}
 
 /** The region around a part, if there is one. */
 export const useOptionalRegion = () => useContext(RegionContext);
@@ -287,86 +403,3 @@ export const useOptionalRegion = () => useContext(RegionContext);
 export type RegionState = { at: number; duration: number; offset: number };
 
 export type RegionValue = Partial<RegionState>;
-
-/**
- * The CSS that places a region, with its numbers written in: no CSS
- * variables of its own, because every element that defines some costs a
- * style recalculation each time the playhead's variable changes above it.
- */
-const regionStyle = ({ at, duration }: Pick<RegionState, "at" | "duration">) => ({
-  width: `calc(${duration} * var(--timeline-scale))`,
-  translate: `calc((${at} - var(--timeline-start)) * var(--timeline-scale)) 0`,
-});
-
-/**
- * Something that lasts on the timeline: a region, clip or pattern with its
- * content (a waveform, a label), a loop range, a marker with no duration.
- * It starts `at` seconds on the timeline, lasts `duration`, and shows its
- * content from `offset` seconds into it, as a clip that starts later in its
- * file does.
- *
- * It is placed in CSS from the timeline's variables, so scrolling and
- * zooming move it without work; a change of its own placement rewrites its
- * position and width, without rendering what is inside. Place it in a
- * `Timeline.Track`, or another element that spans the timeline's width.
- */
-export function TimelineRegion({ at, duration = 0, offset = 0, read, ...props }: TimelineRegion.Props) {
-  const { view } = useTimelineContext("Timeline.Region");
-  const [placement] = useState(() => new RegionPlacement(at, duration, offset));
-  const element = useRef<HTMLElement | null>(null);
-
-  useEffect(
-    () =>
-      placement.subscribe(() => {
-        const style = element.current?.style;
-        if (!style) return;
-        const { width, translate } = regionStyle(placement);
-        if (style.width !== width) style.width = width;
-        if (style.translate !== translate) style.translate = translate;
-      }),
-    [placement],
-  );
-  useIsomorphicLayoutEffect(() => placement.set(at, duration, offset), [placement, at, duration, offset]);
-
-  const readRef = useRef(read);
-  readRef.current = read;
-  const reads = read !== undefined;
-  useEffect(() => {
-    if (!reads) return;
-    return onEveryFrame(() => {
-      const next = readRef.current?.();
-      if (next) placement.set(next.at ?? placement.at, next.duration ?? placement.duration, next.offset ?? placement.offset);
-    });
-  }, [reads, placement]);
-
-  const ref = useMergedRef(element);
-  const state: RegionState = { at, duration, offset };
-  const rendered = useRenderPart("div", state, props, {
-    ref,
-    style: { position: "absolute", insetBlock: 0, left: 0, ...regionStyle(state) },
-  });
-  return <RegionContext.Provider value={{ view, placement }}>{rendered}</RegionContext.Provider>;
-}
-
-export namespace TimelineRegion {
-  export type State = RegionState;
-  export type Props = PartProps<"div", State> & {
-    /** Seconds on the timeline where it starts. */
-    at: number;
-    /**
-     * Seconds it lasts.
-     * @default 0
-     */
-    duration?: number | undefined;
-    /**
-     * Seconds into its content at its start: a clip that starts later in its file.
-     * @default 0
-     */
-    offset?: number | undefined;
-    /**
-     * Returns the placement that changes on its own, called once per
-     * animation frame: the growing `duration` of a take being recorded.
-     */
-    read?: (() => RegionValue) | undefined;
-  };
-}

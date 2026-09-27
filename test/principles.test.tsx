@@ -74,7 +74,13 @@ function EveryComponent() {
       </Meter.Root>
       <Timeline.Root start={0} end={1} position={0.5}>
         <Timeline.Track>
-          <Timeline.Region at={0.25} duration={0.5} />
+          <Timeline.Region at={0.25} duration={0.5}>
+            <Timeline.RegionHeader>
+              <Timeline.RegionLabel>1</Timeline.RegionLabel>
+            </Timeline.RegionHeader>
+            <Timeline.RegionContent />
+            <Timeline.RegionHandle side="end" />
+          </Timeline.Region>
         </Timeline.Track>
         <Waveform.Root peaks={createPeaks([new Float32Array(8)], 8)}>
           <Waveform.Shape />
@@ -144,6 +150,11 @@ test("text the components show is not selectable, except a value being typed (se
       <Toggle data-testid="toggle">g</Toggle>
       <Timeline.Root start={0} end={1}>
         <Timeline.Ruler grid={clockGrid()} data-testid="ruler" />
+        <Timeline.Region at={0} duration={1}>
+          <Timeline.RegionHeader data-testid="region header">
+            <Timeline.RegionLabel data-testid="region label">h</Timeline.RegionLabel>
+          </Timeline.RegionHeader>
+        </Timeline.Region>
       </Timeline.Root>
     </>,
   );
@@ -160,6 +171,8 @@ test("text the components show is not selectable, except a value being typed (se
     "meter clip",
     "toggle",
     "ruler",
+    "region header",
+    "region label",
   ];
   expect(parts.filter((part) => screen.getByTestId(part).style.userSelect !== "none")).toEqual([]);
 

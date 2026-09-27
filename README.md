@@ -225,7 +225,7 @@ const grid = musicalGrid({ bpm: 120 });
 </Timeline.Root>
 ```
 
-**Timeline** parts: `Root` (the view `start` … `end`, `readView` per frame, the playhead from `position` or `read`), `Playhead`, `Track` (a row), `Region` (a region, clip or pattern, a loop range, a marker: `at`, `duration`, `offset`, and your content inside), `Ruler` (labels) and `Grid` (lines) of a `musicalGrid({ bpm })` or `clockGrid()`, as fine as the zoom leaves room for: bars, beats, sixteenths. The root writes `--timeline-start` and `--timeline-scale`, and everything on it is placed in CSS from them: scrolling writes two variables, however many clips there are. The playhead is written only into the parts that follow it (the playhead, the played parts of waveforms), so a frame of playback recalculates the style of those alone. Time runs left to right in every language.
+**Timeline** parts: `Root` (the view `start` … `end`, `readView` per frame, the playhead from `position` or `read`), `Playhead`, `Track` (a row), `Region` (a region, clip or pattern, a loop range, a marker: `at`, `duration`, `offset`) with `RegionHeader`, `RegionLabel`, `RegionContent` and `RegionHandle`, `Ruler` (labels) and `Grid` (lines) of a `musicalGrid({ bpm })` or `clockGrid()`, as fine as the zoom leaves room for: bars, beats, sixteenths. The root writes `--timeline-start` and `--timeline-scale`, and everything on it is placed in CSS from them: scrolling writes two variables, however many clips there are. The playhead is written only into the parts that follow it (the playhead, the played parts of waveforms), so a frame of playback recalculates the style of those alone. With `onRegionsChange`, regions are editable: a drag moves the selection (across tracks too), handles trim it, all snapped to a `snap` grid, and the timeline reports each gesture once, as a list of changes, one undo step; regions move without rendering meanwhile. Time runs left to right in every language.
 
 **Waveform** parts: `Root` (`role="img"`; in a region it shows what the region shows, on its own it is its own axis, as in a sample browser), `Shape` and `Progress` (the played part, clipped at the playhead in CSS), drawn in their CSS `color`. `createPeaks` computes min/max peaks at several resolutions in one pass (34 ms for ten minutes of stereo); `peaksFromAudiowaveform` reads peaks made ahead of time by the `audiowaveform` tool; `createPeaksRecorder` grows as you `append` blocks while recording, and its waveform draws only the tile the audio arrives in. Given the `samples`, a waveform zoomed in beyond the peaks draws from them, down to single samples. The waveform is drawn into canvas tiles once, placed in time by CSS: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and redraws them sharp when it rests, and one queue for all waveforms draws at most 4 ms per frame, visible tiles first.
 
@@ -294,10 +294,11 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | The same, the view paging along with playback | 4.6 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
 | The same, recording a 33rd take | 3.5 | 0.3 | 0 of 181 | – | 0, one tile drawn per frame |
 | The same, zooming without pause | 8.9 | 0.8 | 4 of 177 | – | 0 |
+| The same, editable, dragging a region | 0.6 | 0.2 | 0 of 91 | 15.5 / 16.5 | 1, when the application keeps the move |
 
 A 60 Hz frame has 16.7 ms. The last row is the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (20.3 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (24.8 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 
