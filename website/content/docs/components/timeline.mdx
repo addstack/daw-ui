@@ -3,7 +3,7 @@ title: Timeline
 description: Shows time, a ruler, a grid and one playhead, over whatever it holds, and moves without rendering.
 ---
 
-<ComponentPreview name="timeline-arrangement" />
+<ComponentPreview name="timeline" />
 
 ## Anatomy
 
@@ -34,49 +34,20 @@ Everything on the axis places itself in CSS from two variables the root writes:
 | `--timeline-start` | Seconds at the left edge. |
 | `--timeline-scale` | CSS pixels per second. |
 
-Scrolling or zooming writes these two, whatever the timeline holds: nothing renders, and nothing runs for each thing on it. The playhead is written, as a number, only into the parts that follow it (`Playhead`, `Waveform.Progress`), so a frame of playback recalculates the style of those parts alone. To follow the playhead with an element of your own, render it as the `Playhead` (`render={<YourLine />}`).
+Scrolling or zooming writes these two, whatever the timeline holds: nothing renders, and nothing runs for each thing on it. The playhead is written, as a number, only into the parts that follow it (`Playhead`, `Waveform.Progress`, `Notes.Progress`), so a frame of playback recalculates the style of those parts alone. To follow the playhead with an element of your own, render it as the `Playhead` (`render={<YourLine />}`).
 
 Time runs left to right in every language, as in music notation and every DAW, also in a right-to-left page.
 
 ## What it holds
 
-A timeline does not know what is on it: an arrangement's tracks, a piano roll's notes, one take, or nothing. Parts placed inside read its axis; it knows nothing of them. An arrangement, as in the demo, is rows of [regions](/docs/components/region) in the timeline, and the track headers in a column beside it, with rows of the same height:
+A timeline works on its own, as in the demo: time, a ruler in bars and beats, another in minutes and seconds, the grid, the playhead. What else it holds, it does not know: an arrangement's tracks, a piano roll's notes, one take, or nothing. Parts placed inside read its axis, and it knows nothing of them:
 
-```tsx
-<div className="flex">
-  <div className="w-28">
-    <div className="h-6" /> {/* beside the ruler */}
-    {tracks.map((track) => (
-      <div key={track.id} className="h-16">
-        {track.name} <Toggle aria-label={t('mute')}>M</Toggle>
-      </div>
-    ))}
-  </div>
+- a [`Region`](/docs/components/region) takes its place in time from the timeline;
+- a [`Waveform`](/docs/components/waveform) or [`Notes`](/docs/components/notes) in a region show what the region shows.
 
-  <Timeline.Root start={0} end={12} className="flex-1">
-    <Timeline.Ruler grid={grid} className="h-6" />
-    <div className="relative">
-      <Timeline.Grid grid={grid} />
-      {tracks.map((track) => (
-        <div key={track.id} role="group" aria-label={track.name} className="relative h-16">
-          {track.clips.map((clip) => (
-            <Region.Root key={clip.id} at={clip.at} duration={clip.duration}>…</Region.Root>
-          ))}
-        </div>
-      ))}
-    </div>
-    <Timeline.Playhead />
-  </Timeline.Root>
-</div>
-```
-
-A region takes its place in time from the timeline, and its height from the row it is in.
-
-Editing what is on a timeline, selecting, moving and trimming clips or notes, is not the timeline's: it will be an engine your application creates with a hook and hands to the parts, as shadcn's Carousel takes its behaviour from Embla. See the [principles](/docs/principles), section 6.
+The [Arrangement block](/docs/blocks/arrangement) composes them into tracks of clips, with their headers in a column beside the timeline.
 
 ## Playback, scrolling and zoom
-
-<ComponentPreview name="waveform" />
 
 Pass values that change on every frame as functions, which the timeline calls once per animation frame:
 
@@ -89,7 +60,7 @@ Pass values that change on every frame as functions, which the timeline calls on
 />
 ```
 
-`start`, `end` and `position` are for values that change rarely, from React state. The view in this demo zooms with a fader whose `onValueChange` writes to a ref that `readView` reads: dragging it renders nothing.
+`start`, `end` and `position` are for values that change rarely, from React state. The view in the demo zooms with a fader whose `onValueChange` writes to a ref that `readView` reads: dragging it renders nothing.
 
 The timeline does not scroll or zoom by itself: it shows the view you give it, so the gestures and their policy (scroll with the wheel, zoom around the pointer, follow the playhead) stay in your application.
 

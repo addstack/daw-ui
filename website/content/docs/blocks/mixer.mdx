@@ -1,0 +1,21 @@
+---
+title: Mixer
+description: Channel strips with pan, mute, solo, a volume fader and stereo meters, composed from Knob, Toggle, ToggleGroup, Fader and Meter.
+---
+
+<ComponentPreview name="mixer" />
+
+A block is a composition of components, to copy and adapt: the library has no `Mixer` component. The code tab has all of it.
+
+## How it is composed
+
+| Part of the block | Component |
+| --- | --- |
+| Pan | [`Knob`](/docs/components/knob), with `origin={0}` and the pan format |
+| Mute and solo | [`Toggle`](/docs/components/toggle)s in one [`ToggleGroup`](/docs/components/toggle-group) |
+| Volume | [`Fader`](/docs/components/fader), in decibels, red above 0 dB |
+| Level | Two [`Meter`](/docs/components/meter)s, left and right |
+
+- **One group for every strip's buttons.** The mute and solo buttons of all strips are in one `ToggleGroup`, in the lanes `mute` and `solo`: solo is exclusive across strips (Cmd or Ctrl adds one), and a drag paints mutes across strips.
+- **The audio engine lives outside React.** Controls write their values to it in `onValueChange` and `onPressedChange`; the meters `read` the level after the fader and the pan every frame. Moving a fader renders nothing, and neither do the meters.
+- **Every control is named** by its label or `aria-label`, inside a group named after its channel, in your application's language.

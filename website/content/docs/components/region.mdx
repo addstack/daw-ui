@@ -3,7 +3,7 @@ title: Region
 description: Something that lasts on a timeline, a clip or a pattern with a header and content, placed in CSS from the timeline's axis.
 ---
 
-<ComponentPreview name="timeline-arrangement" />
+<ComponentPreview name="region" />
 
 ## Anatomy
 
@@ -24,7 +24,9 @@ import { Region, Timeline, Waveform } from '@addstack/daw-ui/react';
 </Timeline.Root>
 ```
 
-A region is what lies on a [timeline](/docs/components/timeline) for a time: a clip or a pattern (the same thing in Logic, Ableton and FL Studio), a loop range, a take being recorded. Its header holds its name and your controls, such as a menu; its content, a [waveform](/docs/components/waveform) or notes, is yours to put inside.
+A region is what lies on a [timeline](/docs/components/timeline) for a time: a clip or a pattern (the same thing in Logic, Ableton and FL Studio), a part of a song, a loop range, a take being recorded. Its header holds its name and your controls, such as a menu; its content, a [waveform](/docs/components/waveform) or [notes](/docs/components/notes), is yours to put inside, or nothing, as for the parts of the song in the demo.
+
+The [Arrangement block](/docs/blocks/arrangement) composes regions into tracks of clips.
 
 ## Placement
 
