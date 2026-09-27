@@ -81,3 +81,21 @@ test("an endless knob keeps turning past a full turn, one step per detent", asyn
   const changes = (await eventsOf(page, "encoder")).filter((event) => event.type === "change");
   expect(changes.reduce((sum, event) => sum + (event.delta ?? 0), 0)).toBe(-30);
 });
+
+test("double-clicking a label or a value, or dragging across them, selects no text", async ({ page }) => {
+  // WebKit may select the line break between the fixture's own sections; no text of a part is selected.
+  const selection = () => page.evaluate(() => getSelection()?.toString().trim() ?? "");
+  const label = page.getByText("Cutoff", { exact: true });
+  await label.dblclick();
+  expect(await selection()).toBe("");
+  await page.getByTestId("knob").locator("output").dblclick();
+  expect(await selection()).toBe("");
+
+  const from = await center(label);
+  const volume = await center(page.getByText("Volume", { exact: true }));
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(volume.x + 40, volume.y + 60, { steps: 10 });
+  await page.mouse.up();
+  expect(await selection()).toBe("");
+});

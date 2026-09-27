@@ -3,9 +3,9 @@
 import { formats } from '@addstack/daw-ui';
 import { NumberBox } from '@addstack/daw-ui/react';
 
-const label = 'text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400';
+const label = 'text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-neutral-400';
 const group =
-  'rounded-md border border-neutral-300 bg-white px-1.5 py-1 font-mono text-sm tabular-nums select-none data-dragging:border-orange-500 data-editing:w-32 data-editing:cursor-text data-editing:px-2.5 data-editing:py-1.5 dark:border-neutral-700 dark:bg-neutral-900';
+  'rounded-md border border-neutral-300 bg-white px-1.5 py-1 font-mono text-sm tabular-nums data-dragging:border-orange-500 data-editing:w-32 data-editing:cursor-text data-editing:px-2.5 data-editing:py-1.5 dark:border-neutral-700 dark:bg-neutral-900';
 // Fields highlight when focused; the text between them is dimmed.
 const segment =
   'rounded-sm px-px data-literal:text-neutral-400 [&[data-segment]]:cursor-ns-resize focus-visible:bg-orange-500 focus-visible:text-white focus-visible:outline-none';

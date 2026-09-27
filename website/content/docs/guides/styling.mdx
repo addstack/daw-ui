@@ -3,7 +3,7 @@ title: Styling
 description: Style the parts with classes, data attributes and CSS variables, replace their elements, and build a registry on top.
 ---
 
-The components ship behaviour, not looks. The only inline styles they set are what the behaviour needs: positions along a track (with logical properties, so they follow right-to-left layouts), the clipping of a meter's bar, and `touch-action: none` on the elements you drag. Everything else is yours.
+The components ship behaviour, not looks. The only inline styles they set are what the behaviour needs: positions along a track (with logical properties, so they follow right-to-left layouts), the clipping of a meter's bar, `touch-action: none` on the elements you drag, and `user-select: none` on every part that shows text, so that dragging across controls never selects it (override it with `style` to make a value copyable). Everything else is yours.
 
 ## Styling runs no code per render
 

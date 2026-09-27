@@ -15,7 +15,7 @@ import {
 
 import { boxesAlongSegment, type Point } from "../core/index.js";
 import { isRightToLeft } from "./direction.js";
-import { dataAttributes, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
 
 export type ToggleChangeReason =
@@ -642,6 +642,7 @@ export function Toggle(props: Toggle.Props) {
   const state: ToggleState = { pressed, disabled };
   return useRenderPart("button", state, { ...elementProps, ref }, {
     type: "button",
+    style: unselectable,
     "aria-pressed": pressed,
     "aria-disabled": disabled || undefined,
     tabIndex: group ? (focusable ? 0 : -1) : undefined,

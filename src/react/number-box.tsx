@@ -19,7 +19,7 @@ import {
 
 import type { ValueField, ValueSegment } from "../core/index.js";
 import { liveProps, mergeLive, type Live } from "./live.js";
-import { dataAttributes, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
   FINE,
   splitValueControlProps,
@@ -204,6 +204,7 @@ export function NumberBoxField({ children, ...props }: NumberBoxField.Props) {
     dir: "auto",
     ...stateAttributes(state),
     ...live.attributes,
+    style: { ...control.controlProps.style, ...unselectable },
     onDoubleClick: () => {
       if (!state.disabled) startEditing(currentText(control));
     },
@@ -240,6 +241,7 @@ export function NumberBoxLabel(props: NumberBoxLabel.Props) {
     ...live.attributes,
     id,
     ...stateAttributes(state),
+    style: unselectable,
     onClick: () => document.getElementById(control.controlId)?.focus(),
   });
 }
@@ -312,6 +314,8 @@ export function NumberBoxSegments({ labels, children, ...props }: NumberBoxSegme
     dir: "ltr",
     ...stateAttributes(state),
     ...live.attributes,
+    // The segments inherit it.
+    style: unselectable,
   };
   const content = items.map((item) => (
     <Fragment key={item.index}>{children ? children(item) : <NumberBoxSegment segment={item} />}</Fragment>

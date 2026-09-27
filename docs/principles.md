@@ -45,6 +45,7 @@ Arabic, Hebrew and Persian interfaces run right to left, and a component must wo
 - Modifiers mean the same everywhere: **Shift** is fine adjustment, **double-click** and **Delete** reset, **Cmd/Ctrl** is the alternative action (e.g. additive solo).
 - Mouse, pen and touch go through Pointer Events with pointer capture, so a drag continues outside the element and never leaves listeners behind.
 - Toggles react on press, not on release, as in hardware and desktop DAWs.
+- **Text the components show is not selectable.** Labels, value readouts, ticks, ruler labels, the fields of a number box and the text of buttons set `user-select: none`: in a DAW the pointer drags all the time, and interface text is not document content, so a drag across a mixer or a double-click on a label must never select text. The one exception is a text input while the user edits a value in it. An application that wants a value copyable overrides it with `style`.
 
 ## 6. Gestures
 

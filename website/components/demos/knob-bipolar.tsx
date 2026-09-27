@@ -9,7 +9,7 @@ const pan = formats.pan({ left: 'L', right: 'R', center: 'C' });
 export default function BipolarKnobDemo() {
   return (
     <Knob.Root min={-1} max={1} origin={0} format={pan} className="flex flex-col items-center gap-1.5">
-      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
+      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-neutral-400">
         Pan
       </Knob.Label>
       <Knob.Control className="size-12 cursor-ns-resize rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">

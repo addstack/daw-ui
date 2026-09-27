@@ -16,7 +16,7 @@ export default function EndlessKnobDemo() {
   return (
     // 24 detents per turn. 0 is in the middle of min … max, so the pointer starts at 12 o'clock.
     <Knob.Root endless min={-12} max={12} step={1} defaultValue={0} format={preset} className="flex flex-col items-center gap-1.5">
-      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
+      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-neutral-400">
         Preset
       </Knob.Label>
       <Knob.Control className="size-16 cursor-ns-resize rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">

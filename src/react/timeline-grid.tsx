@@ -3,7 +3,7 @@
 import { useCallback, useRef } from "react";
 
 import { gridStep, type TimeGrid } from "../core/index.js";
-import { useRenderPart, type PartProps } from "./render.js";
+import { unselectable, useRenderPart, type PartProps } from "./render.js";
 import { TimeTiles, type TilePainter, type TileStretch } from "./time-tiles.js";
 import { useTimelineContext, type TimelineState, type TimelineView } from "./timeline.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
@@ -198,7 +198,7 @@ export function TimelineRuler({ grid, spacing = 64, children, ...props }: Timeli
   return useRenderPart("div", { start: view.start, end: view.end }, { ...props, children }, {
     ref,
     "aria-hidden": true,
-    style: { position: "relative", overflow: "hidden" },
+    style: { ...unselectable, position: "relative", overflow: "hidden" },
   });
 }
 

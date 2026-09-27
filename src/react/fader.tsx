@@ -13,7 +13,7 @@ import {
 import { zoneOf } from "../core/index.js";
 import { useRightToLeft } from "./direction.js";
 import { mergeLive, type Live } from "./live.js";
-import { dataAttributes, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
   controlLive,
   splitValueControlProps,
@@ -151,6 +151,7 @@ export function FaderLabel(props: FaderLabel.Props) {
     ref: live.ref,
     ...staticFaderAttributes(state),
     ...live.attributes,
+    style: unselectable,
     onClick: () => document.getElementById(context.control.controlId)?.focus(),
   });
 }
@@ -241,7 +242,7 @@ export function FaderTick({ value, ...props }: FaderTick.Props) {
   return useRenderPart("div", state, props, {
     "aria-hidden": true,
     ...dataAttributes({ orientation: state.orientation, zone: zoneOf(value, context.control.zones) }),
-    style: { ...centering(context), [offset]: percent(context.control.range.normalize(value)) },
+    style: { ...unselectable, ...centering(context), [offset]: percent(context.control.range.normalize(value)) },
   });
 }
 
@@ -273,6 +274,7 @@ export function FaderValue({ children, ...props }: FaderValue.Props) {
     dir: "auto",
     ...staticFaderAttributes(state),
     ...text.attributes,
+    style: unselectable,
   });
 }
 

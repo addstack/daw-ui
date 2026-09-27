@@ -17,7 +17,7 @@ export default function FaderDemo() {
       zones={{ hot: 0 }}
       className="flex flex-col items-center gap-2"
     >
-      <Fader.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
+      <Fader.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-neutral-400">
         Volume
       </Fader.Label>
       <Fader.Control className="cursor-ns-resize rounded-md py-2 ps-3 pe-9 focus-visible:outline-2 focus-visible:outline-orange-500">

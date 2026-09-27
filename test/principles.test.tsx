@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
-import { createPeaks, formats } from "../src/core/index.js";
+import { clockGrid, createPeaks, formats } from "../src/core/index.js";
 import { Fader, Knob, Meter, NumberBox, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
 
 afterEach(cleanup);
@@ -107,4 +107,61 @@ test("the built-in unit symbols are the only letters, e.g. in a decibel readout"
   );
   expect(container.textContent).toMatch(/dB$/);
   expect(wordsIn(container)).toEqual([]);
+});
+
+test("text the components show is not selectable, except a value being typed (section 5)", () => {
+  render(
+    <>
+      <Knob.Root>
+        <Knob.Label data-testid="knob label">a</Knob.Label>
+        <Knob.Control />
+        <Knob.Value data-testid="knob value" />
+      </Knob.Root>
+      <Fader.Root>
+        <Fader.Label data-testid="fader label">b</Fader.Label>
+        <Fader.Control>
+          <Fader.Track>
+            <Fader.Tick value={0.5} data-testid="fader tick">
+              c
+            </Fader.Tick>
+          </Fader.Track>
+        </Fader.Control>
+        <Fader.Value data-testid="fader value" />
+      </Fader.Root>
+      <NumberBox.Root>
+        <NumberBox.Label data-testid="number box label">d</NumberBox.Label>
+        <NumberBox.Field data-testid="number box field" />
+      </NumberBox.Root>
+      <NumberBox.Root>
+        <NumberBox.Segments labels={{}} data-testid="number box segments" />
+      </NumberBox.Root>
+      <Meter.Root>
+        <Meter.Label data-testid="meter label">e</Meter.Label>
+        <Meter.Clip data-testid="meter clip">f</Meter.Clip>
+      </Meter.Root>
+      <Toggle data-testid="toggle">g</Toggle>
+      <Timeline.Root start={0} end={1}>
+        <Timeline.Ruler grid={clockGrid()} data-testid="ruler" />
+      </Timeline.Root>
+    </>,
+  );
+  const parts = [
+    "knob label",
+    "knob value",
+    "fader label",
+    "fader tick",
+    "fader value",
+    "number box label",
+    "number box field",
+    "number box segments",
+    "meter label",
+    "meter clip",
+    "toggle",
+    "ruler",
+  ];
+  expect(parts.filter((part) => screen.getByTestId(part).style.userSelect !== "none")).toEqual([]);
+
+  // The text a user types stays theirs to select.
+  fireEvent.doubleClick(screen.getByTestId("number box field"));
+  expect(screen.getByRole("textbox").style.userSelect).toBe("");
 });

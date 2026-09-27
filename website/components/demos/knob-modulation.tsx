@@ -11,7 +11,7 @@ export default function ModulationDemo() {
 
   return (
     <Knob.Root defaultValue={0.5} onValueChange={(next) => (value.current = next)} className="flex flex-col items-center gap-1.5">
-      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
+      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-neutral-400">
         Filter
       </Knob.Label>
       <Knob.Control className="size-16 cursor-ns-resize rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">

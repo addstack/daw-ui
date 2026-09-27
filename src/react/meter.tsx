@@ -27,7 +27,7 @@ import {
 } from "../core/index.js";
 import { useRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
-import { dataAttributes, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
 
 type Orientation = "vertical" | "horizontal";
@@ -290,6 +290,7 @@ export function MeterClip(props: MeterClip.Props) {
   const ref = useMergedRef(register, props.ref);
   return useRenderPart("button", state, { ...props, ref }, {
     type: "button",
+    style: unselectable,
     // The frame loop removes `data-clipped` on the next frame.
     onClick: () => ballistics.resetClip(),
   });
@@ -309,7 +310,7 @@ export function MeterLabel(props: MeterLabel.Props) {
     setLabelId(id);
     return () => setLabelId(undefined);
   }, [setLabelId, id]);
-  return useRenderPart("span", state, props, { id });
+  return useRenderPart("span", state, props, { id, style: unselectable });
 }
 
 export namespace MeterLabel {

@@ -5,7 +5,7 @@ import { Toggle, ToggleGroup } from '@addstack/daw-ui/react';
 const CHANNELS = ['Kick', 'Snare', 'Bass', 'Keys'];
 
 const button =
-  'size-8 rounded-md border border-neutral-300 bg-white text-xs font-semibold text-neutral-500 select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 dark:border-neutral-700 dark:bg-neutral-900';
+  'size-8 rounded-md border border-neutral-300 bg-white text-xs font-semibold text-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 dark:border-neutral-700 dark:bg-neutral-900';
 
 export default function MixerDemo() {
   return (

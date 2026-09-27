@@ -305,7 +305,7 @@ The package ships behaviour only, so it can sit under your design system or a sh
 - `className` and `style` are plain values, never functions of state. In a DAW everything renders often (every pointer event of a drag, every frame of automation), so styling must not run code per render; the browser applies attributes and CSS variables by itself.
 - Values are exposed as CSS variables: `--knob-value`, `--knob-angle`, `--fader-value`, `--meter-level`, `--meter-peak`, `--timeline-start`, `--timeline-scale`, `--timeline-position`.
 - `render` replaces a part's element: `<Knob.Control render={<button />} />`. Handlers are merged; call `event.preventDefault()` in yours to skip the part's own handling.
-- The only inline styles are positioning along a track (with logical properties) and `touch-action`.
+- The only inline styles are positioning along a track (with logical properties), `touch-action`, and `user-select: none` on parts that show text: dragging across a mixer never selects labels or values.
 
 ## ♿ Accessibility and languages
 

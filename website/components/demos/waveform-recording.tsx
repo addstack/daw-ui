@@ -42,7 +42,7 @@ export default function RecordingDemo() {
           pressed={recording}
           onPressedChange={setRecording}
           aria-label="Record"
-          className="h-8 rounded-md border border-neutral-300 bg-white px-3 text-sm select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 data-pressed:border-red-500 data-pressed:bg-red-500 data-pressed:text-white dark:border-neutral-700 dark:bg-neutral-900"
+          className="h-8 rounded-md border border-neutral-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 data-pressed:border-red-500 data-pressed:bg-red-500 data-pressed:text-white dark:border-neutral-700 dark:bg-neutral-900"
         >
           ●
         </Toggle>

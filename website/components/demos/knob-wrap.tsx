@@ -10,7 +10,7 @@ const degrees: ValueFormat = { format: (value) => `${number.format(value)}°`, p
 export default function WrapKnobDemo() {
   return (
     <Knob.Root min={-180} max={180} wrap step={1} origin={0} format={degrees} className="flex flex-col items-center gap-1.5">
-      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
+      <Knob.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-neutral-400">
         Phase
       </Knob.Label>
       <Knob.Control className="size-16 cursor-ns-resize rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">

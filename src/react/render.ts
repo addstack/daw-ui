@@ -44,6 +44,13 @@ export type PartProps<Tag extends keyof JSX.IntrinsicElements, State> = Omit<
   children?: ReactNode;
 };
 
+/**
+ * The style of parts that show text: interface text is not document
+ * content, so a drag across controls or a double-click never selects it
+ * (docs/principles.md, section 5). A text input being edited stays selectable.
+ */
+export const unselectable: CSSProperties = { userSelect: "none", WebkitUserSelect: "none" };
+
 const isHandler = (key: string) => /^on[A-Z]/.test(key);
 
 /**

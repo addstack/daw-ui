@@ -42,7 +42,7 @@ export default function WaveformDemo() {
         <Toggle
           aria-label="Play"
           onPressedChange={(playing) => (transport.current = { playing, from: position(), since: performance.now() })}
-          className="h-8 rounded-md border border-neutral-300 bg-white px-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 data-pressed:border-orange-500 data-pressed:bg-orange-500 data-pressed:text-white dark:border-neutral-700 dark:bg-neutral-900"
+          className="h-8 rounded-md border border-neutral-300 bg-white px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 data-pressed:border-orange-500 data-pressed:bg-orange-500 data-pressed:text-white dark:border-neutral-700 dark:bg-neutral-900"
         >
           ▶
         </Toggle>
@@ -55,7 +55,7 @@ export default function WaveformDemo() {
           onValueChange={(seconds) => (visible.current = seconds)}
           className="flex items-center gap-3"
         >
-          <Fader.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase select-none dark:text-neutral-400">
+          <Fader.Label className="text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-neutral-400">
             Zoom
           </Fader.Label>
           <Fader.Control className="cursor-ew-resize rounded-md px-2 py-3 focus-visible:outline-2 focus-visible:outline-orange-500">
