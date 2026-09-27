@@ -26,6 +26,11 @@ export type ContentAxisOptions = {
 export type ContentAxis = {
   view: TimelineView;
   placement: RegionPlacement;
+  /**
+   * Where the content lies: in a region, which moves with the view; on a
+   * timeline outside a region, where the view scrolls under it; or on its own axis.
+   */
+  lies: "region" | "timeline" | "own";
   state: ContentState;
   /** For the root element: on its own, it is the axis. */
   root: { ref?: Ref<HTMLElement>; style: CSSProperties };
@@ -73,6 +78,7 @@ export function useContentAxis({ length, offset, duration, position, read, subsc
     return {
       view: region.view,
       placement,
+      lies: "region",
       state: { offset: placement.offset, duration: placement.duration },
       root: { style: { position: "relative", overflow: "hidden" } },
     };
@@ -81,6 +87,7 @@ export function useContentAxis({ length, offset, duration, position, read, subsc
     return {
       view: timeline.view,
       placement: ownPlacement,
+      lies: "timeline",
       state: { offset, duration: shown() },
       root: { style: { position: "relative", overflow: "hidden" } },
     };
@@ -88,6 +95,7 @@ export function useContentAxis({ length, offset, duration, position, read, subsc
   return {
     view: axis.view,
     placement: ownPlacement,
+    lies: "own",
     state: { offset, duration: shown() },
     root: { ref: axis.ref, style: { position: "relative", overflow: "hidden", ...axis.style } },
   };
@@ -99,11 +107,16 @@ export function useContentAxis({ length, offset, duration, position, read, subsc
  * and draws only what comes into view.
  */
 export abstract class ContentPainter<S> implements TilePainter {
+  protected readonly view: TimelineView;
+  protected readonly placement: RegionPlacement;
+
   constructor(
     public source: S,
-    protected readonly view: TimelineView,
-    protected readonly placement: RegionPlacement,
-  ) {}
+    protected readonly axis: ContentAxis,
+  ) {
+    this.view = axis.view;
+    this.placement = axis.placement;
+  }
 
   abstract extent(): { from: number; to: number };
 
@@ -120,7 +133,9 @@ export abstract class ContentPainter<S> implements TilePainter {
   }
 
   place(start: number) {
-    return String(start - this.placement.offset);
+    const seconds = start - this.placement.offset + this.placement.at;
+    // A region moves with the view, and its content with it; on a timeline, the view scrolls under the content.
+    return this.axis.lies === "timeline" ? `(${seconds} - var(--timeline-start))` : String(seconds - this.placement.at);
   }
 }
 
@@ -139,8 +154,7 @@ class ContentDrawing<S> {
 
   constructor(
     element: HTMLElement,
-    view: TimelineView,
-    placement: RegionPlacement,
+    { view, placement }: ContentAxis,
     private readonly painter: ContentPainter<S>,
     private readonly kind: ContentKind<S>,
   ) {
@@ -184,9 +198,9 @@ class ContentDrawing<S> {
 
 /** Keeps canvas tiles drawing `source` inside the part's element. */
 export function useContentDrawing<S>(
-  { view, placement }: ContentAxis,
+  axis: ContentAxis,
   source: S,
-  createPainter: (source: S, view: TimelineView, placement: RegionPlacement) => ContentPainter<S>,
+  createPainter: (source: S, axis: ContentAxis) => ContentPainter<S>,
   kind: ContentKind<S>,
 ) {
   const latest = useRef(source);
@@ -197,17 +211,20 @@ export function useContentDrawing<S>(
   const kindRef = useRef(kind);
   kindRef.current = kind;
 
+  const axisRef = useRef(axis);
+  axisRef.current = axis;
+  const { view, placement, lies } = axis;
   const ref = useCallback(
     (element: HTMLElement | null) => {
       if (!element) return;
-      const current = new ContentDrawing(element, view, placement, create.current(latest.current, view, placement), kindRef.current);
+      const current = new ContentDrawing(element, axisRef.current, create.current(latest.current, axisRef.current), kindRef.current);
       drawing.current = current;
       return () => {
         current.destroy();
         drawing.current = null;
       };
     },
-    [view, placement],
+    [view, placement, lies],
   );
   // A render with other content draws again; any other render does not.
   useIsomorphicLayoutEffect(() => {
@@ -219,21 +236,24 @@ export function useContentDrawing<S>(
 /**
  * Clips a progress layer to the part before the playhead, for content that
  * starts `at` seconds on the timeline: the numbers written in, no CSS
- * variable of its own.
+ * variable of its own. On a timeline outside a region, the element does not
+ * move with the view, so the view's start counts too.
  */
-const playedClip = (at: number, position: number) =>
-  `inset(0 max(0px, calc(100% - ${position - at} * var(--timeline-scale))) 0 0)`;
+const playedClip = (at: number, position: number, lies: ContentAxis["lies"]) =>
+  lies === "timeline"
+    ? `inset(0 max(0px, calc(100% - (${position - at} - var(--timeline-start)) * var(--timeline-scale))) 0 0)`
+    : `inset(0 max(0px, calc(100% - ${position - at} * var(--timeline-scale))) 0 0)`;
 
 /**
  * A progress layer's clip at the playhead: a ref that rewrites it as the
  * playhead and the region move, without rendering, and its value now.
  */
-export function usePlayedClip({ view, placement }: ContentAxis) {
+export function usePlayedClip({ view, placement, lies }: ContentAxis) {
   const ref = useCallback(
     (element: HTMLElement | null) => {
       if (!element) return;
       const clip = () => {
-        const clipPath = playedClip(placement.at, view.position);
+        const clipPath = playedClip(placement.at, view.position, lies);
         if (element.style.clipPath !== clipPath) element.style.clipPath = clipPath;
       };
       const stopFollowing = view.follow(clip);
@@ -243,7 +263,7 @@ export function usePlayedClip({ view, placement }: ContentAxis) {
         stopListening();
       };
     },
-    [placement, view],
+    [placement, view, lies],
   );
-  return { ref, clipPath: playedClip(placement.at, view.position) };
+  return { ref, clipPath: playedClip(placement.at, view.position, lies) };
 }

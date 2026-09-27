@@ -233,6 +233,25 @@ describe("Waveform", () => {
     expect(screen.getByRole("img", { name: "Take 1" })).toBe(screen.getByTestId("waveform"));
   });
 
+  test("on a timeline outside a region, it scrolls with the view: tiles and the played part count from the view's start", () => {
+    render(
+      <Timeline.Root start={20} end={30} position={25}>
+        <Waveform.Root peaks={minute}>
+          <Waveform.Shape data-testid="shape" />
+          <Waveform.Progress data-testid="progress" />
+        </Waveform.Root>
+      </Timeline.Root>,
+    );
+    frame();
+    // 100 px per second from 20 s: tile 1 (10.24 … 20.48 s) is in view, placed from the view's start.
+    expect([...canvases("shape")].map((canvas) => canvas.style.translate)).toContain(
+      "calc((10.24 - var(--timeline-start)) * var(--timeline-scale)) 0",
+    );
+    expect(screen.getByTestId("progress").style.clipPath).toBe(
+      "inset(0 max(0px, calc(100% - (25 - var(--timeline-start)) * var(--timeline-scale))) 0 0)",
+    );
+  });
+
   test("on its own, it is its own axis: its audio across its width, with its own playhead", () => {
     render(
       <Waveform.Root peaks={minute} offset={10} duration={20} read={() => 15} data-testid="waveform">
@@ -567,8 +586,10 @@ describe("Curve", () => {
     }
     const { rerender } = render(<Lane view={[0, 10]} />);
     frame();
-    // The timeline's axis, from its second 0: 100 px per second.
-    expect(screen.getByTestId("line").querySelector("canvas")!.style.translate).toBe("calc(0 * var(--timeline-scale)) 0");
+    // The timeline's axis, from its second 0: placed from the view's start, since the view scrolls under it.
+    expect(screen.getByTestId("line").querySelector("canvas")!.style.translate).toBe(
+      "calc((0 - var(--timeline-start)) * var(--timeline-scale)) 0",
+    );
     drawn.tiles = 0;
     rerender(<Lane view={[60, 70]} />);
     frame();
