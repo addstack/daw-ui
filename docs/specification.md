@@ -6,7 +6,7 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [2. Parts](#2-parts)
 - [3. Value model](#3-value-model)
 - [4. Formats](#4-formats)
-- [5. Value controls](#5-value-controls-knob-fader-numberbox-xy-pad-multi-slider-slider)
+- [5. Value controls](#5-value-controls-knob-fader-numberbox-xy-pad-bar-graph-slider)
 - [6. Gestures](#6-gestures)
 - [7. Meter, Spectrum and Tuner](#7-meter-spectrum-and-tuner)
 - [8. Toggle](#8-toggle)
@@ -38,7 +38,7 @@ Each part:
 
 A part that moves focus because of a pointer press, or of a click on a `Label`, calls `focus({ preventScroll: true, focusVisible: false })`: it shows no focus ring, as the browser's own focusing on a click shows none. Focus moved by keys keeps the ring.
 
-Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value`, `Tuner.Note`, `Tuner.Frequency`, `Tuner.Cents`, `Tuner.Mark`, `Slider.Label`, `Slider.Value`, `MultiSlider.Label`, `MultiSlider.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
+Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value`, `Tuner.Note`, `Tuner.Frequency`, `Tuner.Cents`, `Tuner.Mark`, `Slider.Label`, `Slider.Value`, `BarGraph.Label`, `BarGraph.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
 
 ## 3. Value model
 
@@ -113,7 +113,7 @@ Segments of the built-in formats:
 | `position` | `bars`: `beatsPerBar`; `beats`: 1, 1 … `beatsPerBar`; `divisions`: 1 / `divisions`, 1 … `divisions` | `.` |
 | `timecode` | `hours`: 3600, from 0; `minutes`: 60, 0 … 59; `seconds`: 1, 0 … 59; `frames`: 1 / `fps`, 0 … `fps` − 1 | `:` |
 
-## 5. Value controls (Knob, Fader, NumberBox, XY pad, multi-slider, slider)
+## 5. Value controls (Knob, Fader, NumberBox, XY pad, bar graph, slider)
 
 ### 5.1 State
 
@@ -217,13 +217,13 @@ Each step's `delta` (§5.1) has the direction of the input.
 - **Keys** on a thumb, each one gesture, reason `"keyboard"`: ArrowLeft and ArrowRight move `x` (ArrowRight towards `max` left to right, towards `min` right to left), ArrowUp and ArrowDown move `y`, by the axis's `step`, else by 0.01 of travel (0.001 with Shift); PageUp and PageDown move `y` by 0.1 of travel; Home and End set `x` to `min` and `max`. Delete and Backspace, and a double-click, reset the thumb to `resetValue[i]`, else `defaultValue[i]`, reason `"reset"`.
 - **Parts.** `XYPad.Control` (`div`, `position: relative`, `touch-action: none`). `XYPad.Thumb` (`div`, `role="slider"`, `tabindex` 0, `aria-valuemin`/`aria-valuemax` the finite bounds of `x`, `aria-valuenow` its finite `x`, `aria-valuetext` = `format.x(x) + ", " + format.y(y)`, `data-xy-thumb`; `position: absolute`, `inset-inline-start` and `bottom` the travel of `x` and `y` in percent, `translate: −50% 50%` (`50% 50%` right to left), `--xy-pad-x` and `--xy-pad-y` the travel, `touch-action: none`). `XYPad.Value` (`output`, `dir="auto"`, `user-select: none`) the text of thumb `index` (default 0): both formats joined with ", ", or one with `axis`. Positions, attributes and texts are rewritten without rendering. `disabled` ignores input, sets `data-disabled` and removes the thumbs from the tab order. Default formats: `formats.number({ digits: 2 })`.
 
-### 5.10 Multi-slider
+### 5.10 Bar graph
 
-`MultiSlider.Root` (`div`, `role="group"`, named by `MultiSlider.Label`) holds a list of values on one range `createRange({ min, max, step, scale })` (defaults 0 … 1): controlled by `value`, or starting at `defaultValue`, each constrained. A change constrains the values it sets and keeps those that differ; if none does, nothing happens; otherwise it starts a gesture if none is under way, shows them at once when uncontrolled (controlled, when the parent passes them back), and calls `onValueChange(values, { reason, event, indexes })` with every value and the indexes that changed. With `read`, `read()` once per animation frame gives the values, unless a stroke or a gesture is under way. Default format: `formats.number({ digits: 2 })`, 0 digits when `step` is whole.
+`BarGraph.Root` (`div`, `role="group"`, named by `BarGraph.Label`) holds a list of values on one range `createRange({ min, max, step, scale })` (defaults 0 … 1): controlled by `value`, or starting at `defaultValue`, each constrained. A change constrains the values it sets and keeps those that differ; if none does, nothing happens; otherwise it starts a gesture if none is under way, shows them at once when uncontrolled (controlled, when the parent passes them back), and calls `onValueChange(values, { reason, event, indexes })` with every value and the indexes that changed. With `read`, `read()` once per animation frame gives the values, unless a stroke or a gesture is under way. Default format: `formats.number({ digits: 2 })`, 0 digits when `step` is whole.
 
-- **Strokes.** A primary press on `MultiSlider.Control` prevents the default action and reads, once, the control's box and each item's left and right; the value at a height `y` is `denormalize(clamp01(1 − (y − top) / height))`. Items whose span contains the pointer's `x` take the value at its `y` (reason `"paint"`), and the nearest of them is focused. On each move, from the previous point to the current one, every item whose span meets the segment's horizontal extent takes the value at the height of the segment where it crosses the item's middle, clamped to the segment: reason `"paint"`. With Shift at the press, the item nearest the pointer alone moves, its travel changed by `−Δy / height × 0.1` per move, clamped to 0 … 1: reason `"drag"`. The control captures the pointer and has `data-painting` until release, cancel or lost capture, which end the gesture.
+- **Strokes.** A primary press on `BarGraph.Control` prevents the default action and reads, once, the control's box and each item's left and right; the value at a height `y` is `denormalize(clamp01(1 − (y − top) / height))`. Items whose span contains the pointer's `x` take the value at its `y` (reason `"paint"`), and the nearest of them is focused. On each move, from the previous point to the current one, every item whose span meets the segment's horizontal extent takes the value at the height of the segment where it crosses the item's middle, clamped to the segment: reason `"paint"`. With Shift at the press, the item nearest the pointer alone moves, its travel changed by `−Δy / height × 0.1` per move, clamped to 0 … 1: reason `"drag"`. The control captures the pointer and has `data-painting` until release, cancel or lost capture, which end the gesture.
 - **Keys** on an item, each one gesture: ArrowUp and ArrowDown change it by `step`, else by 0.01 of travel (0.001 with Shift); PageUp and PageDown by 0.1 of travel; Home and End set `min` and `max` (reason `"keyboard"`). ArrowLeft and ArrowRight focus the previous or next item along the reading direction; with Shift, that item first takes this one's value (reason `"paint"`). Delete and Backspace, and a double-click, reset the item to `resetValue`, else its `defaultValue`, else `origin` (default `min`): reason `"reset"`.
-- **Parts.** `MultiSlider.Control` (`div`, `position: relative`, `touch-action: none`). `MultiSlider.Item index={i}` (`div`, `role="slider"`, `aria-orientation="vertical"`, `aria-label` the number `i + 1` unless given, `aria-valuemin`/`aria-valuemax` the finite bounds, `aria-valuenow` its finite value, `aria-valuetext` its format; `tabindex` 0 on the focusable item, at first item 0, then the last focused, −1 on the others and on all while disabled; `position: absolute`, `inset-block: 0`, `inset-inline-start: i / n` and `width: 1 / n` in percent of `n` values, `--multi-slider-value` its travel). `MultiSlider.Range` (`div` in an item, `position: absolute`, `bottom` the lower and `height` the distance of the travels of `origin` and the value, in percent). `MultiSlider.Value` (`output`, `dir="auto"`, `user-select: none`) the text of value `index`, else of the item last focused or changed. What they show is rewritten without rendering. `disabled` ignores input and sets `data-disabled`.
+- **Parts.** `BarGraph.Control` (`div`, `position: relative`, `touch-action: none`). `BarGraph.Item index={i}` (`div`, `role="slider"`, `aria-orientation="vertical"`, `aria-label` the number `i + 1` unless given, `aria-valuemin`/`aria-valuemax` the finite bounds, `aria-valuenow` its finite value, `aria-valuetext` its format; `tabindex` 0 on the focusable item, at first item 0, then the last focused, −1 on the others and on all while disabled; `position: absolute`, `inset-block: 0`, `inset-inline-start: i / n` and `width: 1 / n` in percent of `n` values, `--bar-graph-value` its travel). `BarGraph.Range` (`div` in an item, `position: absolute`, `bottom` the lower and `height` the distance of the travels of `origin` and the value, in percent). `BarGraph.Value` (`output`, `dir="auto"`, `user-select: none`) the text of value `index`, else of the item last focused or changed. What they show is rewritten without rendering. `disabled` ignores input and sets `data-disabled`.
 
 ### 5.11 Slider
 
@@ -239,7 +239,7 @@ A gesture groups the changes of one user action. `onGestureStart()` is called im
 
 | Component | One action |
 | --- | --- |
-| Value controls | a drag (pointerdown → release); a key press; a burst of wheel events; a reset; a typed value; a multi-slider's stroke |
+| Value controls | a drag (pointerdown → release); a key press; a burst of wheel events; a reset; a typed value; a bar graph's stroke |
 | ToggleGroup | a press, including the toggles an exclusive press turns off; a paint stroke; a Shift+Arrow paint step; a keyboard press |
 
 A controlled `ToggleGroup` whose parent did not take a change shows its `value` prop again when the gesture ends.
@@ -455,7 +455,7 @@ The direction is read from the DOM (`getComputedStyle(element).direction`): at p
 
 - Horizontal value controls: dragging towards the inline end increases the value; in RTL, ArrowLeft increases and ArrowRight decreases. Positions use `inset-inline-start`; the thumb and ticks are centred with `translate` of −50% (LTR) or +50% (RTL).
 - Horizontal meters clip the bar from the inline end.
-- Toggle groups and multi-sliders: Left and Right move along the reading direction; a multi-slider's items lie along it.
+- Toggle groups and bar graphs: Left and Right move along the reading direction; a bar graph's items lie along it.
 - Horizontal sliders run along the reading direction, their thumbs, range and bands with them, as horizontal faders do.
 - Vertical controls, knobs, Up and Down do not depend on direction.
 - Time on a timeline and the fields of number box segments run left to right in every direction (§10, §5.8).
@@ -472,7 +472,7 @@ Checked on every change; a regression fails CI.
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | Dragging a thumb of an XY pad renders nothing. | `test/xy-pad.test.tsx` |
-| A stroke across a multi-slider renders nothing. | `test/multi-slider.test.tsx` |
+| A stroke across a bar graph renders nothing. | `test/bar-graph.test.tsx` |
 | A spectrum that reads its bins every frame renders nothing. | `test/spectrum.test.tsx` |
 | A tuner that reads a frequency every frame renders nothing. | `test/tuner.test.tsx` |
 | Dragging a thumb of a slider renders nothing. | `test/slider.test.tsx` |
@@ -481,8 +481,8 @@ Checked on every change; a regression fails CI.
 | Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
 | In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, while the view pages along with a MIDI track of 3760 notes more, while it zooms with an automation lane of 2000 bent points more, and at most 2 for a drag of one of those points when editable (the press, and the application keeping the points); 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
 | In a production build, 8 spectra of 2048 bins read every frame make 0 React commits. | `perf/stress.perf.ts` |
-| In a production build, a stroke across 64 values of a multi-slider sets every one and makes 0 React commits. | `perf/stress.perf.ts` |
+| In a production build, a stroke across 64 values of a bar graph sets every one and makes 0 React commits. | `perf/stress.perf.ts` |
 | With 88 keys in a production build: 0 React commits while `read` holds keys that change every 50 ms, and during a glissando across the keyboard. | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 44 kB; an application importing only a knob ≤ 8.6 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, only a multi-slider ≤ 6.5 kB, only a slider ≤ 6.9 kB, only a spectrum ≤ 4.6 kB, only a tuner ≤ 4.4 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
+| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 44 kB; an application importing only a knob ≤ 8.6 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, only a bar graph ≤ 6.5 kB, only a slider ≤ 6.9 kB, only a spectrum ≤ 4.6 kB, only a tuner ≤ 4.4 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

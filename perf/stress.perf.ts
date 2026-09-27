@@ -272,10 +272,10 @@ test("a glissando across 88 keys", async ({ page }) => {
   expect(result.reactCommits).toBe(0);
 });
 
-test("painting 64 values of a multi-slider", async ({ page }) => {
-  await openStress(page, "multi-slider");
+test("painting 64 values of a bar graph", async ({ page }) => {
+  await openStress(page, "bar-graph");
   const control = (await page.getByTestId("Steps control").boundingBox())!;
-  const result = await measure(page, "Paint 64 values of a multi-slider", 1500, () =>
+  const result = await measure(page, "Paint 64 values of a bar graph", 1500, () =>
     glide(page, { x: control.x + 5, y: control.y + control.height - 5 }, { x: control.x + control.width - 5, y: control.y + 5 }, 30),
   );
   const values = await page.evaluate(() => window.e2e.events.filter((event) => event.source === "Steps" && event.type === "change").at(-1)?.value as number[]);

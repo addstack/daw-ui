@@ -23,7 +23,7 @@ const BUDGETS = {
   "a knob alone": { entry: only(["Knob"]), limit: 8_600 },
   "an XY pad alone": { entry: only(["XYPad"]), limit: 6_200 },
   "a keyboard alone": { entry: only(["Keys"]), limit: 5_300 },
-  "a multi-slider alone": { entry: only(["MultiSlider"]), limit: 6_500 },
+  "a bar graph alone": { entry: only(["BarGraph"]), limit: 6_500 },
   "a slider alone": { entry: only(["Slider"]), limit: 6_900 },
   "a spectrum alone": { entry: only(["Spectrum"]), limit: 4_600 },
   "a tuner alone": { entry: only(["Tuner"]), limit: 4_400 },

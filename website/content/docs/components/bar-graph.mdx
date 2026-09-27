@@ -1,0 +1,103 @@
+---
+title: Bar graph
+description: A row of values on one range, drawn as bars and painted by dragging across them, for velocities, the steps of an arpeggiator, the harmonics of an additive synthesizer.
+---
+
+<ComponentPreview name="bar-graph" />
+
+## Anatomy
+
+```tsx
+import { BarGraph } from '@addstack/daw-ui/react';
+
+<BarGraph.Root min={0} max={127} step={1} value={velocities} onValueChange={setVelocities}>
+  <BarGraph.Label>Velocity</BarGraph.Label>
+  <BarGraph.Control className="h-32 w-96">
+    {velocities.map((_, index) => (
+      <BarGraph.Item key={index} index={index} aria-label={t('step', { n: index + 1 })}>
+        <BarGraph.Range className="inset-x-0.5 bg-orange-500" />
+      </BarGraph.Item>
+    ))}
+  </BarGraph.Control>
+  <BarGraph.Value />
+</BarGraph.Root>
+```
+
+A bar graph holds a list of values on one range, with the `min`, `max`, `step` and `scale` of a knob's or a fader's. Each value is an item, a column of the control with its bar, `BarGraph.Range`, drawn from `origin` (the bottom, by default) to the value. It is what Max calls a multislider, the graph editor under FL Studio's step sequencer, the velocity lane of a piano roll, the step LFO of Serum: whatever is a row of values you draw rather than set one by one. It is not a slider with several thumbs on one track: that is a [`Slider`](/docs/components/slider).
+
+A stroke paints: pressing and dragging across the items sets each one the pointer crosses to where it crosses it, so a quick diagonal draws a ramp. Pointer events arrive tens of pixels apart during a fast stroke; the bar graph follows the path between them, so it skips no item. With Shift, the pressed item alone moves, a tenth as far as the pointer, for a fine adjustment.
+
+## Under a piano roll
+
+Items are side by side by default. Placed by your application, with `style`, they can be anywhere: under the notes of a piano roll, one velocity per note, at the note's start. A stroke over a chord sets all its notes.
+
+<ComponentPreview name="bar-graph-velocity-lane" />
+
+```tsx
+<BarGraph.Control>
+  {notes.map((note, index) => (
+    <BarGraph.Item key={index} index={index} style={{ insetInlineStart: `${(note.at / length) * 100}%`, width: 6 }}>
+      <BarGraph.Range className="w-1.5 bg-emerald-600" />
+    </BarGraph.Item>
+  ))}
+</BarGraph.Control>
+```
+
+## Behaviour
+
+- **Stroke:** every item the path crosses takes the value where the path crosses its middle; items at the same place all take it. One gesture per stroke, `reason: "paint"`.
+- **Shift+drag:** the pressed item moves by a tenth of the pointer's travel, `reason: "drag"`.
+- **Keys** on an item: Up and Down change it, by `step` or 1% of the travel (Shift: 0.1%); Page Up and Page Down by 10%; Home and End go to `min` and `max`. Left and Right move to the next item along the reading direction, and with Shift, the next item takes this one's value, painting from the keyboard.
+- **Reset:** a double-click, Delete or Backspace returns an item to `resetValue`, or its `defaultValue`, or `origin`.
+- **Nothing renders** during a stroke: the items, their bars and `BarGraph.Value` are written straight to the DOM. `read` gives values that change on their own, once per animation frame.
+
+`onValueChange` receives every value and `details.indexes`, the items that changed. `origin={0}` on a range of −1 … 1 draws the bars up or down from the middle, for pan or detune per step.
+
+The root is a `group` named by `BarGraph.Label`. Each item is a vertical `slider`, named by its number unless you give it an `aria-label`, and the whole row is one tab stop.
+
+## Styling
+
+Items are `position: absolute` along the control, `inset-inline-start` and `width` in percent, the control's full height, and carry `--bar-graph-value`, their travel from 0 to 1. A bar has `position: absolute`, and `bottom` and `height` in percent of the item: give it a width and a look.
+
+| Data attribute | |
+| --- | --- |
+| `data-painting` | On the control during a stroke. |
+| `data-disabled` | On the root, the control and the items while disabled. |
+
+## API reference
+
+### Root
+
+Holds the values. Renders a `<div>` with `role="group"`.
+
+<PropsTable part="BarGraph.Root" />
+
+### Label
+
+Names the bar graph. Renders a `<span>`.
+
+<PropsTable part="BarGraph.Label" />
+
+### Control
+
+The area strokes paint on: its height is the range. Renders a `<div>` with `position: relative`.
+
+<PropsTable part="BarGraph.Control" />
+
+### Item
+
+The value at `index`. Renders a `<div>` with `role="slider"`.
+
+<PropsTable part="BarGraph.Item" />
+
+### Range
+
+The bar of an item, from `origin` to its value. Renders a `<div>`.
+
+<PropsTable part="BarGraph.Range" />
+
+### Value
+
+The text of the value at `index`, or of the item last changed or focused. Renders an `<output>`.
+
+<PropsTable part="BarGraph.Value" />

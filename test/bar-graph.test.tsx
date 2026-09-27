@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { MultiSlider, type MultiSliderChangeDetails } from "../src/react/index.js";
+import { BarGraph, type BarGraphChangeDetails } from "../src/react/index.js";
 import { pointerDown, pointerMove, pointerUp, setBox } from "./helpers.js";
 
 let frames: FrameRequestCallback[] = [];
@@ -24,16 +24,16 @@ function frame() {
   for (const callback of pending) callback(0);
 }
 
-type Log = { values: number[][]; details: MultiSliderChangeDetails[]; gestures: string[] };
+type Log = { values: number[][]; details: BarGraphChangeDetails[]; gestures: string[] };
 
 /** Four values on 0 … 1, on a control 200 × 100 px: items 50 px wide, side by side. */
-function setup(props: Partial<MultiSlider.Root.Props> = {}, boxes = [0, 50, 100, 150]) {
+function setup(props: Partial<BarGraph.Root.Props> = {}, boxes = [0, 50, 100, 150]) {
   const log: Log = { values: [], details: [], gestures: [] };
   let commits = 0;
   const count = props.value?.length ?? props.defaultValue?.length ?? 4;
   render(
-    <Profiler id="multi-slider" onRender={() => commits++}>
-      <MultiSlider.Root
+    <Profiler id="bar-graph" onRender={() => commits++}>
+      <BarGraph.Root
         defaultValue={[0, 0, 0, 0]}
         onValueChange={(values, details) => {
           log.values.push(values);
@@ -43,16 +43,16 @@ function setup(props: Partial<MultiSlider.Root.Props> = {}, boxes = [0, 50, 100,
         onGestureEnd={() => log.gestures.push("end")}
         {...props}
       >
-        <MultiSlider.Label>Velocity</MultiSlider.Label>
-        <MultiSlider.Control data-testid="control">
+        <BarGraph.Label>Velocity</BarGraph.Label>
+        <BarGraph.Control data-testid="control">
           {Array.from({ length: count }, (_, index) => (
-            <MultiSlider.Item key={index} index={index}>
-              <MultiSlider.Range data-testid={`range ${index}`} />
-            </MultiSlider.Item>
+            <BarGraph.Item key={index} index={index}>
+              <BarGraph.Range data-testid={`range ${index}`} />
+            </BarGraph.Item>
           ))}
-        </MultiSlider.Control>
-        <MultiSlider.Value data-testid="value" />
-      </MultiSlider.Root>
+        </BarGraph.Control>
+        <BarGraph.Value data-testid="value" />
+      </BarGraph.Root>
     </Profiler>,
   );
   const control = screen.getByTestId("control");
@@ -64,7 +64,7 @@ function setup(props: Partial<MultiSlider.Root.Props> = {}, boxes = [0, 50, 100,
 const item = (index: number) => screen.getAllByRole("slider")[index]!;
 const last = (log: Log) => log.values.at(-1)!;
 
-describe("MultiSlider", () => {
+describe("BarGraph", () => {
   test("is a group named by its label; each value is a slider in one tab stop, placed side by side", () => {
     setup({ defaultValue: [0.5, 0.25, 1, 0] });
     expect(screen.getByRole("group", { name: "Velocity" })).toBeTruthy();
@@ -74,7 +74,7 @@ describe("MultiSlider", () => {
     expect(screen.getAllByRole("slider").map((one) => one.tabIndex)).toEqual([0, -1, -1, -1]);
     expect([item(1).style.insetInlineStart, item(1).style.width]).toEqual(["25%", "25%"]);
     expect([screen.getByTestId("range 1").style.bottom, screen.getByTestId("range 1").style.height]).toEqual(["0%", "25%"]);
-    expect(item(1).style.getPropertyValue("--multi-slider-value")).toBe("0.25");
+    expect(item(1).style.getPropertyValue("--bar-graph-value")).toBe("0.25");
   });
 
   test("a stroke sets every value it crosses to where it crosses, even in one fast move, as one gesture, without rendering", () => {
@@ -145,21 +145,21 @@ describe("MultiSlider", () => {
   test("controlled, it shows the values the parent passes; read changes them once per frame", () => {
     let values = [0.1, 0.2];
     const { rerender } = render(
-      <MultiSlider.Root value={[0.3, 0.4]}>
-        <MultiSlider.Control>
-          <MultiSlider.Item index={0} aria-label="First" />
-          <MultiSlider.Item index={1} aria-label="Second" />
-        </MultiSlider.Control>
-      </MultiSlider.Root>,
+      <BarGraph.Root value={[0.3, 0.4]}>
+        <BarGraph.Control>
+          <BarGraph.Item index={0} aria-label="First" />
+          <BarGraph.Item index={1} aria-label="Second" />
+        </BarGraph.Control>
+      </BarGraph.Root>,
     );
     expect(screen.getByRole("slider", { name: "Second" }).getAttribute("aria-valuenow")).toBe("0.4");
     rerender(
-      <MultiSlider.Root read={() => values}>
-        <MultiSlider.Control>
-          <MultiSlider.Item index={0} aria-label="First" />
-          <MultiSlider.Item index={1} aria-label="Second" />
-        </MultiSlider.Control>
-      </MultiSlider.Root>,
+      <BarGraph.Root read={() => values}>
+        <BarGraph.Control>
+          <BarGraph.Item index={0} aria-label="First" />
+          <BarGraph.Item index={1} aria-label="Second" />
+        </BarGraph.Control>
+      </BarGraph.Root>,
     );
     frame();
     expect(screen.getByRole("slider", { name: "Second" }).getAttribute("aria-valuenow")).toBe("0.2");
@@ -178,13 +178,13 @@ describe("MultiSlider", () => {
 
   test("parts outside a root say where they belong", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => render(<MultiSlider.Item index={0} />)).toThrow(/MultiSlider.Root/);
+    expect(() => render(<BarGraph.Item index={0} />)).toThrow(/BarGraph.Root/);
     expect(() =>
       render(
-        <MultiSlider.Root defaultValue={[0]}>
-          <MultiSlider.Range />
-        </MultiSlider.Root>,
+        <BarGraph.Root defaultValue={[0]}>
+          <BarGraph.Range />
+        </BarGraph.Root>,
       ),
-    ).toThrow(/MultiSlider.Item/);
+    ).toThrow(/BarGraph.Item/);
   });
 });

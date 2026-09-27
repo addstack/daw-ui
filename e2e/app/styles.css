@@ -401,18 +401,18 @@ h1 {
   height: 80px;
 }
 
-/* Multi-sliders: 320 × 100 px; 640 px for 64 steps. */
-.multi-slider {
+/* Bar graphs: 320 × 100 px; 640 px for 64 steps. */
+.bar-graph {
   width: 320px;
   height: 100px;
   background: #222;
 }
 
-.multi-slider.wide {
+.bar-graph.wide {
   width: 640px;
 }
 
-.multi-slider-range {
+.bar-graph-range {
   inset-inline: 2px;
   background: #ff9f0a;
 }

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats, scales } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, BarGraph, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -130,15 +130,15 @@ function EveryComponent() {
         <Tuner.Mark note={69} />
         <Tuner.Strobe />
       </Tuner.Root>
-      <MultiSlider.Root defaultValue={[0.2, 0.9]}>
-        <MultiSlider.Control>
-          <MultiSlider.Item index={0}>
-            <MultiSlider.Range />
-          </MultiSlider.Item>
-          <MultiSlider.Item index={1} />
-        </MultiSlider.Control>
-        <MultiSlider.Value />
-      </MultiSlider.Root>
+      <BarGraph.Root defaultValue={[0.2, 0.9]}>
+        <BarGraph.Control>
+          <BarGraph.Item index={0}>
+            <BarGraph.Range />
+          </BarGraph.Item>
+          <BarGraph.Item index={1} />
+        </BarGraph.Control>
+        <BarGraph.Value />
+      </BarGraph.Root>
       <Keys.Root range={[59, 62]} held={[60]}>
         {[59, 60, 61, 62].map((note) => (
           <Keys.Key key={note} note={note} />
@@ -214,10 +214,10 @@ test("text the components show is not selectable, except a value being typed (se
         <Slider.Label data-testid="slider label">l</Slider.Label>
         <Slider.Value data-testid="slider value" />
       </Slider.Root>
-      <MultiSlider.Root defaultValue={[0.5]}>
-        <MultiSlider.Label data-testid="multi-slider label">k</MultiSlider.Label>
-        <MultiSlider.Value data-testid="multi-slider value" />
-      </MultiSlider.Root>
+      <BarGraph.Root defaultValue={[0.5]}>
+        <BarGraph.Label data-testid="bar graph label">k</BarGraph.Label>
+        <BarGraph.Value data-testid="bar graph value" />
+      </BarGraph.Root>
       <Keys.Root range={[60, 60]}>
         <Keys.Key note={60} data-testid="key">
           j
@@ -256,8 +256,8 @@ test("text the components show is not selectable, except a value being typed (se
     "tuner mark",
     "slider label",
     "slider value",
-    "multi-slider label",
-    "multi-slider value",
+    "bar graph label",
+    "bar graph value",
     "ruler",
     "region header",
     "region label",

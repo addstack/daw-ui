@@ -43,7 +43,7 @@ Arabic, Hebrew and Persian interfaces run right to left, and a component must wo
 
 ## 5. Input
 
-- Every pointer interaction has a keyboard equivalent. Painting toggles, or the values of a multi-slider, by dragging has Shift+Arrow.
+- Every pointer interaction has a keyboard equivalent. Painting toggles, or the values of a bar graph, by dragging has Shift+Arrow.
 - Modifiers mean the same everywhere: **Shift** is fine adjustment, **double-click** and **Delete** reset, **Cmd/Ctrl** is the alternative action (e.g. additive solo).
 - Mouse, pen and touch go through Pointer Events with pointer capture, so a drag continues outside the element and never leaves listeners behind.
 - Toggles react on press, not on release, as in hardware and desktop DAWs.

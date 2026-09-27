@@ -1,6 +1,6 @@
 'use client';
 
-import { Keys, MultiSlider, Notes, type Note } from '@addstack/daw-ui/react';
+import { Keys, BarGraph, Notes, type Note } from '@addstack/daw-ui/react';
 
 // A3 to C5, one row per semitone. 120 BPM: a beat is half a second. A made-up melody over chords: [beat, beats, pitch].
 const range = [57, 72] as const;
@@ -23,21 +23,21 @@ export default function VelocityLaneDemo() {
       </Notes.Root>
       <span className="self-center text-center text-[10px] text-neutral-500 uppercase">Vel</span>
       {/* One velocity per note, at the note's start: the items are placed by the application, on the notes' time. */}
-      <MultiSlider.Root min={0} max={127} step={1} defaultValue={melody.map(() => 100)} aria-label="Velocity" className="bg-neutral-50 dark:bg-neutral-900">
-        <MultiSlider.Control className="size-full cursor-crosshair">
+      <BarGraph.Root min={0} max={127} step={1} defaultValue={melody.map(() => 100)} aria-label="Velocity" className="bg-neutral-50 dark:bg-neutral-900">
+        <BarGraph.Control className="size-full cursor-crosshair">
           {melody.map((note, index) => (
-            <MultiSlider.Item
+            <BarGraph.Item
               key={index}
               index={index}
               aria-label={`Note ${index + 1}`}
               style={{ insetInlineStart: `${(note.at / LENGTH) * 100}%`, width: 6 }}
               className="outline-offset-2 focus-visible:outline-2 focus-visible:outline-orange-500"
             >
-              <MultiSlider.Range className="start-0 w-1.5 border-t-2 border-emerald-600 bg-emerald-600/20" />
-            </MultiSlider.Item>
+              <BarGraph.Range className="start-0 w-1.5 border-t-2 border-emerald-600 bg-emerald-600/20" />
+            </BarGraph.Item>
           ))}
-        </MultiSlider.Control>
-      </MultiSlider.Root>
+        </BarGraph.Control>
+      </BarGraph.Root>
     </div>
   );
 }

@@ -3,11 +3,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { eventsOf } from "./fixture.js";
 
 async function open(page: Page) {
-  await page.goto("/?view=multi-slider");
-  await expect(page.getByRole("heading", { name: "daw-ui multi-slider" })).toBeVisible();
+  await page.goto("/?view=bar-graph");
+  await expect(page.getByRole("heading", { name: "daw-ui bar-graph" })).toBeVisible();
 }
 
-/** The values a multi-slider last reported. */
+/** The values a bar graph last reported. */
 const values = async (page: Page, source: string) => (await eventsOf(page, source)).filter((event) => event.type === "change").at(-1)?.value as number[];
 
 test("a fast stroke sets every step it crosses, along its path, as one gesture", async ({ page }) => {

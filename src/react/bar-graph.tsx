@@ -22,21 +22,21 @@ import { writeLive, type Live } from "./live.js";
 import { dataAttributes, focusFromPointer, unselectable, useRenderPart, type PartProps } from "./render.js";
 import { FINE, useIsomorphicLayoutEffect } from "./value-control.js";
 
-export type MultiSliderChangeReason = "paint" | "drag" | "keyboard" | "reset";
+export type BarGraphChangeReason = "paint" | "drag" | "keyboard" | "reset";
 
-export type MultiSliderChangeDetails = {
-  reason: MultiSliderChangeReason;
+export type BarGraphChangeDetails = {
+  reason: BarGraphChangeReason;
   event: Event;
   /** The indexes of the values that changed. */
   indexes: number[];
 };
 
-export type MultiSliderState = { values: number[]; painting: boolean; disabled: boolean };
+export type BarGraphState = { values: number[]; painting: boolean; disabled: boolean };
 
-export type MultiSliderItemState = { index: number; value: number; disabled: boolean };
+export type BarGraphItemState = { index: number; value: number; disabled: boolean };
 
 /** The values, which item is in the tab order, which one was last focused or changed, and whether a stroke is under way, outside React. */
-class MultiSliderStore {
+class BarGraphStore {
   painting = false;
   focusable = 0;
   active = 0;
@@ -76,8 +76,8 @@ class MultiSliderStore {
   }
 }
 
-type MultiSliderContextValue = {
-  store: MultiSliderStore;
+type BarGraphContextValue = {
+  store: BarGraphStore;
   range: Range;
   /** The travel the values are drawn from. */
   origin: number;
@@ -86,18 +86,18 @@ type MultiSliderContextValue = {
   count: number;
   items: Map<number, HTMLElement>;
   setLabelId: (id: string | undefined) => void;
-  apply: (updates: readonly (readonly [index: number, value: number])[], reason: MultiSliderChangeReason, event: Event) => void;
+  apply: (updates: readonly (readonly [index: number, value: number])[], reason: BarGraphChangeReason, event: Event) => void;
   endGesture: () => void;
   reset: (index: number, event: Event) => void;
   latest: () => readonly number[];
   holding: { current: boolean };
 };
 
-const MultiSliderContext = createContext<MultiSliderContextValue | null>(null);
+const BarGraphContext = createContext<BarGraphContextValue | null>(null);
 
-function useMultiSliderContext(part: string): MultiSliderContextValue {
-  const context = useContext(MultiSliderContext);
-  if (!context) throw new Error(`<MultiSlider.${part}> must be placed inside <MultiSlider.Root>.`);
+function useBarGraphContext(part: string): BarGraphContextValue {
+  const context = useContext(BarGraphContext);
+  if (!context) throw new Error(`<BarGraph.${part}> must be placed inside <BarGraph.Root>.`);
   return context;
 }
 
@@ -117,9 +117,9 @@ const wholeNumber = numberFormat({ digits: 0 });
  * A stroke sets every value the pointer crosses to where the pointer is,
  * and nothing renders as it goes: the items write what they show straight
  * to the DOM (docs/principles.md, section 7). A `group`, named by
- * `MultiSlider.Label`; each value is a `slider` of its own, in one tab stop.
+ * `BarGraph.Label`; each value is a `slider` of its own, in one tab stop.
  */
-export function MultiSliderRoot({
+export function BarGraphRoot({
   value: controlledValue,
   defaultValue,
   resetValue,
@@ -135,11 +135,11 @@ export function MultiSliderRoot({
   format,
   disabled = false,
   ...props
-}: MultiSliderRoot.Props) {
+}: BarGraphRoot.Props) {
   const range = useMemo(() => createRange({ min, max, step, scale }), [min, max, step, scale]);
   const originValue = range.clamp(originProp ?? min);
   const controlled = controlledValue !== undefined;
-  const [store] = useState(() => new MultiSliderStore((controlledValue ?? defaultValue ?? []).map((one) => range.constrain(one))));
+  const [store] = useState(() => new BarGraphStore((controlledValue ?? defaultValue ?? []).map((one) => range.constrain(one))));
   const values = controlled ? controlledValue.map((one) => range.clamp(one)) : store.values;
 
   // The values as of the last change, so that events arriving before the parent renders build on them.
@@ -150,14 +150,14 @@ export function MultiSliderRoot({
     store.set(values);
   });
 
-  const [callbacks] = useState<{ current: Pick<MultiSliderRoot.Props, "onValueChange" | "onGestureStart" | "onGestureEnd"> }>(() => ({ current: {} }));
+  const [callbacks] = useState<{ current: Pick<BarGraphRoot.Props, "onValueChange" | "onGestureStart" | "onGestureEnd"> }>(() => ({ current: {} }));
   callbacks.current = { onValueChange, onGestureStart, onGestureEnd };
   const [gesture] = useState({ current: false });
   const [holding] = useState({ current: false });
   const [items] = useState(() => new Map<number, HTMLElement>());
 
   const apply = useCallback(
-    (updates: readonly (readonly [number, number])[], reason: MultiSliderChangeReason, event: Event) => {
+    (updates: readonly (readonly [number, number])[], reason: BarGraphChangeReason, event: Event) => {
       const next = [...latest.current];
       const indexes: number[] = [];
       for (const [index, value] of updates) {
@@ -194,7 +194,7 @@ export function MultiSliderRoot({
   );
 
   // Values that change on their own are read once per frame, except during a stroke.
-  const [readRef] = useState<{ current: MultiSliderRoot.Props["read"] }>(() => ({ current: undefined }));
+  const [readRef] = useState<{ current: BarGraphRoot.Props["read"] }>(() => ({ current: undefined }));
   readRef.current = read;
   const reads = read !== undefined;
   useEffect(() => {
@@ -210,7 +210,7 @@ export function MultiSliderRoot({
 
   const [labelId, setLabelId] = useState<string | undefined>(undefined);
   const shownFormat = useMemo(() => format ?? numberFormat({ digits: step !== undefined && Number.isInteger(step) ? 0 : 2 }), [format, step]);
-  const context: MultiSliderContextValue = {
+  const context: BarGraphContextValue = {
     store,
     range,
     origin: range.normalize(originValue),
@@ -225,17 +225,17 @@ export function MultiSliderRoot({
     latest: () => latest.current,
     holding,
   };
-  const state: MultiSliderState = { values: [...values], painting: store.painting, disabled };
+  const state: BarGraphState = { values: [...values], painting: store.painting, disabled };
   const rendered = useRenderPart("div", state, props, {
     role: "group",
     "aria-labelledby": labelId,
     ...dataAttributes({ disabled }),
   });
-  return <MultiSliderContext.Provider value={context}>{rendered}</MultiSliderContext.Provider>;
+  return <BarGraphContext.Provider value={context}>{rendered}</BarGraphContext.Provider>;
 }
 
-export namespace MultiSliderRoot {
-  export type State = MultiSliderState;
+export namespace BarGraphRoot {
+  export type State = BarGraphState;
   export type Props = Omit<PartProps<"div", State>, "defaultValue" | "onChange"> & {
     /** The values, when controlled: one per item. */
     value?: readonly number[] | undefined;
@@ -247,7 +247,7 @@ export namespace MultiSliderRoot {
      */
     resetValue?: number | undefined;
     /** Called with every value when a stroke, a drag, a key or a reset changes some; `details.indexes` says which. */
-    onValueChange?: ((values: number[], details: MultiSliderChangeDetails) => void) | undefined;
+    onValueChange?: ((values: number[], details: BarGraphChangeDetails) => void) | undefined;
     /** Called before the first change of a gesture: a stroke, a drag, a key, a reset. */
     onGestureStart?: (() => void) | undefined;
     /** Called when a gesture ends, with the values it left: one undo step. */
@@ -277,7 +277,7 @@ export namespace MultiSliderRoot {
      */
     origin?: number | undefined;
     /**
-     * Text of a value, for `MultiSlider.Value` and what the items announce.
+     * Text of a value, for `BarGraph.Value` and what the items announce.
      * @default formats.number({ digits: 2 }), without decimals when `step` is whole
      */
     format?: ValueFormat | undefined;
@@ -289,15 +289,15 @@ export namespace MultiSliderRoot {
   };
 }
 
-const rootState = (context: MultiSliderContextValue): MultiSliderState => ({
+const rootState = (context: BarGraphContextValue): BarGraphState => ({
   values: [...context.store.values],
   painting: context.store.painting,
   disabled: context.disabled,
 });
 
-/** Names the multi-slider for assistive technology. */
-export function MultiSliderLabel(props: MultiSliderLabel.Props) {
-  const context = useMultiSliderContext("Label");
+/** Names the bar graph for assistive technology. */
+export function BarGraphLabel(props: BarGraphLabel.Props) {
+  const context = useBarGraphContext("Label");
   const generated = useId();
   const id = props.id ?? generated;
   const { setLabelId } = context;
@@ -308,8 +308,8 @@ export function MultiSliderLabel(props: MultiSliderLabel.Props) {
   return useRenderPart("span", rootState(context), props, { id, style: unselectable });
 }
 
-export namespace MultiSliderLabel {
-  export type State = MultiSliderState;
+export namespace BarGraphLabel {
+  export type State = BarGraphState;
   export type Props = PartProps<"span", State>;
 }
 
@@ -320,7 +320,7 @@ export namespace MultiSliderLabel {
  * it. With Shift, the pressed item alone moves by a tenth of the pointer's
  * travel. One gesture.
  */
-function paint(context: MultiSliderContextValue, event: ReactPointerEvent<HTMLElement>) {
+function paint(context: BarGraphContextValue, event: ReactPointerEvent<HTMLElement>) {
   if (context.disabled || event.button !== 0) return;
   const control = event.currentTarget;
   event.preventDefault();
@@ -394,8 +394,8 @@ function paint(context: MultiSliderContextValue, event: ReactPointerEvent<HTMLEl
  * height is the range, `min` at the bottom and `max` at the top. Sets
  * `data-painting` during a stroke, without rendering.
  */
-export function MultiSliderControl(props: MultiSliderControl.Props) {
-  const context = useMultiSliderContext("Control");
+export function BarGraphControl(props: BarGraphControl.Props) {
+  const context = useBarGraphContext("Control");
   const { store } = context;
   const follow = useCallback(
     (element: HTMLElement | null) => {
@@ -414,8 +414,8 @@ export function MultiSliderControl(props: MultiSliderControl.Props) {
   });
 }
 
-export namespace MultiSliderControl {
-  export type State = MultiSliderState;
+export namespace BarGraphControl {
+  export type State = BarGraphState;
   export type Props = PartProps<"div", State>;
 }
 
@@ -428,12 +428,12 @@ const ItemContext = createContext<number | null>(null);
  * Page Up and Page Down by a tenth, Home and End to the ends; Left and
  * Right move to the next item, and with Shift give it this item's value;
  * Delete, Backspace or a double-click reset it. Sets
- * `--multi-slider-value` (travel in [0, 1]), rewritten without rendering.
+ * `--bar-graph-value` (travel in [0, 1]), rewritten without rendering.
  * Placed elsewhere with `style`, as under the notes of a piano roll,
  * strokes still find it.
  */
-export function MultiSliderItem({ index, ...props }: MultiSliderItem.Props) {
-  const context = useMultiSliderContext("Item");
+export function BarGraphItem({ index, ...props }: BarGraphItem.Props) {
+  const context = useBarGraphContext("Item");
   const { store, range, format, disabled, count, items } = context;
   const describe = useCallback((): Live => {
     const value = store.values[index] ?? range.min;
@@ -443,7 +443,7 @@ export function MultiSliderItem({ index, ...props }: MultiSliderItem.Props) {
         "aria-valuetext": format.format(value),
         tabindex: !disabled && store.focusable === index ? 0 : -1,
       },
-      style: { "--multi-slider-value": String(range.normalize(value)) },
+      style: { "--bar-graph-value": String(range.normalize(value)) },
     };
   }, [store, index, range, format, disabled]);
   const follow = useCallback(
@@ -522,7 +522,7 @@ export function MultiSliderItem({ index, ...props }: MultiSliderItem.Props) {
     context.endGesture();
   };
 
-  const state: MultiSliderItemState = { index, value, disabled };
+  const state: BarGraphItemState = { index, value, disabled };
   const rendered = useRenderPart("div", state, props, {
     ref: follow,
     role: "slider",
@@ -545,14 +545,14 @@ export function MultiSliderItem({ index, ...props }: MultiSliderItem.Props) {
       insetBlock: 0,
       insetInlineStart: percent(index / (count || 1)),
       width: percent(1 / (count || 1)),
-      "--multi-slider-value": shown.style?.["--multi-slider-value"],
+      "--bar-graph-value": shown.style?.["--bar-graph-value"],
     } as CSSProperties,
   });
   return <ItemContext.Provider value={index}>{rendered}</ItemContext.Provider>;
 }
 
-export namespace MultiSliderItem {
-  export type State = MultiSliderItemState;
+export namespace BarGraphItem {
+  export type State = BarGraphItemState;
   export type Props = PartProps<"div", State> & {
     /** Which value of the root's it shows and changes. */
     index: number;
@@ -561,13 +561,13 @@ export namespace MultiSliderItem {
 
 /**
  * The bar of an item, from `origin` to its value: place it in a
- * `MultiSlider.Item`, and give it a width with CSS. Its `bottom` and
+ * `BarGraph.Item`, and give it a width with CSS. Its `bottom` and
  * `height` are rewritten without rendering.
  */
-export function MultiSliderRange(props: MultiSliderRange.Props) {
-  const context = useMultiSliderContext("Range");
+export function BarGraphRange(props: BarGraphRange.Props) {
+  const context = useBarGraphContext("Range");
   const index = useContext(ItemContext);
-  if (index === null) throw new Error("<MultiSlider.Range> must be placed inside <MultiSlider.Item>.");
+  if (index === null) throw new Error("<BarGraph.Range> must be placed inside <BarGraph.Item>.");
   const { store, range, origin } = context;
   const describe = useCallback((): Live => {
     const travel = range.normalize(store.values[index] ?? range.min);
@@ -589,14 +589,14 @@ export function MultiSliderRange(props: MultiSliderRange.Props) {
   });
 }
 
-export namespace MultiSliderRange {
-  export type State = MultiSliderState;
+export namespace BarGraphRange {
+  export type State = BarGraphState;
   export type Props = PartProps<"div", State>;
 }
 
 /** The text of the value at `index`, or of the item last focused or changed. */
-export function MultiSliderValue({ index, ...props }: MultiSliderValue.Props) {
-  const context = useMultiSliderContext("Value");
+export function BarGraphValue({ index, ...props }: BarGraphValue.Props) {
+  const context = useBarGraphContext("Value");
   const { store, format } = context;
   const text = useCallback(() => {
     const value = store.values[index ?? store.active];
@@ -617,8 +617,8 @@ export function MultiSliderValue({ index, ...props }: MultiSliderValue.Props) {
   return useRenderPart("output", rootState(context), props, { ref: follow, dir: "auto", children: text(), style: unselectable });
 }
 
-export namespace MultiSliderValue {
-  export type State = MultiSliderState;
+export namespace BarGraphValue {
+  export type State = BarGraphState;
   export type Props = Omit<PartProps<"output", State>, "children"> & {
     /**
      * Which value.

@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, BarGraph, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -85,14 +85,14 @@ test("every component renders on the server", () => {
         <Tuner.Note />
         <Tuner.Indicator />
       </Tuner.Root>
-      <MultiSlider.Root defaultValue={[0.25, 1]}>
-        <MultiSlider.Control>
-          <MultiSlider.Item index={0}>
-            <MultiSlider.Range />
-          </MultiSlider.Item>
-          <MultiSlider.Item index={1} />
-        </MultiSlider.Control>
-      </MultiSlider.Root>
+      <BarGraph.Root defaultValue={[0.25, 1]}>
+        <BarGraph.Control>
+          <BarGraph.Item index={0}>
+            <BarGraph.Range />
+          </BarGraph.Item>
+          <BarGraph.Item index={1} />
+        </BarGraph.Control>
+      </BarGraph.Root>
       <Keys.Root range={[60, 62]} held={[61]} format={formats.pitch({ names: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"] })}>
         <Keys.Key note={60} />
         <Keys.Key note={61} />
@@ -123,7 +123,7 @@ test("every component renders on the server", () => {
   // A slider's thumbs and range are placed, and its values set as variables, before any script runs.
   expect(html).toContain("inset-inline-start:25%;width:50%");
   expect(html).toContain("--slider-value-1:0.75");
-  // The bars of a multi-slider are placed and filled before any script runs.
+  // The bars of a bar graph are placed and filled before any script runs.
   expect(html).toContain("inset-inline-start:50%;width:50%");
   expect(html).toContain("bottom:0%;height:25%");
   // Keys are placed, named and held down before any script runs.

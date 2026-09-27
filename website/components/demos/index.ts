@@ -15,8 +15,8 @@ import WrapKnobDemo from './knob-wrap';
 import MeterDemo from './meter';
 import MixerBlockDemo from './mixer';
 import MultibandDemo from './multiband';
-import MultiSliderDemo from './multi-slider';
-import VelocityLaneDemo from './multi-slider-velocity-lane';
+import BarGraphDemo from './bar-graph';
+import VelocityLaneDemo from './bar-graph-velocity-lane';
 import NotesDemo from './notes';
 import NumberBoxDemo from './number-box';
 import PianoRollBlockDemo from './piano-roll';
@@ -56,8 +56,8 @@ export const demos = {
   meter: MeterDemo,
   mixer: MixerBlockDemo,
   multiband: MultibandDemo,
-  'multi-slider': MultiSliderDemo,
-  'multi-slider-velocity-lane': VelocityLaneDemo,
+  'bar-graph': BarGraphDemo,
+  'bar-graph-velocity-lane': VelocityLaneDemo,
   notes: NotesDemo,
   'number-box': NumberBoxDemo,
   'number-box-segments': SegmentsDemo,

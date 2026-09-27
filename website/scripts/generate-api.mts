@@ -86,12 +86,12 @@ const PARTS = [
   "Tuner.Indicator",
   "Tuner.Mark",
   "Tuner.Strobe",
-  "MultiSlider.Root",
-  "MultiSlider.Label",
-  "MultiSlider.Control",
-  "MultiSlider.Item",
-  "MultiSlider.Range",
-  "MultiSlider.Value",
+  "BarGraph.Root",
+  "BarGraph.Label",
+  "BarGraph.Control",
+  "BarGraph.Item",
+  "BarGraph.Range",
+  "BarGraph.Value",
   "Keys.Root",
   "Keys.Key",
   "XYPad.Root",
@@ -164,7 +164,7 @@ function describe(list: string[]): { full: string; short: string } {
 
 const exportName = (part: string) => part.replace(".", "_");
 const content = [
-  `import type { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "@addstack/daw-ui/react";`,
+  `import type { Curve, Fader, Keys, Knob, Meter, BarGraph, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "@addstack/daw-ui/react";`,
   ...PARTS.map((part) => `export type ${exportName(part)} = ${part}.Props;`),
 ].join("\n");
 

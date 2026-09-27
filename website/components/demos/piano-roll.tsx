@@ -1,7 +1,7 @@
 'use client';
 
 import { formats, musicalGrid } from '@addstack/daw-ui';
-import { Keys, MultiSlider, Notes, Timeline, Toggle, type Note } from '@addstack/daw-ui/react';
+import { Keys, BarGraph, Notes, Timeline, Toggle, type Note } from '@addstack/daw-ui/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 
 // 120 BPM: a beat is half a second, a bar 2 seconds. Four bars, looped.
@@ -243,7 +243,7 @@ export default function PianoRollDemo() {
           </Notes.Root>
         </div>
         {/* One velocity per note, at the note's start: items placed on the timeline's axis. */}
-        <MultiSlider.Root
+        <BarGraph.Root
           key={notes.map((note) => note.id).join()}
           min={0}
           max={127}
@@ -252,20 +252,20 @@ export default function PianoRollDemo() {
           onGestureEnd={(velocities) => setNotes((all) => all.map((note, index) => ({ ...note, velocity: velocities[index]! })))}
           aria-label="Velocity"
         >
-          <MultiSlider.Control className="h-16 cursor-crosshair border-t border-neutral-800">
+          <BarGraph.Control className="h-16 cursor-crosshair border-t border-neutral-800">
             {notes.map((note, index) => (
-              <MultiSlider.Item
+              <BarGraph.Item
                 key={note.id}
                 index={index}
                 aria-label={`${pitch.format(note.pitch)} ${position.format(note.at / BEAT)}`}
                 style={{ insetInlineStart: `calc((${(dragged?.id === note.id ? dragged : note).at} - var(--timeline-start)) * var(--timeline-scale))`, width: 6 }}
                 className="outline-offset-2 focus-visible:outline-2 focus-visible:outline-orange-500"
               >
-                <MultiSlider.Range className={`start-0 w-1.5 border-t-2 ${note.id === selected ? 'border-amber-400 bg-amber-400/30' : 'border-emerald-500 bg-emerald-500/20'}`} />
-              </MultiSlider.Item>
+                <BarGraph.Range className={`start-0 w-1.5 border-t-2 ${note.id === selected ? 'border-amber-400 bg-amber-400/30' : 'border-emerald-500 bg-emerald-500/20'}`} />
+              </BarGraph.Item>
             ))}
-          </MultiSlider.Control>
-        </MultiSlider.Root>
+          </BarGraph.Control>
+        </BarGraph.Root>
         <Timeline.Playhead className="pointer-events-none w-px bg-white" />
       </Timeline.Root>
     </div>

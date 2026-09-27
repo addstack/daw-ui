@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>Headless React components for audio apps.</b><br>
-  Knobs, faders, number boxes, level meters, toggle groups and multi-sliders you paint by dragging, piano keys, and waveforms on a timeline, the way Ableton Live and FL Studio work. Unstyled, accessible, in any language, and measured for speed.
+  Knobs, faders, number boxes, level meters, toggle groups and bar graphs you paint by dragging, piano keys, and waveforms on a timeline, the way Ableton Live and FL Studio work. Unstyled, accessible, in any language, and measured for speed.
 </p>
 
 <p align="center">
@@ -182,24 +182,24 @@ One or more thumbs, each moving two values at once: a filter's cutoff and resona
 
 **XYPad** parts: `Root` (a `group`, with `value`, `defaultValue`, `resetValue`, `onValueChange(values, { reason, event, thumb })`, `read`, `onGestureStart`/`onGestureEnd`, `x`, `y`, `format`), `Label`, `Control` (the area: a press away from the thumbs brings the nearest one there), `Thumb` (a `slider` per value, `index`; Left/Right across, Up/Down up and down, Shift finer, double-click or Delete to reset; `--xy-pad-x` and `--xy-pad-y`) and `Value` (both axes, or one with `axis`). Thumbs do not stop each other, and nothing renders as they move.
 
-### Multi-slider
+### Bar graph
 
 A row of values on one range, drawn as bars and painted by dragging across them: the velocities of a sequencer's steps or under a piano roll, the steps of an arpeggiator, the harmonics of an additive synthesizer.
 
 ```tsx
-<MultiSlider.Root min={0} max={127} step={1} value={velocities} onValueChange={setVelocities}>
-  <MultiSlider.Label>Velocity</MultiSlider.Label>
-  <MultiSlider.Control className="h-32 w-96">
+<BarGraph.Root min={0} max={127} step={1} value={velocities} onValueChange={setVelocities}>
+  <BarGraph.Label>Velocity</BarGraph.Label>
+  <BarGraph.Control className="h-32 w-96">
     {velocities.map((_, index) => (
-      <MultiSlider.Item key={index} index={index}>
-        <MultiSlider.Range />
-      </MultiSlider.Item>
+      <BarGraph.Item key={index} index={index}>
+        <BarGraph.Range />
+      </BarGraph.Item>
     ))}
-  </MultiSlider.Control>
-</MultiSlider.Root>
+  </BarGraph.Control>
+</BarGraph.Root>
 ```
 
-**MultiSlider** parts: `Root` (a `group`, with `value`, `defaultValue`, `resetValue`, `onValueChange(values, { reason, event, indexes })`, `read`, `onGestureStart`/`onGestureEnd`, `min`, `max`, `step`, `scale`, `origin`, `format`), `Label`, `Control` (the area strokes paint on), `Item` (a vertical `slider` per value, `index`; side by side, or placed by you with `style`, as under the notes of a piano roll), `Range` (its bar, from `origin`) and `Value`. A stroke sets every item it crosses, following its path so that a fast stroke skips none; Shift+drag moves one item finely; the row is one tab stop, and Shift+Arrow paints from the keyboard. Nothing renders during a stroke.
+**BarGraph** parts: `Root` (a `group`, with `value`, `defaultValue`, `resetValue`, `onValueChange(values, { reason, event, indexes })`, `read`, `onGestureStart`/`onGestureEnd`, `min`, `max`, `step`, `scale`, `origin`, `format`), `Label`, `Control` (the area strokes paint on), `Item` (a vertical `slider` per value, `index`; side by side, or placed by you with `style`, as under the notes of a piano roll), `Range` (its bar, from `origin`) and `Value`. A stroke sets every item it crosses, following its path so that a fast stroke skips none; Shift+drag moves one item finely; the row is one tab stop, and Shift+Arrow paints from the keyboard. Nothing renders during a stroke.
 
 ### Meter
 
@@ -389,7 +389,7 @@ A gesture starts with the first change, so a click that changes nothing leaves n
 
 ## ⚡ Performance
 
-In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders stress pages with 64 channel strips (running meters, pan knobs, faders, mute and solo), a 16 × 64 step sequencer, a timeline of 32 four-minute clips, an 88-key keyboard, a 64-step multi-slider and eight live spectra, in a production build, with the CPU slowed down 4×:
+In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders stress pages with 64 channel strips (running meters, pan knobs, faders, mute and solo), a 16 × 64 step sequencer, a timeline of 32 four-minute clips, an 88-key keyboard, a 64-step bar graph and eight live spectra, in a production build, with the CPU slowed down 4×:
 
 | Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
 | --- | --: | --: | --: | --: | --: |
@@ -407,12 +407,12 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | The same, playing, dragging a point of that lane, editable | 4.0 | 0.5 | 0 of 90 | 10.4 / 13.5 | 2: the press, and keeping the points |
 | 88 keys lit by playback through `read` | 0.4 | 0.0 | 0 of 181 | – | 0 |
 | A glissando across 88 keys | 1.1 | 0.1 | 0 of 90 | 14.2 / 15.4 | 0 |
-| A stroke across 64 values of a multi-slider | 1.0 | 0.3 | 1 of 90 | 14.8 / 15.7 | 0 |
+| A stroke across 64 values of a bar graph | 1.0 | 0.3 | 1 of 90 | 14.8 / 15.7 | 0 |
 | 8 spectra of 2048 bins, read every frame | 5.1 | 0.7 | 0 of 181 | – | 0 |
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (41.8 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a multi-slider alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (41.8 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a bar graph alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 
