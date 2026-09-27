@@ -91,29 +91,25 @@ export function Waveforms() {
           {showGrid && <Timeline.Grid className="grid" grid={grid} />}
           {showGrid && <Timeline.Grid className="grid-bars" grid={grid} spacing={64} />}
           {Array.from({ length: TRACKS }, (_, track) => (
-            <div key={track} className="track">
+            <Timeline.Track key={track} className="track" aria-label={`Track ${track + 1}`}>
               {[0, 240].map((at) => (
-                <Waveform.Root
-                  key={at}
-                  className="clip"
-                  peaks={peaks}
-                  at={at}
-                  offset={(track * 7) % 60}
-                  duration={235}
-                  aria-label={`Track ${track + 1} at ${at}`}
-                >
-                  <Waveform.Shape className="clip-shape" />
-                  <Waveform.Progress className="clip-progress" />
-                </Waveform.Root>
+                <Timeline.Region key={at} className="clip" at={at} duration={235} offset={(track * 7) % 60}>
+                  <Waveform.Root className="clip-waveform" peaks={peaks} aria-label={`Track ${track + 1} at ${at}`}>
+                    <Waveform.Shape className="clip-shape" />
+                    <Waveform.Progress className="clip-progress" />
+                  </Waveform.Root>
+                </Timeline.Region>
               ))}
-            </div>
+            </Timeline.Track>
           ))}
           {mode === "record" && (
-            <div className="track">
-              <Waveform.Root className="clip recording" peaks={recording} aria-label="Recording">
-                <Waveform.Shape className="clip-shape" />
-              </Waveform.Root>
-            </div>
+            <Timeline.Track className="track" aria-label="Recording">
+              <Timeline.Region className="clip" at={0} read={() => ({ duration: recording.duration })}>
+                <Waveform.Root className="clip-waveform" peaks={recording} aria-label="Recording">
+                  <Waveform.Shape className="clip-shape" />
+                </Waveform.Root>
+              </Timeline.Region>
+            </Timeline.Track>
           )}
         </div>
         <Timeline.Playhead className="playhead" data-testid="playhead" />

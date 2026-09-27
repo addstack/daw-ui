@@ -210,22 +210,24 @@ const grid = musicalGrid({ bpm: 120 });
   <Timeline.Ruler grid={grid} className="h-6 [&_[data-label]]:ps-1" />
   <Timeline.Grid grid={grid} className="text-white/10" />
   {tracks.map((track) => (
-    <div key={track.id} className="relative h-16">
+    <Timeline.Track key={track.id} aria-label={track.name} className="h-16">
       {track.clips.map((clip) => (
-        <Waveform.Root key={clip.id} peaks={clip.peaks} at={clip.start} offset={clip.offset} duration={clip.length} aria-label={clip.name}>
-          <Waveform.Shape className="text-sky-700" />
-          <Waveform.Progress className="text-sky-300" />
-        </Waveform.Root>
+        <Timeline.Region key={clip.id} at={clip.start} duration={clip.length} offset={clip.offset}>
+          <Waveform.Root peaks={clip.peaks} aria-label={clip.name} className="h-full">
+            <Waveform.Shape className="text-sky-700" />
+            <Waveform.Progress className="text-sky-300" />
+          </Waveform.Root>
+        </Timeline.Region>
       ))}
-    </div>
+    </Timeline.Track>
   ))}
   <Timeline.Playhead className="w-px bg-white" />
 </Timeline.Root>
 ```
 
-**Timeline** parts: `Root` (the view `start` … `end`, `readView` per frame, the playhead from `position` or `read`), `Playhead`, `Item` (anything placed for a time: a clip frame, a region, a marker), `Ruler` (labels) and `Grid` (lines) of a `musicalGrid({ bpm })` or `clockGrid()`, as fine as the zoom leaves room for: bars, beats, sixteenths. The root writes `--timeline-start`, `--timeline-scale` and `--timeline-position`, and everything on it is placed in CSS from them: playback writes one variable per frame and scrolling two, however many clips there are. Time runs left to right in every language.
+**Timeline** parts: `Root` (the view `start` … `end`, `readView` per frame, the playhead from `position` or `read`), `Playhead`, `Track` (a row), `Region` (a region, clip or pattern, a loop range, a marker: `at`, `duration`, `offset`, and your content inside), `Ruler` (labels) and `Grid` (lines) of a `musicalGrid({ bpm })` or `clockGrid()`, as fine as the zoom leaves room for: bars, beats, sixteenths. The root writes `--timeline-start`, `--timeline-scale` and `--timeline-position`, and everything on it is placed in CSS from them: playback writes one variable per frame and scrolling two, however many clips there are. Time runs left to right in every language.
 
-**Waveform** parts: `Root` (`role="img"`, placed like an item), `Shape` and `Progress` (the played part, clipped at the playhead in CSS), drawn in their CSS `color`. `createPeaks` computes min/max peaks at several resolutions in one pass (34 ms for ten minutes of stereo); `peaksFromAudiowaveform` reads peaks made ahead of time by the `audiowaveform` tool; `createPeaksRecorder` grows as you `append` blocks while recording, and its waveform draws only the tile the audio arrives in. Given the `samples`, a waveform zoomed in beyond the peaks draws from them, down to single samples. The waveform is drawn into canvas tiles once, placed in time by CSS: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and redraws them sharp when it rests, and one queue for all waveforms draws at most 4 ms per frame, visible tiles first.
+**Waveform** parts: `Root` (`role="img"`; in a region it shows what the region shows, on its own it is its own axis, as in a sample browser), `Shape` and `Progress` (the played part, clipped at the playhead in CSS), drawn in their CSS `color`. `createPeaks` computes min/max peaks at several resolutions in one pass (34 ms for ten minutes of stereo); `peaksFromAudiowaveform` reads peaks made ahead of time by the `audiowaveform` tool; `createPeaksRecorder` grows as you `append` blocks while recording, and its waveform draws only the tile the audio arrives in. Given the `samples`, a waveform zoomed in beyond the peaks draws from them, down to single samples. The waveform is drawn into canvas tiles once, placed in time by CSS: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and redraws them sharp when it rests, and one queue for all waveforms draws at most 4 ms per frame, visible tiles first.
 
 ## 🔢 Values and formats
 

@@ -1,6 +1,6 @@
 ---
 title: Waveform
-description: The shape of audio on a timeline, drawn on canvas once and moved by CSS, for sessions with many clips.
+description: The shape of audio, in a region of a timeline or on its own, drawn on canvas once and moved by CSS.
 ---
 
 <ComponentPreview name="waveform" />
@@ -14,17 +14,32 @@ import { Timeline, Waveform } from '@addstack/daw-ui/react';
 const peaks = createPeaks([buffer.getChannelData(0)], buffer.sampleRate);
 
 <Timeline.Root start={0} end={30} read={() => transport.time}>
-  <div className="relative h-16">
-    <Waveform.Root peaks={peaks} at={4} offset={1.5} aria-label={clip.name}>
-      <Waveform.Shape className="text-sky-700" />
-      <Waveform.Progress className="text-sky-300" />
-    </Waveform.Root>
-  </div>
+  <Timeline.Track aria-label="Vocals" className="h-16">
+    <Timeline.Region at={4} duration={8} offset={1.5}>
+      <Waveform.Root peaks={peaks} aria-label={clip.name} className="h-full">
+        <Waveform.Shape className="text-sky-700" />
+        <Waveform.Progress className="text-sky-300" />
+      </Waveform.Root>
+    </Timeline.Region>
+  </Timeline.Track>
   <Timeline.Playhead />
 </Timeline.Root>
 ```
 
-A waveform shows its audio from `offset` seconds into the file, for `duration` seconds, starting `at` seconds on the [timeline](/docs/components/timeline). It is an image named by `aria-label`, in your application's language.
+In a [`Timeline.Region`](/docs/components/timeline#regions), a waveform shows the audio the region shows, from its `offset` for its `duration`, and follows it as it moves. It is an image named by `aria-label`, in your application's language; size it with CSS, across the region's width.
+
+## On its own
+
+A waveform needs no timeline: in a sample browser or on a sampler, it shows its audio across its own width, from `offset` for `duration`, and takes its playhead from `position` or `read`, in seconds of the audio.
+
+```tsx
+<Waveform.Root peaks={sample} read={() => player.currentTime} aria-label="Kick" className="h-8 w-64">
+  <Waveform.Shape />
+  <Waveform.Progress />
+</Waveform.Root>
+```
+
+<ComponentPreview name="waveform-sample" />
 
 ## Peaks
 
@@ -44,7 +59,7 @@ For long files, call `createPeaks` in a worker: its data are typed arrays, which
 
 ## Recording
 
-`createPeaksRecorder` makes peaks that grow: append the blocks of samples as they arrive, e.g. from an `AudioWorklet` on the microphone. A waveform of them widens with the take and draws only the tile the audio arrives in, once per frame, however many blocks come in between.
+`createPeaksRecorder` makes peaks that grow: append the blocks of samples as they arrive, e.g. from an `AudioWorklet` on the microphone. A waveform of them draws only the tile the audio arrives in, once per frame, however many blocks come in between. In a region, let the region read the take's duration; on its own, the waveform grows with the take.
 
 ```ts
 import { createPeaksRecorder } from '@addstack/daw-ui';
@@ -52,7 +67,9 @@ import { createPeaksRecorder } from '@addstack/daw-ui';
 const take = createPeaksRecorder({ sampleRate: context.sampleRate, channels: 1 });
 worklet.port.onmessage = ({ data }) => take.append([data]); // a Float32Array per block
 
-<Waveform.Root peaks={take} at={recordStart} aria-label="Take 3" />
+<Timeline.Region at={recordStart} read={() => ({ duration: take.duration })}>
+  <Waveform.Root peaks={take} aria-label="Take 3" className="h-full" />
+</Timeline.Region>
 ```
 
 <ComponentPreview name="waveform-recording" />
@@ -91,7 +108,7 @@ For the channels of a stereo file one above the other, render a shape per channe
 
 ### Root
 
-The audio on the timeline, placed like a `Timeline.Item`. Renders a `<div>` with `role="img"`.
+The audio, in a region or on its own. Renders a `<div>` with `role="img"`, `position: relative` and `overflow: hidden`.
 
 <PropsTable part="Waveform.Root" />
 

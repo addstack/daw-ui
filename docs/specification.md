@@ -325,7 +325,8 @@ Parts place themselves in CSS from these variables, with the physical `left` and
 | Part | Element | Behaviour |
 | --- | --- | --- |
 | `Timeline.Playhead` | `div` | `aria-hidden`; `position: absolute`, `inset-block: 0`, `left: 0`, `translate: calc((var(--timeline-position) − var(--timeline-start)) · var(--timeline-scale)) 0`. |
-| `Timeline.Item` | `div` | `position: absolute`, `inset-block: 0`, `left: 0`, `width: calc(duration · var(--timeline-scale))`, `translate: calc((at − var(--timeline-start)) · var(--timeline-scale)) 0`; `duration` defaults to 0. |
+| `Timeline.Track` | `div` | `role="group"`, `position: relative`. |
+| `Timeline.Region` | `div` | Holds a placement outside React: `at`, `duration` (default 0) and `offset` (default 0) from props, and with `read`, `read()` once per animation frame, its fields replacing those given. `position: absolute`, `inset-block: 0`, `left: 0`, `width: calc(duration · var(--timeline-scale))`, `translate: calc((at − var(--timeline-start)) · var(--timeline-scale)) 0`, with the numbers written in (no CSS variables of its own, which would make every change of the playhead's variable recalculate its style); a new placement rewrites `width` and `translate` without rendering. |
 | `Timeline.Grid` | `div` | `aria-hidden`, `position: absolute; inset: 0; overflow: hidden`. Draws in tiles (§10.4), placed on the view, with no start or end, a line `max(1, round(devicePixelRatio))` device pixels wide at every multiple of `gridStep(grid, scale of the tile, spacing)` (default spacing 12). A new `grid` with the same `steps`, and the same `spacing`, draws nothing again. |
 | `Timeline.Ruler` | `div` | `aria-hidden`, `position: relative; overflow: hidden`, and its `children`. Holds a `span` with `data-label` and the text `grid.label(k · step, step)` for every whole `k` with `k · step` in `[start − w/2, end + w/2]` (`w = end − start`, `step = gridStep(grid, scale, spacing)`, default spacing 64), placed with `position: absolute; left: 0; white-space: nowrap; translate: calc((k · step − var(--timeline-start)) · var(--timeline-scale)) 0`. The labels change only when the view leaves that stretch or the step changes; a new `grid` rewrites texts that differ. |
 
@@ -333,20 +334,24 @@ Parts place themselves in CSS from these variables, with the physical `left` and
 
 `Timeline.Grid` and the waveform parts draw into canvas tiles appended to their element, without React:
 
-- A **layer** is drawn at one scale `s` (the timeline's scale when it starts). Its tile `i` covers `T = 1024 / s` seconds from `from + i · T` (from 0, with negative `i`, when the content has no start; the last tile ends with the content), is `round(length · s · devicePixelRatio)` device pixels wide and as tall as the part times `devicePixelRatio`, and is placed in time: `left: 0`, `height: 100%`, `width: calc(length · var(--timeline-scale))`, `translate: calc(offset · var(--timeline-scale)) 0`, where `offset` is the tile's start minus the content's start (waveform), or minus `var(--timeline-start)` (grid). At another scale it stretches in place.
+- Content has its own seconds: audio time for a waveform, timeline time for a grid. A part gives what can be drawn (the whole file; everything for a grid), what its element shows (the region's `offset … offset + duration`; everything), what is in view, and where content time `t` is from its element's left edge (`t − offset`; `t − var(--timeline-start)`).
+- A **layer** is drawn at one scale `s` (the timeline's scale when it starts). Its tile `i` covers content from `i · T` to `(i + 1) · T`, `T = 1024 / s`, within what can be drawn; tiles exist only where they overlap what the element shows. A tile is `round(length · s · devicePixelRatio)` device pixels wide and as tall as the part times `devicePixelRatio`, and is placed in time: `left: 0`, `height: 100%`, `width: calc(length · var(--timeline-scale))`, `translate: calc(place · var(--timeline-scale)) 0`. At another scale it stretches in place; when `place` changes (a trimmed region), tiles are placed again without being drawn.
 - A tile is cleared and drawn with `fillStyle` set to the part's computed `color`.
-- **In view** are the tiles overlapping `[start, end]` of the timeline; one tile on each side is drawn after them. Tiles more than two tiles away from the view are removed.
+- **In view** are the tiles overlapping the content in view; one tile on each side, within what the element shows, is drawn after them. Tiles more than two tiles away from the view are removed.
 - Tiles are drawn by one queue shared by all tiled parts, in animation frames, at most 4 ms per frame (a tile that starts within the budget finishes), taking parts in turn and, in each, the tiles in view before the ones beside them. A part out of the viewport (`IntersectionObserver`) or with no height draws nothing.
 - **A new layer** starts over the current one when the scale is outside ½ … 2 times the top layer's, or 150 ms after the last change of scale within that; a change below 10⁻⁶ of the scale is none. The current layer stays until the new one has drawn every tile in view, then is removed. A layer never finished is dropped when another starts, unless nothing else is shown. A change of the part's height, of `devicePixelRatio`, of `prefers-color-scheme` or of the inherited `color` (reported by a hidden element with a 1 ms transition of `color`) also starts a new layer.
 - Content that changes from a time on (audio arriving) marks the tiles that end after it as not drawn; they are drawn again in the next frames over what they show.
 
 ### 10.5 Waveform
 
-`Waveform.Root` (`div`, `role="img"`, placed as a `Timeline.Item` with `at` (default 0) and `duration` (default `peaks.duration − offset`, at least 0)) shows the audio of `peaks` from `offset` seconds (default 0). It throws outside `Timeline.Root`. Without `duration`, when the peaks have `subscribe`, it writes its `width` again in the animation frame after the peaks change.
+`Waveform.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`, sized by CSS) shows the audio of `peaks`:
 
-`Waveform.Shape` and `Waveform.Progress` (`div`, `position: absolute; inset: 0`) draw the audio, or the channel `channel`, in tiles (§10.4) placed on the content `[at, at + duration)`. A tile draws one column per device pixel from `readPeaks` (with the root's `samples`), as a rectangle from the maximum to the minimum around the middle, at least one device pixel tall. Other `peaks`, `samples`, `offset`, `duration` or `channel` remove what is drawn and start a new layer; another `at` only changes which tiles are in view. When the peaks change from second `f`, the tiles from timeline time `at + f − offset` on are drawn again.
+- **In a `Timeline.Region`**, from the region's `offset` for its `duration`, on the timeline's axis, where the region starts `at`. Its own `offset`, `duration`, `position` and `read` do not apply.
+- **Otherwise, on its own**, from `offset` (default 0) for `duration` (default `peaks.duration − offset`, at least 0; growing with peaks that have `subscribe`), as its own axis (§10.3) from 0 to that duration across its width, with `--timeline-position` = `position − offset` (default 0), or `read() − offset` once per animation frame.
 
-`Waveform.Progress` is clipped to the played part: `clip-path: inset(0 max(0px, calc(100% − (var(--timeline-position) − at) · var(--timeline-scale))) 0 0)`.
+`Waveform.Shape` and `Waveform.Progress` (`div`, `position: absolute; inset: 0`) draw the audio, or the channel `channel`, in tiles (§10.4). A tile draws one column per device pixel from `readPeaks` (with the root's `samples`), as a rectangle from the maximum to the minimum around the middle, at least one device pixel tall. Other `peaks`, `samples` or `channel` remove what is drawn and start a new layer; a new `at`, `duration` or `offset` only places the tiles again and draws the ones that come into view. When the peaks change from second `f` of the audio, the tiles from `f` on are drawn again.
+
+`Waveform.Progress` is clipped to the played part, with the region's `at` (0 on its own) written in: `clip-path: inset(0 max(0px, calc(100% − (var(--timeline-position) − at) · var(--timeline-scale))) 0 0)`, rewritten when `at` changes.
 
 ## 11. Direction
 
@@ -368,7 +373,7 @@ Checked on every change; a regression fails CI.
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
-| Playback and scrolling of a view draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
+| Playback, scrolling, and moving or trimming a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
 | In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming; 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
 | Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 22.4 kB. | `scripts/size.mjs` |
 

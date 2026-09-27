@@ -73,7 +73,9 @@ function EveryComponent() {
         <Meter.Clip />
       </Meter.Root>
       <Timeline.Root start={0} end={1} position={0.5}>
-        <Timeline.Item at={0.25} duration={0.5} />
+        <Timeline.Track>
+          <Timeline.Region at={0.25} duration={0.5} />
+        </Timeline.Track>
         <Waveform.Root peaks={createPeaks([new Float32Array(8)], 8)}>
           <Waveform.Shape />
           <Waveform.Progress />

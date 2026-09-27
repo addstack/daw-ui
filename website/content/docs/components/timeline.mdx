@@ -1,6 +1,6 @@
 ---
 title: Timeline
-description: A time axis shared by waveforms, clips and markers, with one playhead over all of them, that moves without rendering.
+description: A time axis with tracks of regions (clips, patterns, markers), a ruler, a grid and one playhead, that moves without rendering.
 ---
 
 <ComponentPreview name="waveform" />
@@ -19,16 +19,20 @@ const grid = musicalGrid({ bpm: 120 });
   </Timeline.Ruler>
   <div className="relative">
     <Timeline.Grid grid={grid} />
-    <div className="relative h-16">
-      <Timeline.Item at={4} duration={8} />
-      <Waveform.Root peaks={peaks} at={4} />
-    </div>
+    <Timeline.Track aria-label="Drums">
+      <Timeline.Region at={4} duration={8} offset={1.5}>
+        <span>{clip.name}</span>
+        <Waveform.Root peaks={peaks} />
+      </Timeline.Region>
+    </Timeline.Track>
   </div>
   <Timeline.Playhead />
 </Timeline.Root>
 ```
 
-`Timeline.Root` is the time axis: `start` … `end` seconds fill its width. What sits on it, a [waveform](/docs/components/waveform), a clip's frame, a marker, places itself in CSS from three variables the root writes:
+`Timeline.Root` is the time axis: `start` … `end` seconds fill its width. A `Track` is a row, one track of an arrangement. A `Region` is what lies on it for a time: a region, clip or pattern (the same thing in Logic, Ableton and FL Studio), a loop range, or a marker with no duration. Its content, a [waveform](/docs/components/waveform), a label, is yours to put inside.
+
+Everything on the axis places itself in CSS from three variables the root writes:
 
 | CSS variable | |
 | --- | --- |
@@ -36,7 +40,25 @@ const grid = musicalGrid({ bpm: 120 });
 | `--timeline-scale` | CSS pixels per second. |
 | `--timeline-position` | The playhead, in seconds. |
 
-Playback writes one variable per frame, and scrolling or zooming two, whatever the number of tracks and clips: nothing renders, and nothing runs for each clip. Place items in elements that span the timeline's width, such as track rows with `position: relative`.
+Playback writes one variable per frame, and scrolling or zooming two, whatever the number of tracks and regions: nothing renders, and nothing runs for each region. Place regions in a `Track`, or another element that spans the timeline's width.
+
+## Regions
+
+A region starts `at` seconds on the timeline, lasts `duration`, and shows its content from `offset` seconds into it, like a clip whose start was trimmed. The content follows the region: a waveform in it shows the audio from `offset` for `duration`.
+
+```tsx
+<Timeline.Region at={clip.start} duration={clip.length} offset={clip.offset}>
+  <Waveform.Root peaks={clip.peaks} className="h-full" />
+</Timeline.Region>
+```
+
+A new placement, from props or from `read`, rewrites the region's position and width without rendering what is inside, and a waveform in it draws nothing it has drawn already: moving or trimming a region only places its tiles again. For a placement that changes on its own, pass `read`, called once per animation frame; a take being recorded grows like this:
+
+```tsx
+<Timeline.Region at={recordStart} read={() => ({ duration: take.duration })}>
+  <Waveform.Root peaks={take} className="h-full" />
+</Timeline.Region>
+```
 
 Time runs left to right in every language, as in music notation and every DAW, also in a right-to-left page.
 
@@ -95,11 +117,17 @@ A line at `--timeline-position`, across everything on the timeline. Renders a `<
 
 <PropsTable part="Timeline.Playhead" />
 
-### Item
+### Track
 
-Anything that lasts on the timeline: a clip's frame, a loop region, a marker with no duration. Renders a `<div>` placed and sized in CSS from `at` and `duration`.
+A row of the timeline that holds its regions. Renders a `<div>` with `role="group"` and `position: relative`: name it with `aria-label`.
 
-<PropsTable part="Timeline.Item" />
+<PropsTable part="Timeline.Track" />
+
+### Region
+
+Something that lasts on the timeline: a region, clip or pattern, a loop range, a marker. Renders a `<div>` placed and sized in CSS from `at` and `duration`, holding its content.
+
+<PropsTable part="Timeline.Region" />
 
 ### Ruler
 

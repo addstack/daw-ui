@@ -70,11 +70,14 @@ export default function RecordingDemo() {
         <Timeline.Ruler grid={grid} className="h-6 border-b border-neutral-800 font-mono text-[10px] text-neutral-400 [&_[data-label]]:top-0.5 [&_[data-label]]:ps-1">
           <Timeline.Grid grid={grid} spacing={64} style={{ top: '65%' }} className="text-neutral-600" />
         </Timeline.Ruler>
-        <div className="relative h-20">
-          <Waveform.Root peaks={take} aria-label="Take" className="bg-red-950/60">
-            <Waveform.Shape className="text-red-400" />
-          </Waveform.Root>
-        </div>
+        {/* The region grows with the take: read once per frame, without rendering. */}
+        <Timeline.Track aria-label="Vocals" className="h-20">
+          <Timeline.Region at={0} read={() => ({ duration: take.duration })} className="bg-red-950/60">
+            <Waveform.Root peaks={take} aria-label="Take" className="h-full">
+              <Waveform.Shape className="text-red-400" />
+            </Waveform.Root>
+          </Timeline.Region>
+        </Timeline.Track>
         <Timeline.Playhead className="w-px bg-white" />
       </Timeline.Root>
     </div>

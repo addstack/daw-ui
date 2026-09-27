@@ -108,15 +108,41 @@ describe("Timeline", () => {
     expect(playhead.style.translate).toBe("calc((var(--timeline-position) - var(--timeline-start)) * var(--timeline-scale)) 0");
   });
 
-  test("an item's width and place follow the view in CSS", () => {
+  test("a track is a group that holds regions", () => {
     render(
       <Timeline.Root start={0} end={10}>
-        <Timeline.Item at={4} duration={2.5} data-testid="item" />
+        <Timeline.Track aria-label="Drums" data-testid="track" />
       </Timeline.Root>,
     );
-    const item = screen.getByTestId("item");
-    expect(item.style.width).toBe("calc(2.5 * var(--timeline-scale))");
-    expect(item.style.translate).toBe("calc((4 - var(--timeline-start)) * var(--timeline-scale)) 0");
+    expect(screen.getByRole("group", { name: "Drums" })).toBe(screen.getByTestId("track"));
+  });
+
+  test("a region is placed in CSS from the view's variables", () => {
+    render(
+      <Timeline.Root start={0} end={10}>
+        <Timeline.Region at={4} duration={2.5} offset={1} data-testid="region" />
+      </Timeline.Root>,
+    );
+    const region = screen.getByTestId("region");
+    expect(region.style.width).toBe("calc(2.5 * var(--timeline-scale))");
+    expect(region.style.translate).toBe("calc((4 - var(--timeline-start)) * var(--timeline-scale)) 0");
+  });
+
+  test("a region reads a placement that changes on its own once per frame, without rendering", () => {
+    let commits = 0;
+    let length = 1;
+    render(
+      <Profiler id="region" onRender={() => commits++}>
+        <Timeline.Root start={0} end={10}>
+          <Timeline.Region at={2} read={() => ({ duration: length })} data-testid="region" />
+        </Timeline.Root>
+      </Profiler>,
+    );
+    commits = 0;
+    length = 3.5;
+    frame();
+    expect(screen.getByTestId("region").style.width).toBe("calc(3.5 * var(--timeline-scale))");
+    expect(commits).toBe(0);
   });
 
   test("parts outside a root say where they belong", () => {
@@ -126,27 +152,45 @@ describe("Timeline", () => {
 });
 
 describe("Waveform", () => {
-  function Session({ view = [0, 10], time = 0 }: { view?: [number, number]; time?: number }) {
+  function Session({ view = [0, 10], time = 0, at = 0, offset = 0 }: { view?: [number, number]; time?: number; at?: number; offset?: number }) {
     return (
       <Timeline.Root start={view[0]} end={view[1]} position={time} data-testid="timeline">
-        <Waveform.Root peaks={minute} at={0} aria-label="Take 1" data-testid="waveform">
-          <Waveform.Shape data-testid="shape" style={{ color: "rgb(1, 2, 3)" }} />
-          <Waveform.Progress data-testid="progress" />
-        </Waveform.Root>
+        <Timeline.Track>
+          <Timeline.Region at={at} duration={60 - offset} offset={offset}>
+            <Waveform.Root peaks={minute} aria-label="Take 1" data-testid="waveform">
+              <Waveform.Shape data-testid="shape" style={{ color: "rgb(1, 2, 3)" }} />
+              <Waveform.Progress data-testid="progress" />
+            </Waveform.Root>
+          </Timeline.Region>
+        </Timeline.Track>
       </Timeline.Root>
     );
   }
   const canvases = (part: string) => screen.getByTestId(part).querySelectorAll("canvas");
   const layers = (part: string) => screen.getByTestId(part).querySelectorAll(":scope > div");
 
-  test("is an image named by the application, placed for the rest of its audio", () => {
-    render(
-      <Timeline.Root start={0} end={10}>
-        <Waveform.Root peaks={minute} at={3} offset={20} aria-label="Take 1" data-testid="waveform" />
-      </Timeline.Root>,
-    );
+  test("is an image named by the application", () => {
+    render(<Session />);
     expect(screen.getByRole("img", { name: "Take 1" })).toBe(screen.getByTestId("waveform"));
-    expect(screen.getByTestId("waveform").style.width).toBe("calc(40 * var(--timeline-scale))");
+  });
+
+  test("on its own, it is its own axis: its audio across its width, with its own playhead", () => {
+    render(
+      <Waveform.Root peaks={minute} offset={10} duration={20} read={() => 15} data-testid="waveform">
+        <Waveform.Shape data-testid="shape" />
+        <Waveform.Progress />
+      </Waveform.Root>,
+    );
+    const waveform = screen.getByTestId("waveform");
+    // 1000 px for 20 s, from 10 s into the audio.
+    expect(waveform.style.getPropertyValue("--timeline-scale")).toBe("50px");
+    frame();
+    expect(waveform.style.getPropertyValue("--timeline-position")).toBe("5");
+    // 20 s at 50 px per second: tiles of 20.48 s from 0 s of the audio, the two with 10 … 30 s, and none beyond what it shows.
+    expect([...canvases("shape")].map((canvas) => canvas.style.translate)).toEqual([
+      "calc(-10 * var(--timeline-scale)) 0",
+      "calc(10.48 * var(--timeline-scale)) 0",
+    ]);
   });
 
   test("draws the tiles in view on the next frame, one column per device pixel, in the CSS color", () => {
@@ -162,10 +206,24 @@ describe("Waveform", () => {
   test("tiles are placed in time, so that a zoom stretches them in place", () => {
     render(<Session />);
     frame();
+    // In seconds of the audio, from the region's offset: moving or trimming the region only places them again.
     expect([...canvases("shape")].map((canvas) => [canvas.style.translate, canvas.style.width])).toEqual([
       ["calc(0 * var(--timeline-scale)) 0", "calc(10.24 * var(--timeline-scale))"],
       ["calc(10.24 * var(--timeline-scale)) 0", "calc(10.24 * var(--timeline-scale))"],
     ]);
+  });
+
+  test("moving or trimming the region draws nothing already drawn", () => {
+    const { rerender } = render(<Session />);
+    frame();
+    drawn.tiles = 0;
+    // Moved 1 s right, then its start trimmed by 2 s: the audio in view is still in tiles 0 and 1.
+    rerender(<Session at={1} />);
+    rerender(<Session at={3} offset={2} />);
+    frame();
+    expect(drawn.tiles).toBe(0);
+    expect(canvases("shape")[1]!.style.translate).toBe("calc(8.24 * var(--timeline-scale)) 0");
+    expect(screen.getByTestId("progress").style.clipPath).toContain("(var(--timeline-position) - 3)");
   });
 
   test("playback draws nothing: the played part is clipped in CSS", () => {
@@ -357,20 +415,22 @@ describe("recording", () => {
     recorder.append([new Float32Array(2000).fill(0.5)]);
     render(
       <Timeline.Root start={0} end={10}>
-        <Waveform.Root peaks={recorder} data-testid="waveform">
-          <Waveform.Shape />
-        </Waveform.Root>
+        <Timeline.Region at={0} read={() => ({ duration: recorder.duration })} data-testid="region">
+          <Waveform.Root peaks={recorder}>
+            <Waveform.Shape />
+          </Waveform.Root>
+        </Timeline.Region>
       </Timeline.Root>,
     );
     frame();
-    expect(screen.getByTestId("waveform").style.width).toBe("calc(2 * var(--timeline-scale))");
+    expect(screen.getByTestId("region").style.width).toBe("calc(2 * var(--timeline-scale))");
     drawn.tiles = 0;
     recorder.append([new Float32Array(500).fill(-0.5)]);
     recorder.append([new Float32Array(500).fill(-0.5)]);
     frame();
     // Both blocks in one frame: one tile, the one they fell into.
     expect(drawn.tiles).toBe(1);
-    expect(screen.getByTestId("waveform").style.width).toBe("calc(3 * var(--timeline-scale))");
+    expect(screen.getByTestId("region").style.width).toBe("calc(3 * var(--timeline-scale))");
   });
 });
 
@@ -383,9 +443,11 @@ describe("zoomed in beyond the peaks", () => {
     // 1000 px for 10 ms: two pixels per sample.
     return (
       <Timeline.Root start={0.5} end={0.51}>
-        <Waveform.Root peaks={peaks} samples={samples}>
-          <Waveform.Shape />
-        </Waveform.Root>
+        <Timeline.Region at={0} duration={1}>
+          <Waveform.Root peaks={peaks} samples={samples}>
+            <Waveform.Shape />
+          </Waveform.Root>
+        </Timeline.Region>
       </Timeline.Root>
     );
   }

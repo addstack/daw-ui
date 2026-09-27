@@ -13,10 +13,24 @@ class GridPainter implements TilePainter {
   constructor(
     public grid: TimeGrid,
     public spacing: number,
+    private readonly view: TimelineView,
   ) {}
 
   extent() {
     return { from: -Infinity, to: Infinity };
+  }
+
+  shown() {
+    return { from: -Infinity, to: Infinity };
+  }
+
+  inView() {
+    return { from: this.view.start, to: this.view.end };
+  }
+
+  /** The grid spans the view: a line at `start` is that far from its left edge. */
+  place(start: number) {
+    return `(${start} - var(--timeline-start))`;
   }
 
   paint(context: CanvasRenderingContext2D, { start, length, width, height, ratio }: TileStretch): void {
@@ -48,8 +62,8 @@ export function TimelineGrid({ grid, spacing = 12, ...props }: TimelineGrid.Prop
   const ref = useCallback(
     (element: HTMLElement | null) => {
       if (!element) return;
-      const painter = new GridPainter(latest.current.grid, latest.current.spacing);
-      const tiles = new TimeTiles(element, view, painter, "view");
+      const painter = new GridPainter(latest.current.grid, latest.current.spacing, view);
+      const tiles = new TimeTiles(element, view, painter);
       drawing.current = { painter, tiles };
       return () => {
         tiles.destroy();

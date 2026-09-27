@@ -81,12 +81,14 @@ export default function WaveformDemo() {
           <Timeline.Grid grid={grid} className="text-white/5" />
           <Timeline.Grid grid={grid} spacing={64} className="text-white/15" />
           {tracks.map((track) => (
-            <div key={track.name} className="relative h-14 border-b border-neutral-800 last:border-0">
-              <Waveform.Root peaks={track.peaks} at={track.at} aria-label={track.name} className="bg-sky-950/70">
-                <Waveform.Shape className="text-sky-700" />
-                <Waveform.Progress className="text-sky-300" />
-              </Waveform.Root>
-            </div>
+            <Timeline.Track key={track.name} aria-label={track.name} className="h-14 border-b border-neutral-800 last:border-0">
+              <Timeline.Region at={track.at} duration={track.peaks.duration} className="bg-sky-950/70">
+                <Waveform.Root peaks={track.peaks} aria-label={track.name} className="h-full">
+                  <Waveform.Shape className="text-sky-700" />
+                  <Waveform.Progress className="text-sky-300" />
+                </Waveform.Root>
+              </Timeline.Region>
+            </Timeline.Track>
           ))}
         </div>
         <Timeline.Playhead className="w-px bg-white" />

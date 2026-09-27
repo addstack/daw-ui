@@ -1,9 +1,9 @@
 import { onEveryFrame } from "./frame-loop.js";
 import type { TimelineView } from "./timeline.js";
 
-/** A stretch of the timeline that one tile draws. */
+/** A stretch of content that one tile draws. */
 export type TileStretch = {
-  /** Timeline seconds at the tile's left edge. */
+  /** Seconds of content at the tile's left edge: audio time for a waveform, timeline time for a grid. */
   start: number;
   /** Seconds it covers. */
   length: number;
@@ -15,20 +15,27 @@ export type TileStretch = {
   ratio: number;
 };
 
-/** What tiles draw, and where on the timeline there is something to draw. */
+/**
+ * What tiles draw, in seconds of its content. Tiles are anchored at content
+ * time 0, so that moving or trimming what shows the content moves tiles in
+ * CSS without drawing them again.
+ */
 export type TilePainter = {
-  /** Timeline seconds with content, `[from, to)`: a clip, or `-Infinity` … `Infinity` for a grid. */
+  /** Content that can be drawn, `[from, to)`: the whole audio file, or `-Infinity` … `Infinity` for a grid. */
   extent(): { from: number; to: number };
+  /**
+   * Content its element shows, `[from, to)`, whatever the view: the part of
+   * the file a region shows. Tiles, also the ones drawn ahead of scrolling,
+   * are only where it is; a tile at its edge is drawn whole, from `extent`.
+   */
+  shown(): { from: number; to: number };
+  /** Content in view now, `[from, to)`, within what is shown. */
+  inView(): { from: number; to: number };
+  /** A CSS expression, in seconds, of where content time `start` is from the element's left edge. */
+  place(start: number): string;
   /** Draws a stretch into a cleared tile, with `fillStyle` set to the element's CSS `color`. */
   paint(context: CanvasRenderingContext2D, stretch: TileStretch): void;
 };
-
-/**
- * Where the element holding the tiles sits: at the start of the painter's
- * extent, as a waveform placed like a `Timeline.Item`, or at the view's left
- * edge, as a grid that spans the timeline.
- */
-export type TilePlacement = "item" | "view";
 
 // CSS pixels per tile when drawn: wide enough that a screen needs few, narrow enough to draw several per frame.
 const TILE = 1024;
@@ -77,7 +84,7 @@ type Layer = {
   drawn: Set<number>;
 };
 
-type Range = { first: number; last: number; before: number; after: number; base: number; seconds: number; to: number };
+type Range = { first: number; last: number; before: number; after: number; seconds: number; from: number; to: number };
 
 /**
  * Draws what a painter paints on a timeline into canvas tiles inside
@@ -107,7 +114,6 @@ export class TimeTiles {
     private readonly container: HTMLElement,
     private readonly view: TimelineView,
     private readonly painter: TilePainter,
-    private readonly placement: TilePlacement,
   ) {
     // Transitions report a change of the inherited color, whatever caused it: a theme class, a media query, a hover.
     this.probe = container.ownerDocument.createElement("span");
@@ -171,16 +177,29 @@ export class TimeTiles {
     this.relayer(false);
   }
 
-  /** What is drawn from `from` (timeline seconds) on has changed, as when audio arrives: it is drawn again over itself. */
+  /** What is drawn from content time `from` on has changed, as when audio arrives: it is drawn again over itself. */
   invalidate(from: number): void {
     for (const layer of [this.shown, this.next]) {
       const range = layer && this.range(layer);
       if (!layer || !range) continue;
       for (const index of layer.drawn) {
-        if (range.base + (index + 1) * range.seconds > from) layer.drawn.delete(index);
+        if ((index + 1) * range.seconds > from) layer.drawn.delete(index);
       }
     }
     this.cull();
+  }
+
+  /** Places the tiles again, without drawing them, after what `place` returns has changed: a trimmed region. */
+  reposition(): void {
+    for (const layer of [this.shown, this.next]) {
+      const range = layer && this.range(layer);
+      if (!layer || !range) continue;
+      for (const [index, canvas] of layer.tiles) canvas.style.translate = this.translate(Math.max(index * range.seconds, range.from));
+    }
+  }
+
+  private translate(start: number): string {
+    return `calc(${this.painter.place(start)} * var(--timeline-scale)) 0`;
   }
 
   /** Drops tiles far from the view, and asks the queue for the ones missing in it: after a scroll, or a change of the extent. */
@@ -251,15 +270,18 @@ export class TimeTiles {
   /** The tiles of `layer` in view, and with one on each side. */
   private range(layer: Layer): Range | null {
     const { from, to } = this.painter.extent();
-    if (!(to > from)) return null;
+    const shown = this.painter.shown();
+    const low = Math.max(from, shown.from);
+    const high = Math.min(to, shown.to);
+    if (!(high > low)) return null;
+    const seen = this.painter.inView();
     const seconds = TILE / layer.scale;
-    const base = Number.isFinite(from) ? from : 0;
-    const lowest = Number.isFinite(from) ? 0 : -Infinity;
-    const highest = Number.isFinite(to) ? Math.ceil((to - base) / seconds) - 1 : Infinity;
-    const first = Math.max(lowest, Math.floor((this.view.start - base) / seconds));
-    const last = Math.min(highest, Math.floor((this.view.end - base) / seconds));
-    if (last < first) return { first, last, before: first, after: last, base, seconds, to };
-    return { first, last, before: Math.max(lowest, first - 1), after: Math.min(highest, last + 1), base, seconds, to };
+    const lowest = Number.isFinite(low) ? Math.floor(low / seconds) : -Infinity;
+    const highest = Number.isFinite(high) ? Math.ceil(high / seconds) - 1 : Infinity;
+    const first = Math.max(lowest, Math.floor(seen.from / seconds));
+    const last = seen.to > seen.from ? Math.min(highest, Math.floor(seen.to / seconds)) : first - 1;
+    if (last < first) return { first, last, before: first, after: last, seconds, from, to };
+    return { first, last, before: Math.max(lowest, first - 1), after: Math.min(highest, last + 1), seconds, from, to };
   }
 
   /** The most needed tile not drawn yet in the top layer: in view first, then one on each side. */
@@ -300,16 +322,15 @@ export class TimeTiles {
   private draw(canvas: HTMLCanvasElement, index: number, layer: Layer, range: Range): void {
     const window = this.container.ownerDocument.defaultView;
     const ratio = window?.devicePixelRatio || 1;
-    const start = range.base + index * range.seconds;
-    const length = Math.min(range.seconds, range.to - start);
+    const start = Math.max(index * range.seconds, range.from);
+    const length = Math.min((index + 1) * range.seconds, range.to) - start;
     const width = Math.max(1, Math.round(length * layer.scale * ratio));
     const height = Math.max(1, Math.round(this.height * ratio));
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     // Placed in time, not in pixels: at another zoom the tile stretches and stays in place. `translate`, not
-    // `left`, so that scrolling a grid moves it without layout.
-    const offset = this.placement === "view" ? `(${start} - var(--timeline-start))` : `${start - range.base}`;
-    canvas.style.cssText = `position:absolute;top:0;left:0;height:100%;width:calc(${length} * var(--timeline-scale));translate:calc(${offset} * var(--timeline-scale)) 0`;
+    // `left`, so that scrolling a grid or trimming a region moves it without layout.
+    canvas.style.cssText = `position:absolute;top:0;left:0;height:100%;width:calc(${length} * var(--timeline-scale));translate:${this.translate(start)}`;
 
     const context = canvas.getContext("2d");
     if (!context) return;
