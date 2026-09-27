@@ -1,0 +1,20 @@
+---
+title: Multiband
+description: The crossover of a multiband processor over a live spectrum, with a solo for each band, composed from Slider, Spectrum and Toggle.
+---
+
+<ComponentPreview name="multiband" />
+
+A block is a composition of components, to copy and adapt: the library has no `Multiband` component, because what a multiband processor does with its bands is your application's. The code tab has all of it. Press Play, drag the splits, and solo a band: the spectrum shows what the bands sum to.
+
+## How it is composed
+
+| Part of the block | Component |
+| --- | --- |
+| The split frequencies, the bar between them, their values | [`Slider`](/docs/components/slider), with `Range`, `Thumb` and `Value` |
+| The bands over the graph: their dashed edges, names and solos | `Slider.Band`, with a [`Toggle`](/docs/components/toggle) each |
+| The spectrum behind the bands | [`Spectrum`](/docs/components/spectrum) |
+
+- **One axis, two components.** The slider and the spectrum know nothing of each other: both take 20 Hz … 20 kHz on `scales.log`, and the graph is as wide as the track (`mx-6` and `px-6`), so a split sits over its frequency.
+- **Bands are the slider's.** `Slider.Band index={b}` lies between two splits, in percent of what holds it, here the graph, from top to bottom (`inset-y-0`). Its dashed start edge is the line at a split, and it holds its name and its solo. The bands move with the thumbs without rendering.
+- **The audio is the application's.** A small Web Audio graph splits a bass, a chord and noise into three bands with two filters at each split, 24 dB per octave. The slider's `onValueChange` sets the filters' frequencies, and a solo sets the bands' gains: straight to the audio, so dragging a split renders nothing in React. The spectrum reads an `AnalyserNode` after the bands, once per frame.

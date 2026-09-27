@@ -14,6 +14,7 @@ import ModulationDemo from './knob-modulation';
 import WrapKnobDemo from './knob-wrap';
 import MeterDemo from './meter';
 import MixerBlockDemo from './mixer';
+import MultibandDemo from './multiband';
 import MultiSliderDemo from './multi-slider';
 import VelocityLaneDemo from './multi-slider-velocity-lane';
 import NotesDemo from './notes';
@@ -51,6 +52,7 @@ export const demos = {
   'knob-wrap': WrapKnobDemo,
   meter: MeterDemo,
   mixer: MixerBlockDemo,
+  multiband: MultibandDemo,
   'multi-slider': MultiSliderDemo,
   'multi-slider-velocity-lane': VelocityLaneDemo,
   notes: NotesDemo,
