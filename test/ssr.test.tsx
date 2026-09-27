@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -78,6 +78,9 @@ test("every component renders on the server", () => {
           <Slider.Thumb index={1} aria-label="High" />
         </Slider.Track>
       </Slider.Root>
+      <Spectrum.Root bins={new Float32Array(16).fill(-40)} sampleRate={48_000} aria-label="Spectrum">
+        <Spectrum.Line />
+      </Spectrum.Root>
       <MultiSlider.Root defaultValue={[0.25, 1]}>
         <MultiSlider.Control>
           <MultiSlider.Item index={0}>
@@ -108,6 +111,8 @@ test("every component renders on the server", () => {
   // A modulation range with its depth given is drawn before any script runs; so is its handle's value.
   expect(html).toMatch(/<path d="M 50 4 A 46 46 0 0 1 [^"]+" fill="none"/);
   expect(html).toContain('aria-valuetext="25%"');
+  // A spectrum renders its canvas on the server and draws in the browser.
+  expect(html).toMatch(/<div role="img"[^>]*aria-label="Spectrum"><canvas aria-hidden="true"/);
   // A slider's thumbs and range are placed, and its values set as variables, before any script runs.
   expect(html).toContain("inset-inline-start:25%;width:50%");
   expect(html).toContain("--slider-value-1:0.75");

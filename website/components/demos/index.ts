@@ -22,6 +22,7 @@ import PianoRollBlockDemo from './piano-roll';
 import SegmentsDemo from './number-box-segments';
 import SliderDemo from './slider';
 import SliderRangeDemo from './slider-range';
+import SpectrumDemo from './spectrum';
 import RegionDemo from './region';
 import RegionEditingDemo from './region-editing';
 import TimelineDemo from './timeline';
@@ -59,6 +60,7 @@ export const demos = {
   region: RegionDemo,
   slider: SliderDemo,
   'slider-range': SliderRangeDemo,
+  spectrum: SpectrumDemo,
   'region-editing': RegionEditingDemo,
   timeline: TimelineDemo,
   toggle: ToggleDemo,

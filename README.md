@@ -218,6 +218,21 @@ A peak meter with hold and a clip indicator. `read` is called once per animation
 
 `Bar` covers the track and is clipped to the level, so a gradient stays in place: green below, red at the top. The root sets `--meter-level`, `--meter-peak`, `data-active` while there is signal, `data-clipped` after a clip, and `data-zone` for its `zones`. `fall`, `hold` and `clipAbove` tune the ballistics.
 
+### Spectrum
+
+How loud each frequency is, from the bins of an FFT, such as an `AnalyserNode`'s, on a logarithmic axis: the analyser behind an equalizer or a multiband processor. `read` is called once per frame; the parts draw on canvas, and nothing renders.
+
+```tsx
+const bins = new Float32Array(analyser.frequencyBinCount);
+<Spectrum.Root read={() => (analyser.getFloatFrequencyData(bins), bins)} sampleRate={audio.sampleRate} tilt={4.5} aria-label="Spectrum">
+  <Spectrum.Fill />
+  <Spectrum.Peak />
+  <Spectrum.Line />
+</Spectrum.Root>
+```
+
+**Spectrum** parts: `Root` (`read` or `bins`, `sampleRate`, `min`/`max` in hertz on `scales.log`, `floor`/`ceiling` in dB, `tilt` in dB per octave, `fall`), `Line`, `Fill` and `Peak` (peaks that hold, then fall). A column over many bins shows the loudest, so narrow peaks show at the high end; the low end is a smooth curve through the bins. A `Slider` or an XY pad with the same range lines up with it.
+
 ### Toggle and ToggleGroup
 
 `Toggle` is a button with `aria-pressed` that reacts on press, not on release. `behavior` is `"toggle"`, `"momentary"` (on while held) or `"hybrid"` (latches on a short press, momentary on a long one, like the buttons of hardware controllers).
@@ -360,7 +375,7 @@ A gesture starts with the first change, so a click that changes nothing leaves n
 
 ## ⚡ Performance
 
-In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders stress pages with 64 channel strips (running meters, pan knobs, faders, mute and solo), a 16 × 64 step sequencer, a timeline of 32 four-minute clips, an 88-key keyboard and a 64-step multi-slider, in a production build, with the CPU slowed down 4×:
+In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders stress pages with 64 channel strips (running meters, pan knobs, faders, mute and solo), a 16 × 64 step sequencer, a timeline of 32 four-minute clips, an 88-key keyboard, a 64-step multi-slider and eight live spectra, in a production build, with the CPU slowed down 4×:
 
 | Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
 | --- | --: | --: | --: | --: | --: |
@@ -379,10 +394,11 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | 88 keys lit by playback through `read` | 0.4 | 0.0 | 0 of 181 | – | 0 |
 | A glissando across 88 keys | 1.1 | 0.1 | 0 of 90 | 14.2 / 15.4 | 0 |
 | A stroke across 64 values of a multi-slider | 1.0 | 0.3 | 1 of 90 | 14.8 / 15.7 | 0 |
+| 8 spectra of 2048 bins, read every frame | 5.1 | 0.7 | 0 of 181 | – | 0 |
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (37.1 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a multi-slider alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (40.1 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a multi-slider alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 

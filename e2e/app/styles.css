@@ -479,3 +479,34 @@ h1 {
   font-size: 10px;
   white-space: nowrap;
 }
+
+/* Spectra: 600 × 120 px; eight small ones of 300 × 80 px. */
+.spectrum {
+  width: 600px;
+  height: 120px;
+  background: #111;
+}
+
+.spectrum.small {
+  width: 300px;
+  height: 80px;
+}
+
+.spectra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 620px;
+}
+
+.spectrum-line {
+  color: rgb(0, 255, 0);
+}
+
+.spectrum-fill {
+  color: rgb(0 255 0 / 0.2);
+}
+
+.spectrum-peak {
+  color: rgb(255 255 255 / 0.5);
+}

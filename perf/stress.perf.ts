@@ -284,3 +284,10 @@ test("painting 64 values of a multi-slider", async ({ page }) => {
   // Budget: the bars follow the stroke in the DOM; nothing renders.
   expect(result.reactCommits).toBe(0);
 });
+
+test("8 spectra of 2048 bins, read every frame", async ({ page }) => {
+  await openStress(page, "spectrum");
+  const result = await measure(page, "8 spectra of 2048 bins, live", 3000);
+  // Budget: spectra draw on canvas from the frame loop; nothing renders.
+  expect(result.reactCommits).toBe(0);
+});

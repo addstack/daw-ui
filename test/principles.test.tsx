@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats, scales } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -117,6 +117,11 @@ function EveryComponent() {
           </Slider.Track>
         </Slider.Control>
       </Slider.Root>
+      <Spectrum.Root bins={new Float32Array(16).fill(-40)} sampleRate={48_000}>
+        <Spectrum.Fill />
+        <Spectrum.Line />
+        <Spectrum.Peak />
+      </Spectrum.Root>
       <MultiSlider.Root defaultValue={[0.2, 0.9]}>
         <MultiSlider.Control>
           <MultiSlider.Item index={0}>

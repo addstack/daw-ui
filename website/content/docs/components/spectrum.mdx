@@ -1,0 +1,72 @@
+---
+title: Spectrum
+description: How loud each frequency is, from the bins of an FFT, on a logarithmic axis, drawn on canvas once per frame without rendering, as the analysers of equalizers show it.
+---
+
+<ComponentPreview name="spectrum" />
+
+## Anatomy
+
+```tsx
+import { Spectrum } from '@addstack/daw-ui/react';
+
+// One array for the whole time; the analyser fills it anew each frame.
+const bins = new Float32Array(analyser.frequencyBinCount);
+
+<Spectrum.Root
+  read={() => (analyser.getFloatFrequencyData(bins), bins)}
+  sampleRate={audio.sampleRate}
+  aria-label={t('spectrum')}
+  className="h-40"
+>
+  <Spectrum.Fill className="text-emerald-500/15" />
+  <Spectrum.Peak className="text-white/30" />
+  <Spectrum.Line className="text-emerald-400" />
+</Spectrum.Root>
+```
+
+A spectrum takes the bins of an FFT: levels in dB, evenly spaced from 0 Hz to half the sample rate, as `AnalyserNode.getFloatFrequencyData` fills them, or as your audio engine sends them. `sampleRate` tells which bin is which frequency. `read` is called once per animation frame, on the loop meters share, and the parts draw on canvas; nothing renders. For a spectrum that does not change, such as a whole sample's or a reference to compare with, pass `bins` instead.
+
+It is an image: name it with `aria-label`, in your application's language. Size it with CSS; the parts fill it, and draw in their CSS `color`.
+
+## Axes
+
+Across, frequency from `min` to `max` hertz (20 Hz … 20 kHz), on `scales.log` by default, so that each octave takes the same width; up, level from `floor` to `ceiling` dB (−90 … 0). A [`Slider`](/docs/components/slider) or an [XY pad](/docs/components/xy-pad) with the same `min`, `max` and `scale` lines up with it: their thumbs sit over the frequencies they set.
+
+Where a column of pixels covers many bins, at the high end, it shows the loudest of them, so that a narrow peak shows; where it covers less than one, at the low end, a smooth curve runs through the bins around it, so that the bass is not a staircase.
+
+`tilt` adds that many dB per octave above 1 kHz and takes as many below it: at 4.5, pink noise, and most music, looks flat, as in FabFilter Pro-Q.
+
+## Ballistics
+
+An `AnalyserNode` smooths its bins already (`smoothingTimeConstant`), so the line follows them by default. For the ballistics of a meter, set the analyser's smoothing to 0 and `fall` to the dB per second the line may fall; it rises at once. `Spectrum.Peak` holds each column's highest level for `hold` milliseconds, then lets it fall at its own `fall`.
+
+## How it stays fast
+
+The bins each column covers are worked out once per size and axis. Each frame, the spectrum turns the bins into one level per column, applies the ballistics, and each part draws one path on its own canvas, at the screen's resolution. Out of sight, it reads and draws nothing. Eight spectra of 2048 bins, live, render nothing in React; see [performance](/docs/guides/performance).
+
+## API reference
+
+### Root
+
+Holds the bins and the axes. Renders a `<div>` with `role="img"`.
+
+<PropsTable part="Spectrum.Root" />
+
+### Line
+
+The spectrum as a line. Renders a `<canvas>`.
+
+<PropsTable part="Spectrum.Line" />
+
+### Fill
+
+The area under the spectrum. Renders a `<canvas>`.
+
+<PropsTable part="Spectrum.Fill" />
+
+### Peak
+
+The highest levels lately, as a line. Renders a `<canvas>`.
+
+<PropsTable part="Spectrum.Peak" />

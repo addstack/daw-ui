@@ -18,7 +18,7 @@ In a DAW, the interface competes with audio and with dozens of animated meters. 
 
 ## What is measured
 
-Every change to the repository runs stress pages, in a production build, in Chromium with the CPU slowed down 4×: 64 channel strips with running meters, pan knobs, faders and mute and solo buttons, a 16 × 64 step sequencer, 64 channels whose knobs and faders follow automation on every frame, a timeline of 16 tracks with 32 four-minute clips under one playhead, a ruler and a grid, a take being recorded, a MIDI track and an automation lane, a keyboard of 88 keys, and a multi-slider of 64 values.
+Every change to the repository runs stress pages, in a production build, in Chromium with the CPU slowed down 4×: 64 channel strips with running meters, pan knobs, faders and mute and solo buttons, a 16 × 64 step sequencer, 64 channels whose knobs and faders follow automation on every frame, a timeline of 16 tracks with 32 four-minute clips under one playhead, a ruler and a grid, a take being recorded, a MIDI track and an automation lane, a keyboard of 88 keys, a multi-slider of 64 values, and eight live spectra.
 
 | Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
 | --- | --: | --: | --: | --: | --: |
@@ -37,10 +37,11 @@ Every change to the repository runs stress pages, in a production build, in Chro
 | 88 keys lit by playback through `read` | 0.4 | 0.0 | 0 of 181 | – | 0 |
 | A glissando across 88 keys | 1.1 | 0.1 | 0 of 90 | 14.2 / 15.4 | 0 |
 | A stroke across 64 values of a multi-slider | 1.0 | 0.3 | 1 of 90 | 14.8 / 15.7 | 0 |
+| 8 spectra of 2048 bins, read every frame | 5.1 | 0.7 | 0 of 181 | – | 0 |
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the same page driven two ways: controlled `value` props updated on every frame spend more than the whole budget, `read` leaves room.
 
-The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction (zero for drags, for automation through `read`, for running meters, for waveforms and for keys), canvas tiles drawn (none during playback), renders per painted step, and the bundle size, minified and gzipped: 37.1 kB for everything, and what an application adds when it imports only some components, such as 7.8 kB for a knob alone or 4.8 kB for a keyboard alone, which checks that the rest is left out. Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
+The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction (zero for drags, for automation through `read`, for running meters, for waveforms and for keys), canvas tiles drawn (none during playback), renders per painted step, and the bundle size, minified and gzipped: 40.1 kB for everything, and what an application adds when it imports only some components, such as 7.8 kB for a knob alone or 4.8 kB for a keyboard alone, which checks that the rest is left out. Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
 
 ## In your application
 
