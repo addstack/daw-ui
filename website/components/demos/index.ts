@@ -28,9 +28,10 @@ import RegionDemo from './region';
 import RegionEditingDemo from './region-editing';
 import TimelineDemo from './timeline';
 import ToggleDemo from './toggle';
-import TunerDemo from './tuner';
-import StringsDemo from './tuner-strings';
-import StrobeDemo from './tuner-strobe';
+import ClassicTunerDemo from './tuner-classic';
+import GuitarTunerDemo from './tuner-guitar';
+import PedalTunerDemo from './tuner-pedal';
+import PitchWheelDemo from './tuner-wheel';
 import MixerDemo from './toggle-group-mixer';
 import SequencerDemo from './toggle-group-sequencer';
 import WaveformDemo from './waveform';
@@ -69,9 +70,10 @@ export const demos = {
   'region-editing': RegionEditingDemo,
   timeline: TimelineDemo,
   toggle: ToggleDemo,
-  tuner: TunerDemo,
-  'tuner-strings': StringsDemo,
-  'tuner-strobe': StrobeDemo,
+  'tuner-classic': ClassicTunerDemo,
+  'tuner-guitar': GuitarTunerDemo,
+  'tuner-pedal': PedalTunerDemo,
+  'tuner-wheel': PitchWheelDemo,
   'toggle-group-mixer': MixerDemo,
   'toggle-group-sequencer': SequencerDemo,
   waveform: WaveformDemo,

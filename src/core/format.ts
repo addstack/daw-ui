@@ -397,4 +397,4 @@ export const formats = { number, decibel, frequency, percent, pan, time, positio
 
 // The formats the library itself uses, one by one, and not through `formats`: an application that does not
 // import `formats` does not load them all. Not part of the public API.
-export { decibel as decibelFormat, frequency as frequencyFormat, number as numberFormat, percent as percentFormat, position as positionFormat };
+export { decibel as decibelFormat, number as numberFormat, percent as percentFormat, position as positionFormat };

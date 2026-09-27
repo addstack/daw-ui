@@ -32,7 +32,6 @@ export {
   type ToggleChangeDetails,
   type ToggleChangeReason,
 } from "./toggle.js";
-export * as Tuner from "./tuner.parts.js";
 export * as Waveform from "./waveform.parts.js";
 export * as XYPad from "./xy-pad.parts.js";
 export type { XYAxis, XYPadChangeDetails, XYPadChangeReason, XYValue } from "./xy-pad.js";

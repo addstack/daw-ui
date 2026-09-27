@@ -1,0 +1,36 @@
+---
+title: Tuners
+description: A classic tuner, a pedal tuner with a strobe, a guitar tuner with its strings and a voice's pitch wheel, each from readPitch and a few lines that write the reading to the page once per frame.
+---
+
+A tuner shows the same few things however it looks: the note a pitch is nearest, or tuned to, and how many cents it is off. The library reads them with [`readPitch`](/docs/guides/values-and-formats#reading-a-pitch) and names notes with `formats.pitch`; the look, a needle, a row of lights, a strobe, a wheel, is yours. The blocks here are four tuners that differ in nothing else. The playing is made up; in an application, the frequency comes from your pitch detector, as the level of a meter comes from your audio code.
+
+## Classic
+
+A scale of ±50 cents with a needle, and the frequency, the MIDI note, its name and the cents below it.
+
+<ComponentPreview name="tuner-classic" />
+
+## Pedal
+
+A row of lights, one per stretch of cents, and a strobe whose stripes run the way the pitch is off, faster the further off, and stand still in tune: its phase is the cents off added up over time.
+
+<ComponentPreview name="tuner-pedal" />
+
+## Guitar
+
+An arc, and the strings: `targets` tunes to the nearest string, and pressing a string tunes to it alone with `target`.
+
+<ComponentPreview name="tuner-guitar" />
+
+## Pitch wheel
+
+The twelve notes around a wheel, as in a voice-to-MIDI tool: the notes of the key are dark and named, and `targets` are the key's notes, so the voice snaps to them. The segment of the note sung lights up, and the beam turns to the pitch itself, between two segments when the voice is off.
+
+<ComponentPreview name="tuner-wheel" />
+
+## How they are composed
+
+- **Reading.** Each tuner calls `readPitch(frequency, { targets, target, previous })` once per frame, passing the last reading's target as `previous`: the note shown then stays steady when a pitch sits between two notes.
+- **Writing, not rendering.** The reading goes straight to the page in a `requestAnimationFrame` loop: attributes on the tuner (`data-active`, `data-in-tune`, `data-flat`, `data-sharp`), which CSS styles, a variable on the one element that moves (`--offset`, `--phase`, `--pitch-class`), which keeps the style of the rest untouched, and the texts, only when they change. Nothing renders while the pitch moves ([principles, section 7](/docs/principles)).
+- **Accessibility.** The note is a polite live region: a screen reader says it when it changes, not the cents on every frame. What only moves, the needle, the lights, the strobe, the beam, is hidden from assistive technology.

@@ -92,3 +92,21 @@ type ValueSegment =
 A field's `step` is how much one step of it changes the value, in the value's units: for a position in beats, a bar is `4` and a sixteenth `0.25`. `get` is the field's number in a value and `format` its text. The fields are views of the one value, so stepping one past its end carries into the next, and `format(value)` can be the fields' texts joined.
 
 `position` counts from 1, as DAWs do, and shows the division a position is in. `timecode` takes whole frame rates (24, 25, 30); drop-frame timecode is not supported. Both parse what they show, `position` a bar alone (`12`), and `timecode` fields from the right (`3:12` is 3 seconds and 12 frames) or digits alone in pairs (`1500` is 15 seconds), as editing systems do.
+
+## Reading a pitch
+
+`readPitch` reads a frequency, in hertz, as a tuner does: the note it is, as a MIDI note number with a fraction, the note it is tuned to, and how many cents it is off. `null` is silence.
+
+```ts
+import { formats, readPitch } from '@addstack/daw-ui';
+
+readPitch(446); // { note: 69.23, target: 69, cents: 23.4 }: A4, 23 cents sharp
+readPitch(83, { targets: [40, 45, 50, 55, 59, 64] }); // tuned to E2, the nearest string
+formats.pitch({ names }).format(69); // "A4"
+```
+
+- `reference` is the frequency of A4, 440 Hz by default.
+- `targets` are the notes a pitch is tuned to instead of every note: the strings of an instrument, or the notes of a key, so that a voice snaps to it. `target` tunes to one note alone.
+- Pass the last reading's target as `previous`: the note then stays until the pitch is `hysteresis` cents (10) nearer another, so that a pitch between two notes does not make the name flicker.
+
+The [Tuners block](/docs/blocks/tuners) shows four tuners built on it, which write each reading to the page once per frame without rendering.

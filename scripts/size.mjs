@@ -26,7 +26,6 @@ const BUDGETS = {
   "a bar graph alone": { entry: only(["BarGraph"]), limit: 6_500 },
   "a slider alone": { entry: only(["Slider"]), limit: 6_900 },
   "a spectrum alone": { entry: only(["Spectrum"]), limit: 4_600 },
-  "a tuner alone": { entry: only(["Tuner"]), limit: 4_400 },
   "a timeline with regions and waveforms": { entry: only(["Timeline", "Region", "Waveform"]), limit: 8_600 },
   "an editable curve": { entry: only(["Curve", "useCurveEditing"]), limit: 13_500 },
 };

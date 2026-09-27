@@ -18,3 +18,4 @@ export * from "./zones.js";
 export * from "./peaks.js";
 export * from "./grid.js";
 export { curveEase, curveValue, type CurvePoint, type CurveShape } from "./curve.js";
+export { readPitch, type PitchReading, type ReadPitchOptions } from "./pitch.js";
