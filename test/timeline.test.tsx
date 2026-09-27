@@ -69,12 +69,18 @@ const variable = (name: string) => screen.getByTestId("timeline").style.getPrope
 const minute: Peaks = createPeaks([new Float32Array(60_000).map((_, index) => Math.sin(index / 10))], 1000, { samplesPerPeak: 16 });
 
 describe("Timeline", () => {
-  test("writes the view and the playhead as CSS variables", () => {
-    render(<Timeline.Root start={2} end={12} position={3.5} data-testid="timeline" />);
+  test("writes the view on the root, and the playhead on the parts that follow it", () => {
+    render(
+      <Timeline.Root start={2} end={12} position={3.5} data-testid="timeline">
+        <Timeline.Playhead data-testid="playhead" />
+      </Timeline.Root>,
+    );
     expect(variable("--timeline-start")).toBe("2");
     // 1000 px for 10 s.
     expect(variable("--timeline-scale")).toBe("100px");
-    expect(variable("--timeline-position")).toBe("3.5");
+    // Not a variable on the root: a change there would recalculate the style of everything on the timeline, every frame.
+    expect(variable("--timeline-position")).toBe("");
+    expect(screen.getByTestId("playhead").style.translate).toBe("calc((3.5 - var(--timeline-start)) * var(--timeline-scale)) 0");
   });
 
   test("reads the playhead and the view once per frame, and renders nothing for them", () => {
@@ -84,7 +90,7 @@ describe("Timeline", () => {
     render(
       <Profiler id="timeline" onRender={() => commits++}>
         <Timeline.Root start={0} end={10} read={() => time} readView={() => view} data-testid="timeline">
-          <Timeline.Playhead />
+          <Timeline.Playhead data-testid="playhead" />
         </Timeline.Root>
       </Profiler>,
     );
@@ -92,7 +98,7 @@ describe("Timeline", () => {
     time = 4.25;
     view = [2, 7];
     frame();
-    expect(variable("--timeline-position")).toBe("4.25");
+    expect(screen.getByTestId("playhead").style.translate).toBe("calc((4.25 - var(--timeline-start)) * var(--timeline-scale)) 0");
     expect([variable("--timeline-start"), variable("--timeline-scale")]).toEqual(["2", "200px"]);
     expect(commits).toBe(0);
   });
@@ -105,7 +111,7 @@ describe("Timeline", () => {
     );
     const playhead = screen.getByTestId("playhead");
     expect(playhead.getAttribute("aria-hidden")).toBe("true");
-    expect(playhead.style.translate).toBe("calc((var(--timeline-position) - var(--timeline-start)) * var(--timeline-scale)) 0");
+    expect(playhead.style.translate).toBe("calc((0 - var(--timeline-start)) * var(--timeline-scale)) 0");
   });
 
   test("a track is a group that holds regions", () => {
@@ -178,14 +184,15 @@ describe("Waveform", () => {
     render(
       <Waveform.Root peaks={minute} offset={10} duration={20} read={() => 15} data-testid="waveform">
         <Waveform.Shape data-testid="shape" />
-        <Waveform.Progress />
+        <Waveform.Progress data-testid="progress" />
       </Waveform.Root>,
     );
     const waveform = screen.getByTestId("waveform");
     // 1000 px for 20 s, from 10 s into the audio.
     expect(waveform.style.getPropertyValue("--timeline-scale")).toBe("50px");
     frame();
-    expect(waveform.style.getPropertyValue("--timeline-position")).toBe("5");
+    // Played up to 5 s of the 20 s it shows.
+    expect(screen.getByTestId("progress").style.clipPath).toBe("inset(0 max(0px, calc(100% - 5 * var(--timeline-scale))) 0 0)");
     // 20 s at 50 px per second: tiles of 20.48 s from 0 s of the audio, the two with 10 … 30 s, and none beyond what it shows.
     expect([...canvases("shape")].map((canvas) => canvas.style.translate)).toEqual([
       "calc(-10 * var(--timeline-scale)) 0",
@@ -223,7 +230,8 @@ describe("Waveform", () => {
     frame();
     expect(drawn.tiles).toBe(0);
     expect(canvases("shape")[1]!.style.translate).toBe("calc(8.24 * var(--timeline-scale)) 0");
-    expect(screen.getByTestId("progress").style.clipPath).toContain("(var(--timeline-position) - 3)");
+    // The playhead at 0 is 3 s before the region's new start.
+    expect(screen.getByTestId("progress").style.clipPath).toContain("100% - -3 * var(--timeline-scale)");
   });
 
   test("playback draws nothing: the played part is clipped in CSS", () => {
@@ -234,7 +242,7 @@ describe("Waveform", () => {
     frame();
     expect(drawn.tiles).toBe(0);
     expect(screen.getByTestId("progress").style.clipPath).toBe(
-      "inset(0 max(0px, calc(100% - (var(--timeline-position) - 0) * var(--timeline-scale))) 0 0)",
+      "inset(0 max(0px, calc(100% - 8 * var(--timeline-scale))) 0 0)",
     );
   });
 

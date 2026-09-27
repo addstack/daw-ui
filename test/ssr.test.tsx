@@ -62,5 +62,6 @@ test("every component renders on the server", () => {
   expect(html).toContain('data-segment="beats"');
   expect(html).toContain('aria-pressed="true"');
   expect(html).toContain('role="img"');
-  expect(html).toContain("--timeline-position:0.5");
+  // The playhead is rendered where it is, before any script runs.
+  expect(html).toContain("translate:calc((0.5 - var(--timeline-start)) * var(--timeline-scale)) 0");
 });

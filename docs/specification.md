@@ -313,10 +313,9 @@ A `TimeGrid` is `{ steps, label(time, step) }`: `steps` are seconds between line
 
 ### 10.3 Timeline
 
-`Timeline.Root` (`div`, `position: relative`) holds a view outside React: `start` and `end` in seconds (`end > start`, else a `RangeError`) and the width of its padding box in CSS pixels, measured before the first paint and then by a `ResizeObserver`. `scale = width / (end − start)` CSS pixels per second (0 before measurement). It writes to its element:
+`Timeline.Root` (`div`, `position: relative`) holds a view outside React: `start` and `end` in seconds (`end > start`, else a `RangeError`) and the width of its padding box in CSS pixels, measured before the first paint and then by a `ResizeObserver`. `scale = width / (end − start)` CSS pixels per second (0 before measurement). It writes to its element `--timeline-start`: `start`, and `--timeline-scale`: `scale` followed by `px`, when the view or the width changes.
 
-- `--timeline-start`: `start`; `--timeline-scale`: `scale` followed by `px` — when the view or the width changes;
-- `--timeline-position`: the `position` prop (default 0), or with `read`, `read()` once per animation frame on the shared frame loop, written only when its text changes.
+The playhead is the `position` prop (default 0), or with `read`, `read()` once per animation frame on the shared frame loop. When it changes, it is written, with the number written in, only into the CSS of the parts that follow it (`Timeline.Playhead`, `Waveform.Progress`), never as a CSS variable: a variable on the root would recalculate the style of everything on the timeline every frame, and one on each part would make every part that defines it costlier to recalculate when the view scrolls.
 
 With `readView`, `readView()` gives `[start, end]` once per animation frame. None of these changes renders a component.
 
@@ -324,7 +323,7 @@ Parts place themselves in CSS from these variables, with the physical `left` and
 
 | Part | Element | Behaviour |
 | --- | --- | --- |
-| `Timeline.Playhead` | `div` | `aria-hidden`; `position: absolute`, `inset-block: 0`, `left: 0`, `translate: calc((var(--timeline-position) − var(--timeline-start)) · var(--timeline-scale)) 0`. |
+| `Timeline.Playhead` | `div` | `aria-hidden`; `position: absolute`, `inset-block: 0`, `left: 0`, `translate: calc((position − var(--timeline-start)) · var(--timeline-scale)) 0`, rewritten when the playhead moves. |
 | `Timeline.Track` | `div` | `role="group"`, `position: relative`. |
 | `Timeline.Region` | `div` | Holds a placement outside React: `at`, `duration` (default 0) and `offset` (default 0) from props, and with `read`, `read()` once per animation frame, its fields replacing those given. `position: absolute`, `inset-block: 0`, `left: 0`, `width: calc(duration · var(--timeline-scale))`, `translate: calc((at − var(--timeline-start)) · var(--timeline-scale)) 0`, with the numbers written in (no CSS variables of its own, which would make every change of the playhead's variable recalculate its style); a new placement rewrites `width` and `translate` without rendering. |
 | `Timeline.Grid` | `div` | `aria-hidden`, `position: absolute; inset: 0; overflow: hidden`. Draws in tiles (§10.4), placed on the view, with no start or end, a line `max(1, round(devicePixelRatio))` device pixels wide at every multiple of `gridStep(grid, scale of the tile, spacing)` (default spacing 12). A new `grid` with the same `steps`, and the same `spacing`, draws nothing again. |
@@ -347,11 +346,11 @@ Parts place themselves in CSS from these variables, with the physical `left` and
 `Waveform.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`, sized by CSS) shows the audio of `peaks`:
 
 - **In a `Timeline.Region`**, from the region's `offset` for its `duration`, on the timeline's axis, where the region starts `at`. Its own `offset`, `duration`, `position` and `read` do not apply.
-- **Otherwise, on its own**, from `offset` (default 0) for `duration` (default `peaks.duration − offset`, at least 0; growing with peaks that have `subscribe`), as its own axis (§10.3) from 0 to that duration across its width, with `--timeline-position` = `position − offset` (default 0), or `read() − offset` once per animation frame.
+- **Otherwise, on its own**, from `offset` (default 0) for `duration` (default `peaks.duration − offset`, at least 0; growing with peaks that have `subscribe`), as its own axis (§10.3) from 0 to that duration across its width, with the playhead at `position − offset` (default 0), or `read() − offset` once per animation frame.
 
 `Waveform.Shape` and `Waveform.Progress` (`div`, `position: absolute; inset: 0`) draw the audio, or the channel `channel`, in tiles (§10.4). A tile draws one column per device pixel from `readPeaks` (with the root's `samples`), as a rectangle from the maximum to the minimum around the middle, at least one device pixel tall. Other `peaks`, `samples` or `channel` remove what is drawn and start a new layer; a new `at`, `duration` or `offset` only places the tiles again and draws the ones that come into view. When the peaks change from second `f` of the audio, the tiles from `f` on are drawn again.
 
-`Waveform.Progress` is clipped to the played part, with the region's `at` (0 on its own) written in: `clip-path: inset(0 max(0px, calc(100% − (var(--timeline-position) − at) · var(--timeline-scale))) 0 0)`, rewritten when `at` changes.
+`Waveform.Progress` is clipped to the played part, with the playhead and the region's `at` (0 on its own) written in: `clip-path: inset(0 max(0px, calc(100% − (position − at) · var(--timeline-scale))) 0 0)`, rewritten when either changes.
 
 ## 11. Direction
 

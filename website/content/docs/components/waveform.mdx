@@ -89,9 +89,9 @@ Then it draws from them below the peaks' finest level, down to single samples as
 - **Tiles are drawn once.** The waveform is drawn into canvas tiles of 1024 pixels, only those in view and one on each side. Tiles are placed in time with the timeline's CSS variables: playback and scrolling move them without drawing, and draw only tiles that come into view.
 - **A zoom stretches, then sharpens.** During a zoom the tiles stretch in CSS. When it rests, or goes past twice or half the scale they were drawn at, a sharp layer is drawn over them, and the stretched one goes when the new one covers the view.
 - **Drawing never takes a frame.** All waveforms share one queue that draws at most 4 ms per frame, visible tiles first. A waveform scrolled out of sight draws nothing.
-- **The played part is CSS.** `Waveform.Progress` is a second drawing, clipped at the playhead from `--timeline-position`.
+- **The played part is CSS.** `Waveform.Progress` is a second drawing, clipped at the playhead: each frame of playback rewrites its `clip-path`, and nothing else.
 
-On 32 clips of four minutes under a ruler and a grid, with the CPU slowed down 4×, playback and scrolling take about 3 ms of main thread per frame and draw nothing; recording a 33rd take draws one tile per frame at 4 ms; a continuous zoom takes about 7.5 ms. See [performance](/docs/guides/performance).
+On 32 clips of four minutes under a ruler and a grid, with the CPU slowed down 4×, playback takes about 3 ms of main thread per frame and draws nothing; scrolling about 4.5 ms, drawing only tiles that come into view; recording a 33rd take draws one tile per frame at 3.5 ms; a continuous zoom takes about 9 ms. See [performance](/docs/guides/performance).
 
 ## Styling
 

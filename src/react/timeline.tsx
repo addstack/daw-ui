@@ -16,7 +16,10 @@ export class TimelineView {
   end: number;
   /** CSS pixels. */
   width = 0;
+  /** The playhead, in seconds. */
+  position = 0;
   private listeners = new Set<() => void>();
+  private readonly followers = new Set<(position: number) => void>();
 
   constructor(start: number, end: number) {
     this.start = start;
@@ -34,6 +37,27 @@ export class TimelineView {
       this.listeners.delete(listener);
     };
   };
+
+  /**
+   * Calls `write` with the playhead now and whenever it moves, until the
+   * returned function is called. The parts that follow the playhead write
+   * it into their own CSS, with the number written in: no CSS variable, so
+   * that a frame of playback recalculates the style of those parts alone,
+   * and the rest of the timeline carries nothing extra when it scrolls.
+   */
+  follow(write: (position: number) => void): () => void {
+    this.followers.add(write);
+    write(this.position);
+    return () => {
+      this.followers.delete(write);
+    };
+  }
+
+  setPosition(position: number): void {
+    if (position === this.position) return;
+    this.position = position;
+    for (const write of this.followers) write(position);
+  }
 
   set(start: number, end: number, width = this.width): void {
     if (start === this.start && end === this.end && width === this.width) return;
@@ -70,13 +94,18 @@ export type TimelineViewOptions = {
 
 /**
  * A time axis on an element: the view outside React, the element's width
- * measured before the first paint, and `--timeline-start`,
- * `--timeline-scale` and `--timeline-position` written to it. The timeline
- * root uses it, and so does a waveform on its own. Without `enabled`, it
+ * measured before the first paint, `--timeline-start` and
+ * `--timeline-scale` written to it, and the playhead for the parts that
+ * follow it. The timeline root uses it, and so does a waveform on its own. Without `enabled`, it
  * writes nothing and reads nothing.
  */
 export function useTimelineView({ start, end, readView, position = 0, read }: TimelineViewOptions, enabled = true) {
-  const [view] = useState(() => new TimelineView(start, end));
+  const [view] = useState(() => {
+    const created = new TimelineView(start, end);
+    // Known before the first render, so that the parts that follow the playhead render it, also on the server.
+    created.position = position;
+    return created;
+  });
   const element = useRef<HTMLElement | null>(null);
 
   const writeView = useCallback(() => {
@@ -118,25 +147,20 @@ export function useTimelineView({ start, end, readView, position = 0, read }: Ti
     });
   }, [readsView, view]);
 
+  // The playhead: from props, or with `read`, once per frame; written only on the parts that follow it.
+  useIsomorphicLayoutEffect(() => {
+    if (enabled && read === undefined) view.setPosition(position);
+  });
   const readRef = useRef(read);
   readRef.current = read;
   const reads = enabled && read !== undefined;
   useEffect(() => {
     if (!reads) return;
-    return onEveryFrame(() => {
-      const style = element.current?.style;
-      const next = String(readRef.current?.() ?? 0);
-      if (style && style.getPropertyValue("--timeline-position") !== next) style.setProperty("--timeline-position", next);
-    });
-  }, [reads]);
+    return onEveryFrame(() => view.setPosition(readRef.current?.() ?? 0));
+  }, [reads, view]);
 
   const ref = useMergedRef(element, enabled ? measure : undefined);
-  const style = {
-    "--timeline-start": String(view.start),
-    "--timeline-scale": `${view.scale}px`,
-    // With `read`, the frame loop writes it after this first value.
-    "--timeline-position": String(position),
-  } as CSSProperties;
+  const style = { "--timeline-start": String(view.start), "--timeline-scale": `${view.scale}px` } as CSSProperties;
   return { view, ref, style };
 }
 
@@ -145,11 +169,11 @@ export function useTimelineView({ start, end, readView, position = 0, read }: Ti
  * a grid, and one playhead over all of them. Time runs left to right, in
  * every language.
  *
- * Sets `--timeline-start` (seconds at the left edge), `--timeline-scale`
- * (CSS pixels per second) and `--timeline-position` (seconds) on its
- * element. Parts place themselves with these in CSS: playback writes one
- * variable per frame, and scrolling or zooming two, whatever the number of
- * regions; nothing renders.
+ * Sets `--timeline-start` (seconds at the left edge) and `--timeline-scale`
+ * (CSS pixels per second) on its element, and parts place themselves with
+ * these in CSS: scrolling or zooming writes two variables, whatever the
+ * number of regions. The playhead is written only into the parts that
+ * follow it. Nothing renders.
  */
 export function TimelineRoot({ start, end, readView, position, read, ...props }: TimelineRoot.Props) {
   const axis = useTimelineView({ start, end, readView, position, read });
@@ -180,17 +204,26 @@ export namespace TimelineRoot {
   };
 }
 
+/** Where the playhead line sits, with the playhead's seconds written in. */
+const playheadAt = (position: number) => `calc((${position} - var(--timeline-start)) * var(--timeline-scale)) 0`;
+
 /** A line at the playhead, across everything on the timeline. Hidden from assistive technology. */
 export function TimelinePlayhead(props: TimelinePlayhead.Props) {
   const { view } = useTimelineContext("Timeline.Playhead");
-  return useRenderPart("div", { start: view.start, end: view.end }, props, {
-    "aria-hidden": true,
-    style: {
-      position: "absolute",
-      insetBlock: 0,
-      left: 0,
-      translate: "calc((var(--timeline-position) - var(--timeline-start)) * var(--timeline-scale)) 0",
+  const follow = useCallback(
+    (element: HTMLElement | null) => {
+      if (!element) return;
+      return view.follow((position) => {
+        const translate = playheadAt(position);
+        if (element.style.translate !== translate) element.style.translate = translate;
+      });
     },
+    [view],
+  );
+  return useRenderPart("div", { start: view.start, end: view.end }, props, {
+    ref: follow,
+    "aria-hidden": true,
+    style: { position: "absolute", insetBlock: 0, left: 0, translate: playheadAt(view.position) },
   });
 }
 

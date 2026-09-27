@@ -268,34 +268,44 @@ export namespace WaveformShape {
 
 /**
  * The part of the waveform before the playhead, drawn over
- * `Waveform.Shape` in its own `color`. It is clipped in CSS from
- * `--timeline-position`: playback draws nothing.
+ * `Waveform.Shape` in its own `color`. It is clipped in CSS at the
+ * playhead: playback rewrites its `clip-path` and draws nothing.
  */
 export function WaveformProgress({ channel, ...props }: WaveformProgress.Props) {
   const context = useWaveformContext("Progress");
   const drawing = useDrawing(context, channel);
-  const element = useRef<HTMLElement | null>(null);
-  const { placement } = context;
-  // A region that moves clips its played part from its new start, without rendering.
-  useEffect(
-    () =>
-      placement.subscribe(() => {
-        const style = element.current?.style;
-        const clip = playedClip(placement.at);
-        if (style && style.clipPath !== clip) style.clipPath = clip;
-      }),
-    [placement],
+  const { placement, view } = context;
+  // The playhead, and a region that moves, clip the played part without rendering.
+  const follow = useCallback(
+    (element: HTMLElement | null) => {
+      if (!element) return;
+      const clip = () => {
+        const clipPath = playedClip(placement.at, view.position);
+        if (element.style.clipPath !== clipPath) element.style.clipPath = clipPath;
+      };
+      const stopFollowing = view.follow(clip);
+      const stopListening = placement.subscribe(clip);
+      return () => {
+        stopFollowing();
+        stopListening();
+      };
+    },
+    [placement, view],
   );
-  const ref = useMergedRef(drawing, element);
+  const ref = useMergedRef(drawing, follow);
   return useRenderPart("div", context.state, props, {
     ref,
-    style: { position: "absolute", inset: 0, clipPath: playedClip(placement.at) },
+    style: { position: "absolute", inset: 0, clipPath: playedClip(placement.at, view.position) },
   });
 }
 
-/** Clips a progress layer to the part before the playhead, for a region that starts `at` seconds on the timeline. */
-const playedClip = (at: number) =>
-  `inset(0 max(0px, calc(100% - (var(--timeline-position) - ${at}) * var(--timeline-scale))) 0 0)`;
+/**
+ * Clips a progress layer to the part before the playhead, for a region that
+ * starts `at` seconds on the timeline: the numbers written in, no CSS
+ * variable of its own.
+ */
+const playedClip = (at: number, position: number) =>
+  `inset(0 max(0px, calc(100% - ${position - at} * var(--timeline-scale))) 0 0)`;
 
 export namespace WaveformProgress {
   export type State = WaveformState;

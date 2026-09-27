@@ -32,15 +32,14 @@ const grid = musicalGrid({ bpm: 120 });
 
 `Timeline.Root` is the time axis: `start` … `end` seconds fill its width. A `Track` is a row, one track of an arrangement. A `Region` is what lies on it for a time: a region, clip or pattern (the same thing in Logic, Ableton and FL Studio), a loop range, or a marker with no duration. Its content, a [waveform](/docs/components/waveform), a label, is yours to put inside.
 
-Everything on the axis places itself in CSS from three variables the root writes:
+Everything on the axis places itself in CSS from two variables the root writes:
 
 | CSS variable | |
 | --- | --- |
 | `--timeline-start` | Seconds at the left edge. |
 | `--timeline-scale` | CSS pixels per second. |
-| `--timeline-position` | The playhead, in seconds. |
 
-Playback writes one variable per frame, and scrolling or zooming two, whatever the number of tracks and regions: nothing renders, and nothing runs for each region. Place regions in a `Track`, or another element that spans the timeline's width.
+Scrolling or zooming writes these two, whatever the number of tracks and regions: nothing renders, and nothing runs for each region. The playhead is written, as a number, only into the parts that follow it (`Playhead`, `Waveform.Progress`), so a frame of playback recalculates the style of those parts alone. To follow the playhead with an element of your own, render it as the `Playhead` (`render={<YourLine />}`). Place regions in a `Track`, or another element that spans the timeline's width.
 
 ## Regions
 
@@ -113,7 +112,7 @@ The time axis. Renders a `<div>` with `position: relative`.
 
 ### Playhead
 
-A line at `--timeline-position`, across everything on the timeline. Renders a `<div>`, hidden from assistive technology: give it a width and a color.
+A line at the playhead, across everything on the timeline. Renders a `<div>`, hidden from assistive technology: give it a width and a color.
 
 <PropsTable part="Timeline.Playhead" />
 

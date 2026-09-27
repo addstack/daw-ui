@@ -11,6 +11,7 @@ In a DAW, the interface competes with audio and with dozens of animated meters. 
 - **Values never render through React.** When the value of a knob, fader or number box changes, by a drag, a key, or automation, each part writes what it shows (an attribute, a CSS variable, its text) straight to the DOM, and only what differs. Dragging a knob renders nothing, not even the knob.
 - **Values that change on their own are read, not pushed.** Meters, `read` on knobs and faders, and `Knob.Modulation` are called once per animation frame by one shared `requestAnimationFrame` loop, instead of flowing through props and renders. The accessible value of a meter updates four times a second.
 - **An interaction renders only what it changes.** Toggles in a group subscribe to their own state: painting one step of a 16 × 64 sequencer renders that step, not the grid.
+- **Playback touches only what follows the playhead.** The playhead's position is written as a number into the playhead and the played parts of waveforms, not as a CSS variable: a variable on the timeline would recalculate the style of every element under it on every frame. Scrolling and zooming do change the variables every element on the timeline uses, so they cost more than playback, in proportion to the number of elements.
 - **Drawing happens when what is drawn changes, not when it moves.** [Waveforms](/docs/components/waveform) draw canvas tiles once and let CSS place them in time: playback and scrolling draw nothing already drawn. What must be drawn goes through one queue that spends at most 4 ms per frame, visible tiles first.
 - **Layout is read once per gesture.** A paint stroke reads the boxes of the toggles when it starts, then tests the pointer's path against them.
 - **Formatters are created once**, not per frame.
@@ -26,10 +27,10 @@ Every change to the repository runs stress pages, in a production build, in Chro
 | Paint 64 steps, meters running | 7.4 | 1.1 | 1 of 89 | 10.1 / 11.8 | 32 for 30 moves |
 | Automation on 128 knobs and faders, through `read` | 12.2 | 2.7 | 1 of 180 | – | 0 |
 | The same automation through React state (`value`) | 19.4 | 9.9 | 24 of 157 | – | one per frame |
-| 32 waveforms on a timeline with a ruler and grid, playback | 3.6 | 0.0 | 0 of 181 | – | 0, and no tile drawn |
-| The same, the view paging along with playback | 3.1 | 0.0 | 0 of 181 | – | 0, and no tile drawn |
-| The same, recording a 33rd take | 4.0 | 0.1 | 0 of 180 | – | 0, one tile drawn per frame |
-| The same, zooming without pause | 7.5 | 0.9 | 3 of 177 | – | 0 |
+| 32 waveforms on a timeline with a ruler and grid, playback | 2.8 | 0.1 | 0 of 181 | – | 0, and no tile drawn |
+| The same, the view paging along with playback | 4.6 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
+| The same, recording a 33rd take | 3.5 | 0.3 | 0 of 181 | – | 0, one tile drawn per frame |
+| The same, zooming without pause | 8.9 | 0.8 | 4 of 177 | – | 0 |
 
 A 60 Hz frame has 16.7 ms. The last two rows are the same page driven two ways: controlled `value` props updated on every frame spend more than the whole budget, `read` leaves room.
 
