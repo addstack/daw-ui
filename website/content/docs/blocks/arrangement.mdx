@@ -23,4 +23,4 @@ A block is a composition of components, to copy and adapt: the library has no `A
 - **Content by kind.** A clip of audio holds a waveform, a clip of MIDI holds notes; both show what the region shows, from its `offset` for its `duration`.
 - **An automation lane under the bass.** A [`Curve`](/docs/components/curve) outside any region lies on the timeline itself. It is editable: drag its points, bend its segments, double-click to add a point; moves snap to the grid, and the block keeps the points each gesture leaves.
 
-Editing clips, selecting, moving and trimming them, is not in this block yet: it will be an engine your application creates with a hook and hands to the regions, as `useCurveEditing` is for curves (see the [principles](/docs/principles), section 6).
+Clips here only show. Moving and trimming them is your application changing their `at`, `duration` and `offset`: the [Region page](/docs/components/region#moving-and-trimming) shows how, in a few lines.

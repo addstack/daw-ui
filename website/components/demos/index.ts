@@ -16,6 +16,7 @@ import NotesDemo from './notes';
 import NumberBoxDemo from './number-box';
 import SegmentsDemo from './number-box-segments';
 import RegionDemo from './region';
+import RegionEditingDemo from './region-editing';
 import TimelineDemo from './timeline';
 import ToggleDemo from './toggle';
 import MixerDemo from './toggle-group-mixer';
@@ -42,6 +43,7 @@ export const demos = {
   'number-box': NumberBoxDemo,
   'number-box-segments': SegmentsDemo,
   region: RegionDemo,
+  'region-editing': RegionEditingDemo,
   timeline: TimelineDemo,
   toggle: ToggleDemo,
   'toggle-group-mixer': MixerDemo,

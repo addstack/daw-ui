@@ -337,7 +337,7 @@ Parts place themselves in CSS from these variables, with the physical `left` and
 | `Region.Label` | `span` | `user-select: none`. Its id labels the region while mounted. |
 | `Region.Content` | `div` | `position: relative`. |
 
-A region has no behaviour of its own: selecting, moving and trimming regions is for an editing engine the application owns (principles, section 6).
+A region has no behaviour of its own: moving and trimming it is the application changing its props.
 
 ### 10.5 Tiles
 

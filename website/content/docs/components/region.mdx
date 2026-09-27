@@ -43,7 +43,13 @@ A new placement, from props or from `read`, rewrites the region's position and w
 </Region.Root>
 ```
 
-A region only shows. Selecting, moving and trimming regions will be an engine your application creates with a hook, not the region's own behaviour: see the [principles](/docs/principles), section 6.
+## Moving and trimming
+
+<ComponentPreview name="region-editing" />
+
+A region shows where its props put it, so moving and trimming it is your application changing `at`, `duration` and `offset`. The demo does it with a few lines of pointer handling: a drag on the region moves it, a drag on an edge trims it, snapped to beats, and arrows do the same from the keyboard. Trimming the start moves `offset` with `at`, so the audio stays where it is in time.
+
+The waveform inside draws nothing again as the region moves or is trimmed: it only places its tiles again. The edges are plain elements of the page, at the sides of the region; style them as a bar or as a zone that only changes the cursor.
 
 ## Accessibility
 
