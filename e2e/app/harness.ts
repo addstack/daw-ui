@@ -22,6 +22,8 @@ declare global {
       level: number;
       /** Milliseconds from each pointermove to the start of the next frame. */
       inputLatencies: number[];
+      /** Canvas tiles drawn: waveform tiles clear their canvas once per draw. */
+      canvasDraws: number;
       measureFrames(durationMs: number): Promise<FrameStats>;
     };
   }
@@ -32,7 +34,14 @@ export function installHarness(): void {
     events: [],
     level: -60,
     inputLatencies: [],
+    canvasDraws: 0,
     measureFrames,
+  };
+
+  const clearRect = CanvasRenderingContext2D.prototype.clearRect;
+  CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+    window.e2e.canvasDraws++;
+    return clearRect.apply(this, args);
   };
 
   // Input latency: from the event's timestamp to the animation frame after its handlers ran.

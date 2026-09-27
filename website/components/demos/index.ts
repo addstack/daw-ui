@@ -12,6 +12,8 @@ import SegmentsDemo from './number-box-segments';
 import ToggleDemo from './toggle';
 import MixerDemo from './toggle-group-mixer';
 import SequencerDemo from './toggle-group-sequencer';
+import WaveformDemo from './waveform';
+import RecordingDemo from './waveform-recording';
 
 /** Demos by file name, for `<ComponentPreview name="…" />`. */
 export const demos = {
@@ -27,6 +29,8 @@ export const demos = {
   toggle: ToggleDemo,
   'toggle-group-mixer': MixerDemo,
   'toggle-group-sequencer': SequencerDemo,
+  waveform: WaveformDemo,
+  'waveform-recording': RecordingDemo,
 } satisfies Record<string, ComponentType>;
 
 export type DemoName = keyof typeof demos;

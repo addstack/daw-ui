@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>Headless React components for audio apps.</b><br>
-  Knobs, faders, number boxes, level meters and toggle groups you paint by dragging, the way Ableton Live and FL Studio work. Unstyled, accessible, in any language, and measured for speed.
+  Knobs, faders, number boxes, level meters, toggle groups you paint by dragging, and waveforms on a timeline, the way Ableton Live and FL Studio work. Unstyled, accessible, in any language, and measured for speed.
 </p>
 
 <p align="center">
@@ -198,6 +198,35 @@ A peak meter with hold and a clip indicator. `read` is called once per animation
 
 Toggles subscribe to the group with selectors: painting one step of a 16 × 64 grid renders that step, not the grid.
 
+### Timeline and Waveform
+
+A time axis with one playhead over every track, and audio drawn on it:
+
+```tsx
+const peaks = createPeaks([buffer.getChannelData(0)], buffer.sampleRate);
+const grid = musicalGrid({ bpm: 120 });
+
+<Timeline.Root start={0} end={30} read={() => transport.time}>
+  <Timeline.Ruler grid={grid} className="h-6 [&_[data-label]]:ps-1" />
+  <Timeline.Grid grid={grid} className="text-white/10" />
+  {tracks.map((track) => (
+    <div key={track.id} className="relative h-16">
+      {track.clips.map((clip) => (
+        <Waveform.Root key={clip.id} peaks={clip.peaks} at={clip.start} offset={clip.offset} duration={clip.length} aria-label={clip.name}>
+          <Waveform.Shape className="text-sky-700" />
+          <Waveform.Progress className="text-sky-300" />
+        </Waveform.Root>
+      ))}
+    </div>
+  ))}
+  <Timeline.Playhead className="w-px bg-white" />
+</Timeline.Root>
+```
+
+**Timeline** parts: `Root` (the view `start` … `end`, `readView` per frame, the playhead from `position` or `read`), `Playhead`, `Item` (anything placed for a time: a clip frame, a region, a marker), `Ruler` (labels) and `Grid` (lines) of a `musicalGrid({ bpm })` or `clockGrid()`, as fine as the zoom leaves room for: bars, beats, sixteenths. The root writes `--timeline-start`, `--timeline-scale` and `--timeline-position`, and everything on it is placed in CSS from them: playback writes one variable per frame and scrolling two, however many clips there are. Time runs left to right in every language.
+
+**Waveform** parts: `Root` (`role="img"`, placed like an item), `Shape` and `Progress` (the played part, clipped at the playhead in CSS), drawn in their CSS `color`. `createPeaks` computes min/max peaks at several resolutions in one pass (34 ms for ten minutes of stereo); `peaksFromAudiowaveform` reads peaks made ahead of time by the `audiowaveform` tool; `createPeaksRecorder` grows as you `append` blocks while recording, and its waveform draws only the tile the audio arrives in. Given the `samples`, a waveform zoomed in beyond the peaks draws from them, down to single samples. The waveform is drawn into canvas tiles once, placed in time by CSS: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and redraws them sharp when it rests, and one queue for all waveforms draws at most 4 ms per frame, visible tiles first.
+
 ## 🔢 Values and formats
 
 `createRange({ min, max, step, scale })` is the value model behind the controls, and you can use it on its own (for automation lanes or MIDI mapping, for example). The built-in `formats` print numbers with `Intl.NumberFormat` in the user's locale (or a `locale` you pass). They add only unit symbols that read the same in every language, and parse typed text back into a value:
@@ -250,7 +279,7 @@ A gesture starts with the first change, so a click that changes nothing leaves n
 
 ## ⚡ Performance
 
-In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders a stress page with 64 channel strips (running meters, pan knobs, faders, mute and solo) and a 16 × 64 step sequencer, in a production build, with the CPU slowed down 4×:
+In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders stress pages with 64 channel strips (running meters, pan knobs, faders, mute and solo), a 16 × 64 step sequencer and a timeline of 32 four-minute clips, in a production build, with the CPU slowed down 4×:
 
 | Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
 | --- | --: | --: | --: | --: | --: |
@@ -259,10 +288,14 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | Paint 64 steps, meters running | 7.4 | 1.1 | 1 of 89 | 10.1 / 11.8 | 32 for 30 moves |
 | Automation on 128 knobs and faders, through `read` | 12.2 | 2.7 | 1 of 180 | – | 0 |
 | The same automation through React state (`value`) | 19.4 | 9.9 | 24 of 157 | – | one per frame |
+| 32 waveforms on a timeline with a ruler and grid, playback | 3.6 | 0.0 | 0 of 181 | – | 0, and no tile drawn |
+| The same, the view paging along with playback | 3.1 | 0.0 | 0 of 181 | – | 0, and no tile drawn |
+| The same, recording a 33rd take | 4.0 | 0.1 | 0 of 180 | – | 0, one tile drawn per frame |
+| The same, zooming without pause | 7.5 | 0.9 | 3 of 177 | – | 0 |
 
 A 60 Hz frame has 16.7 ms. The last row is the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (15.2 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (20.3 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 
@@ -270,13 +303,13 @@ The package ships behaviour only, so it can sit under your design system or a sh
 
 - State is exposed as attributes: `data-dragging`, `data-disabled`, `data-bipolar`, `data-zone`, `data-orientation`, `data-pressed`, `data-painting="on" | "off"`, `data-editing`, `data-active`, `data-clipped`.
 - `className` and `style` are plain values, never functions of state. In a DAW everything renders often (every pointer event of a drag, every frame of automation), so styling must not run code per render; the browser applies attributes and CSS variables by itself.
-- Values are exposed as CSS variables: `--knob-value`, `--knob-angle`, `--fader-value`, `--meter-level`, `--meter-peak`.
+- Values are exposed as CSS variables: `--knob-value`, `--knob-angle`, `--fader-value`, `--meter-level`, `--meter-peak`, `--timeline-start`, `--timeline-scale`, `--timeline-position`.
 - `render` replaces a part's element: `<Knob.Control render={<button />} />`. Handlers are merged; call `event.preventDefault()` in yours to skip the part's own handling.
 - The only inline styles are positioning along a track (with logical properties) and `touch-action`.
 
 ## ♿ Accessibility and languages
 
-Knobs and faders are sliders, number boxes are spin buttons, meters are meters, and toggles are buttons with `aria-pressed`. Values are announced as they are shown. A meter's accessible value updates four times a second, not 60. Nothing in the library is English: parts without visible text need a name from you (a `Label` part or `aria-label`), numbers follow the locale, and horizontal controls and arrow keys follow the reading direction in right-to-left pages. The details are in [docs/principles.md](https://github.com/addstack/daw-ui/blob/main/docs/principles.md).
+Knobs and faders are sliders, number boxes are spin buttons, meters are meters, toggles are buttons with `aria-pressed`, and waveforms are images named by you. Values are announced as they are shown. A meter's accessible value updates four times a second, not 60. Nothing in the library is English: parts without visible text need a name from you (a `Label` part or `aria-label`), numbers follow the locale, and horizontal controls and arrow keys follow the reading direction in right-to-left pages. The details are in [docs/principles.md](https://github.com/addstack/daw-ui/blob/main/docs/principles.md).
 
 ## 📐 Specification
 

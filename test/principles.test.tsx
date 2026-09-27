@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
-import { formats } from "../src/core/index.js";
-import { Fader, Knob, Meter, NumberBox, Toggle, ToggleGroup } from "../src/react/index.js";
+import { createPeaks, formats } from "../src/core/index.js";
+import { Fader, Knob, Meter, NumberBox, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -72,6 +72,14 @@ function EveryComponent() {
         </Meter.Track>
         <Meter.Clip />
       </Meter.Root>
+      <Timeline.Root start={0} end={1} position={0.5}>
+        <Timeline.Item at={0.25} duration={0.5} />
+        <Waveform.Root peaks={createPeaks([new Float32Array(8)], 8)}>
+          <Waveform.Shape />
+          <Waveform.Progress />
+        </Waveform.Root>
+        <Timeline.Playhead />
+      </Timeline.Root>
       <ToggleGroup paint exclusive="click">
         <Toggle />
         <Toggle behavior="momentary" />

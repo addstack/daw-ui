@@ -1,0 +1,114 @@
+---
+title: Timeline
+description: A time axis shared by waveforms, clips and markers, with one playhead over all of them, that moves without rendering.
+---
+
+<ComponentPreview name="waveform" />
+
+## Anatomy
+
+```tsx
+import { musicalGrid } from '@addstack/daw-ui';
+import { Timeline } from '@addstack/daw-ui/react';
+
+const grid = musicalGrid({ bpm: 120 });
+
+<Timeline.Root start={0} end={30} read={() => transport.time}>
+  <Timeline.Ruler grid={grid}>
+    <Timeline.Grid grid={grid} />
+  </Timeline.Ruler>
+  <div className="relative">
+    <Timeline.Grid grid={grid} />
+    <div className="relative h-16">
+      <Timeline.Item at={4} duration={8} />
+      <Waveform.Root peaks={peaks} at={4} />
+    </div>
+  </div>
+  <Timeline.Playhead />
+</Timeline.Root>
+```
+
+`Timeline.Root` is the time axis: `start` … `end` seconds fill its width. What sits on it, a [waveform](/docs/components/waveform), a clip's frame, a marker, places itself in CSS from three variables the root writes:
+
+| CSS variable | |
+| --- | --- |
+| `--timeline-start` | Seconds at the left edge. |
+| `--timeline-scale` | CSS pixels per second. |
+| `--timeline-position` | The playhead, in seconds. |
+
+Playback writes one variable per frame, and scrolling or zooming two, whatever the number of tracks and clips: nothing renders, and nothing runs for each clip. Place items in elements that span the timeline's width, such as track rows with `position: relative`.
+
+Time runs left to right in every language, as in music notation and every DAW, also in a right-to-left page.
+
+## Playback, scrolling and zoom
+
+Pass values that change on every frame as functions, which the timeline calls once per animation frame:
+
+```tsx
+<Timeline.Root
+  start={0}
+  end={30}
+  read={() => transport.time}
+  readView={() => [view.start, view.end]}
+/>
+```
+
+`start`, `end` and `position` are for values that change rarely, from React state. The view in the demo zooms with a fader whose `onValueChange` writes to a ref that `readView` reads: dragging it renders nothing.
+
+The timeline does not scroll or zoom by itself: it shows the view you give it, so the gestures and their policy (scroll with the wheel, zoom around the pointer, follow the playhead) stay in your application.
+
+## Ruler and grid
+
+A grid says where lines fall and what they read. `musicalGrid({ bpm, beatsPerBar, divisions })` gives sixteenths, beats, bars and groups of bars at a constant tempo, read as a song position; `clockGrid()` gives milliseconds to hours, read as `1:05.25`. Both print digits in the user's locale. Make a grid once, outside the component or with `useMemo`.
+
+`Timeline.Ruler` labels the grid; `Timeline.Grid` draws its lines. Each uses the finest step of the grid that leaves `spacing` pixels between lines at the zoom, so zooming out goes from sixteenths to beats, to bars, to groups of bars:
+
+```tsx
+<Timeline.Ruler grid={grid} className="h-6 text-xs [&_[data-label]]:ps-1">
+  {/* Marks under the labels: a grid in the ruler, from 65% of its height down. */}
+  <Timeline.Grid grid={grid} style={{ top: '65%' }} className="text-neutral-600" />
+</Timeline.Ruler>
+
+<div className="relative">
+  {/* Minor and major lines under the tracks: two grids, the major ones as far apart as the labels. */}
+  <Timeline.Grid grid={grid} className="text-white/5" />
+  <Timeline.Grid grid={grid} spacing={64} className="text-white/15" />
+  {tracks}
+</div>
+```
+
+Lines are drawn like [waveforms](/docs/components/waveform#how-it-stays-fast), in canvas tiles in the element's CSS `color`, and labels are text placed in time: scrolling and playback draw and render nothing, and the labels change only when the view moves half its width or the zoom changes the step. Labels are `span`s with `data-label`: style them in CSS.
+
+Your own grid is an object with `steps`, seconds between lines from fine to coarse, each a whole multiple of the one before, and `label(time, step)`, for a tempo map or frames of video.
+
+## API reference
+
+### Root
+
+The time axis. Renders a `<div>` with `position: relative`.
+
+<PropsTable part="Timeline.Root" />
+
+### Playhead
+
+A line at `--timeline-position`, across everything on the timeline. Renders a `<div>`, hidden from assistive technology: give it a width and a color.
+
+<PropsTable part="Timeline.Playhead" />
+
+### Item
+
+Anything that lasts on the timeline: a clip's frame, a loop region, a marker with no duration. Renders a `<div>` placed and sized in CSS from `at` and `duration`.
+
+<PropsTable part="Timeline.Item" />
+
+### Ruler
+
+The labels of a grid: a `<div>` with `position: relative`, holding a `<span data-label>` at every line of the grid `spacing` pixels apart, and its children. Hidden from assistive technology.
+
+<PropsTable part="Timeline.Ruler" />
+
+### Grid
+
+Lines at every step of a grid `spacing` pixels apart: a `<div>` that fills its container, with canvas tiles, in its CSS `color`. Hidden from assistive technology.
+
+<PropsTable part="Timeline.Grid" />

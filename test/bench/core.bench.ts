@@ -2,7 +2,16 @@ import { mkdirSync, writeFileSync } from "node:fs";
 
 import { afterAll, test } from "vitest";
 
-import { boxesAlongSegment, createMeterBallistics, createRange, formats, scales, type Box } from "../../src/core/index.js";
+import {
+  boxesAlongSegment,
+  createMeterBallistics,
+  createPeaks,
+  createRange,
+  formats,
+  readPeaks,
+  scales,
+  type Box,
+} from "../../src/core/index.js";
 
 // Work that runs per pointer event or per animation frame, at the sizes of a
 // large session. Results go to perf-results/bench.md for the CI job summary.
@@ -70,6 +79,35 @@ test("per animation frame, 64 channels", async ({ bench }) => {
     }),
   );
   for (const name of [ballistics, text] as const) {
+    const { latency } = results.get(name);
+    rows.push({ name, mean: latency.mean, p99: latency.p99 });
+  }
+});
+
+test("waveforms", async ({ bench }) => {
+  // Ten minutes of stereo at 48 kHz: a long take in a session.
+  const sampleRate = 48_000;
+  const channels = [0, 1].map((channel) => {
+    const samples = new Float32Array(10 * 60 * sampleRate);
+    for (let index = 0; index < samples.length; index++) samples[index] = Math.sin(index * (0.01 + channel * 0.001)) * ((index % 9973) / 9973);
+    return samples;
+  });
+  const peaks = createPeaks(channels, sampleRate);
+  const tile = new Float32Array(2048 * 2);
+
+  const create = "createPeaks, 10 min stereo 48 kHz (once per file)";
+  const read = "readPeaks, one 2048 px tile at any zoom";
+  let time = 0;
+  const results = await bench.compare(
+    bench(create, () => {
+      createPeaks(channels, sampleRate);
+    }),
+    bench(read, () => {
+      time = (time + 7) % 500;
+      readPeaks(peaks, tile, { time, secondsPerColumn: 0.01 });
+    }),
+  );
+  for (const name of [create, read] as const) {
     const { latency } = results.get(name);
     rows.push({ name, mean: latency.mean, p99: latency.p99 });
   }

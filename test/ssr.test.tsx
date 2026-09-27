@@ -2,8 +2,8 @@
 import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
-import { formats } from "../src/core/index.js";
-import { Fader, Knob, Meter, NumberBox, Toggle, ToggleGroup } from "../src/react/index.js";
+import { createPeaks, formats } from "../src/core/index.js";
+import { Fader, Knob, Meter, NumberBox, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -38,6 +38,14 @@ test("every component renders on the server", () => {
           <Meter.Bar />
         </Meter.Track>
       </Meter.Root>
+      <Timeline.Root start={0} end={1} position={0.5}>
+        <Timeline.Item at={0.25} duration={0.5} />
+        <Waveform.Root peaks={createPeaks([new Float32Array(8)], 8)}>
+          <Waveform.Shape />
+          <Waveform.Progress />
+        </Waveform.Root>
+        <Timeline.Playhead />
+      </Timeline.Root>
       <ToggleGroup multiple defaultValue={["a"]}>
         <Toggle value="a">A</Toggle>
         <Toggle value="b">B</Toggle>
@@ -51,4 +59,6 @@ test("every component renders on the server", () => {
   expect(html).toContain('role="group"');
   expect(html).toContain('data-segment="beats"');
   expect(html).toContain('aria-pressed="true"');
+  expect(html).toContain('role="img"');
+  expect(html).toContain("--timeline-position:0.5");
 });

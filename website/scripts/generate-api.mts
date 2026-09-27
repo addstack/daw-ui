@@ -45,6 +45,14 @@ const PARTS = [
   "Meter.Clip",
   "Toggle",
   "ToggleGroup",
+  "Timeline.Root",
+  "Timeline.Playhead",
+  "Timeline.Item",
+  "Timeline.Ruler",
+  "Timeline.Grid",
+  "Waveform.Root",
+  "Waveform.Shape",
+  "Waveform.Progress",
 ] as const;
 
 const SHARED = ["className", "style", "render"];
@@ -110,7 +118,7 @@ function describe(list: string[]): { full: string; short: string } {
 
 const exportName = (part: string) => part.replace(".", "_");
 const content = [
-  `import type { Fader, Knob, Meter, NumberBox, Toggle, ToggleGroup } from "@addstack/daw-ui/react";`,
+  `import type { Fader, Knob, Meter, NumberBox, Timeline, Toggle, ToggleGroup, Waveform } from "@addstack/daw-ui/react";`,
   ...PARTS.map((part) => `export type ${exportName(part)} = ${part}.Props;`),
 ].join("\n");
 

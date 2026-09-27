@@ -1,0 +1,108 @@
+---
+title: Waveform
+description: The shape of audio on a timeline, drawn on canvas once and moved by CSS, for sessions with many clips.
+---
+
+<ComponentPreview name="waveform" />
+
+## Anatomy
+
+```tsx
+import { createPeaks } from '@addstack/daw-ui';
+import { Timeline, Waveform } from '@addstack/daw-ui/react';
+
+const peaks = createPeaks([buffer.getChannelData(0)], buffer.sampleRate);
+
+<Timeline.Root start={0} end={30} read={() => transport.time}>
+  <div className="relative h-16">
+    <Waveform.Root peaks={peaks} at={4} offset={1.5} aria-label={clip.name}>
+      <Waveform.Shape className="text-sky-700" />
+      <Waveform.Progress className="text-sky-300" />
+    </Waveform.Root>
+  </div>
+  <Timeline.Playhead />
+</Timeline.Root>
+```
+
+A waveform shows its audio from `offset` seconds into the file, for `duration` seconds, starting `at` seconds on the [timeline](/docs/components/timeline). It is an image named by `aria-label`, in your application's language.
+
+## Peaks
+
+A waveform draws from peaks: the lowest and highest sample of every 256 samples, then of every 512, and so on, like the mipmaps of a texture. Drawing reads the level closest to the zoom, so its cost follows the pixels on screen, not the length of the audio.
+
+```ts
+import { createPeaks, peaksFromAudiowaveform } from '@addstack/daw-ui';
+
+// From decoded audio: one pass, 34 ms for ten minutes of stereo at 48 kHz.
+const peaks = createPeaks([buffer.getChannelData(0), buffer.getChannelData(1)], buffer.sampleRate);
+
+// Or computed ahead of time by the audiowaveform tool, so a long file is never decoded in the browser.
+const peaks = peaksFromAudiowaveform(await (await fetch('/take-1.json')).json());
+```
+
+For long files, call `createPeaks` in a worker: its data are typed arrays, which move between threads without copying. Values are 8 bits, so an hour of stereo takes under 6 MB. `readPeaks` gives the columns to your own drawing code, for WebGL or an overview.
+
+## Recording
+
+`createPeaksRecorder` makes peaks that grow: append the blocks of samples as they arrive, e.g. from an `AudioWorklet` on the microphone. A waveform of them widens with the take and draws only the tile the audio arrives in, once per frame, however many blocks come in between.
+
+```ts
+import { createPeaksRecorder } from '@addstack/daw-ui';
+
+const take = createPeaksRecorder({ sampleRate: context.sampleRate, channels: 1 });
+worklet.port.onmessage = ({ data }) => take.append([data]); // a Float32Array per block
+
+<Waveform.Root peaks={take} at={recordStart} aria-label="Take 3" />
+```
+
+<ComponentPreview name="waveform-recording" />
+
+## Zooming in to samples
+
+Peaks keep one minimum and maximum per 256 samples. Zoomed in further than that, a waveform shows them as steps, unless you give it the samples, which you already hold in the `AudioBuffer` you play:
+
+```tsx
+<Waveform.Root peaks={peaks} samples={[buffer.getChannelData(0), buffer.getChannelData(1)]} />
+```
+
+Then it draws from them below the peaks' finest level, down to single samples as a line.
+
+## How it stays fast
+
+- **Tiles are drawn once.** The waveform is drawn into canvas tiles of 1024 pixels, only those in view and one on each side. Tiles are placed in time with the timeline's CSS variables: playback and scrolling move them without drawing, and draw only tiles that come into view.
+- **A zoom stretches, then sharpens.** During a zoom the tiles stretch in CSS. When it rests, or goes past twice or half the scale they were drawn at, a sharp layer is drawn over them, and the stretched one goes when the new one covers the view.
+- **Drawing never takes a frame.** All waveforms share one queue that draws at most 4 ms per frame, visible tiles first. A waveform scrolled out of sight draws nothing.
+- **The played part is CSS.** `Waveform.Progress` is a second drawing, clipped at the playhead from `--timeline-position`.
+
+On 32 clips of four minutes under a ruler and a grid, with the CPU slowed down 4×, playback and scrolling take about 3 ms of main thread per frame and draw nothing; recording a 33rd take draws one tile per frame at 4 ms; a continuous zoom takes about 7.5 ms. See [performance](/docs/guides/performance).
+
+## Styling
+
+The waveform is drawn in the CSS `color` of `Waveform.Shape` and `Waveform.Progress`: `className="text-sky-700 dark:text-sky-400"`. It is drawn again when the color changes, by a theme, a media query or a hover. The root is a plain element for backgrounds and borders.
+
+For the channels of a stereo file one above the other, render a shape per channel and place each with `style`:
+
+```tsx
+<Waveform.Shape channel={0} style={{ bottom: '50%' }} />
+<Waveform.Shape channel={1} style={{ top: '50%' }} />
+```
+
+## API reference
+
+### Root
+
+The audio on the timeline, placed like a `Timeline.Item`. Renders a `<div>` with `role="img"`.
+
+<PropsTable part="Waveform.Root" />
+
+### Shape
+
+The waveform, drawn in this element's `color`. Renders a `<div>` that fills the root, with the canvas tiles inside.
+
+<PropsTable part="Waveform.Shape" />
+
+### Progress
+
+The part before the playhead, drawn in this element's `color` over the shape. Renders a `<div>` like `Shape`, clipped in CSS.
+
+<PropsTable part="Waveform.Progress" />

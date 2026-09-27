@@ -11,14 +11,15 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [7. Meter](#7-meter)
 - [8. Toggle](#8-toggle)
 - [9. ToggleGroup](#9-togglegroup)
-- [10. Direction](#10-direction)
-- [11. Performance budgets](#11-performance-budgets)
+- [10. Timeline and Waveform](#10-timeline-and-waveform)
+- [11. Direction](#11-direction)
+- [12. Performance budgets](#12-performance-budgets)
 
 ## 1. Scope
 
 | Layer | Entry point | Depends on | Responsibility |
 | --- | --- | --- | --- |
-| Core | `@addstack/daw-ui` | nothing | Ranges and scales, formats, geometry, meter ballistics. |
+| Core | `@addstack/daw-ui` | nothing | Ranges and scales, formats, geometry, meter ballistics, peaks of audio, time grids. |
 | React binding | `@addstack/daw-ui/react` | `react`, `react-dom` (peers, ≥ 19) | Headless components. |
 
 Non-goals: styling, audio processing, and application state such as undo history or automation. The components report what the user did; the application decides what it means.
@@ -132,7 +133,7 @@ A change is **applied** as follows: the candidate is constrained; if it equals t
 
 On primary-button pointerdown on the control (not disabled): the default action is prevented, the control takes focus, captures the pointer, and optionally requests pointer lock (`pointerLock`). The drag keeps a travel position `p`, starting at `normalize(value)`.
 
-On each pointermove, `Δ` is the pointer movement since the previous event (`movementX/Y` while locked, else client coordinates): up for vertical controls, towards the inline end for horizontal ones (§10). Then `p = clamp01(p + Δ / sensitivity × (Shift ? 0.1 : 1))`, and `denormalize(p)` is applied with reason `"drag"`. Because `p` is clamped, moving back after overshooting an end responds at once. On a wrapping or endless range, `p` is not clamped, and the drag goes round. `dragging` is true from the first move until the pointer is released, cancelled or loses capture; then the gesture ends.
+On each pointermove, `Δ` is the pointer movement since the previous event (`movementX/Y` while locked, else client coordinates): up for vertical controls, towards the inline end for horizontal ones (§11). Then `p = clamp01(p + Δ / sensitivity × (Shift ? 0.1 : 1))`, and `denormalize(p)` is applied with reason `"drag"`. Because `p` is clamped, moving back after overshooting an end responds at once. On a wrapping or endless range, `p` is not clamped, and the drag goes round. `dragging` is true from the first move until the pointer is released, cancelled or loses capture; then the gesture ends.
 
 `sensitivity` (pixels for the full travel) defaults to 200 for a knob, to the track's length along the orientation for a fader (the control's length if there is no track, 200 if that is 0), and for a number box to `clamp(2·(max − min) / step, 100, 1000)` (400 without a step or with an infinite range; an endless number box takes `2·(max − min) / step` unclamped, two pixels per step).
 
@@ -142,8 +143,8 @@ On the focused control (not disabled):
 
 | Key | Continuous range | With `step` |
 | --- | --- | --- |
-| ArrowUp; ArrowRight (§10) | travel + 0.01 (Shift: + 0.001) | value + step |
-| ArrowDown; ArrowLeft (§10) | travel − 0.01 (Shift: − 0.001) | value − step |
+| ArrowUp; ArrowRight (§11) | travel + 0.01 (Shift: + 0.001) | value + step |
+| ArrowDown; ArrowLeft (§11) | travel − 0.01 (Shift: − 0.001) | value − step |
 | PageUp / PageDown | travel ± 0.1 | travel ± 0.1 if that is more than one step, else ± step |
 | Home / End | `min` / `max` | same |
 | Delete, Backspace | reset | same |
@@ -286,13 +287,68 @@ Toggles are arranged into lines: one line per lane (in order of first appearance
 
 | Key | Moves focus to |
 | --- | --- |
-| Arrow along the axis | the next enabled toggle in the line in that direction (Left/Right follow the reading direction, §10) |
+| Arrow along the axis | the next enabled toggle in the line in that direction (Left/Right follow the reading direction, §11) |
 | Arrow across the axis | the toggle at the same position (or the last one) in the next line in that direction whose toggle there is enabled |
 | Home / End | the first / last enabled toggle of the line; with Ctrl, of the group |
 
 Handled keys prevent their default action. With Shift, an arrow move within the same lane between paintable toggles also sets the target toggle to the state of the one focus came from (reason `"paint"`, one gesture).
 
-## 10. Direction
+## 10. Timeline and Waveform
+
+### 10.1 Peaks (`createPeaks`, `createPeaksRecorder`, `peaksFromAudiowaveform`, `readPeaks`)
+
+`Peaks` holds `sampleRate`, `channels`, `length` (samples per channel), `duration` (`length / sampleRate`), `levels`, and optionally `subscribe`. Level 0 has buckets of `samplesPerPeak` samples (default 256, a whole number ≥ 1, else a `RangeError`); level k + 1 merges pairs of buckets of level k (an odd last bucket alone), down to one bucket. Each level holds, per channel, an `Int8Array` of the minimum and maximum of each bucket in turn, as `clamp(round(sample · 127), −127, 127)`. An array may be longer than the buckets in use, `⌈length / samplesPerPeak⌉`.
+
+- `createPeaksRecorder({ sampleRate, channels, samplesPerPeak? })` returns empty peaks (at least one channel, else a `RangeError`) with `append(channels)`: the samples extend every channel by the longest array given; a channel given fewer samples, or none, adds no range where it has none, and a bucket with no sample of a channel is (0, 0). The last bucket holds the samples so far until it is full. After each `append`, every listener of `subscribe(listener)` is called with the second where the first changed bucket starts. Peaks appended in blocks equal the peaks of the whole.
+- `createPeaks(channels, sampleRate, options?)` is a recorder given all samples at once, returned without listeners ever called.
+- `peaksFromAudiowaveform(json)` reads the JSON of `audiowaveform`: `data` holds the minimum and maximum of each bucket for each channel in turn; 16-bit values are divided by 256 and rounded; `samplesPerPeak` is `samples_per_pixel`, and `length` is the number of buckets times it.
+- `readPeaks(peaks, out, { time, secondsPerColumn, channel?, samples? })` fills `out.length / 2` columns with their minimum and maximum in [−1, 1]. With `samples` (one array per channel) and fewer samples per column than `samplesPerPeak` of level 0, a column from sample position `s` to `e = min(s + samples per column, n − 1)` (`n` the shortest array) takes the range of the signal linearly interpolated at `s` and `e` and of the samples between, clamped to [−1, 1]; columns outside `[0, n − 1)` are (0, 0). Otherwise it reads the coarsest level whose `samplesPerPeak` does not exceed the samples per column (level 0 if all do), and for a column starting at sample `s = (time + i · secondsPerColumn) · sampleRate` takes every bucket from `⌊s / spp⌋` to `max(⌊s / spp⌋ + 1, ⌈(s + samples per column) / spp⌉)`, within the buckets in use (bucket values ÷ 127). Columns that start at or after `length`, or cover no bucket, are (0, 0). Without `channel`, all channels are merged.
+
+### 10.2 Grids (`musicalGrid`, `clockGrid`, `gridStep`)
+
+A `TimeGrid` is `{ steps, label(time, step) }`: `steps` are seconds between lines, from fine to coarse, each a whole multiple of the one before; `label` is the text of the line at `time` when lines are `step` apart. `gridStep(grid, scale, spacing)` is the first step with `step · scale ≥ spacing`, or the last.
+
+- `musicalGrid({ bpm, beatsPerBar = 4, divisions = 4, locale? })` (`bpm > 0`, else a `RangeError`), with `beat = 60 / bpm` and `bar = beat · beatsPerBar`: steps `beat / divisions` (when `divisions > 1`), `beat`, then `bar · 2^k` for k = 0 … 10. The label is `formats.position({ beatsPerBar, divisions, locale })` at `time / beat` beats, with the first field alone when `step` is at least a bar, the first two when at least a beat, else all three, joined by `.` (a step within 10⁻⁹ of a unit counts as it).
+- `clockGrid({ locale? })`: steps 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60, 300, 600, 1800, 3600, 7200, 14 400, 28 800, 57 600 s. The label has `d` decimals, 0 for a step ≥ 1 s, 1 for ≥ 0.1, 2 for ≥ 0.01, else 3; from `t = round(|time| · 10^d)`, it is `m:ss`, or `h:mm:ss` from an hour on, then the locale's decimal separator and `d` digits when `d > 0`, with the locale's minus sign before it when `time < 0` and `t > 0`. Digits follow the locale.
+
+### 10.3 Timeline
+
+`Timeline.Root` (`div`, `position: relative`) holds a view outside React: `start` and `end` in seconds (`end > start`, else a `RangeError`) and the width of its padding box in CSS pixels, measured before the first paint and then by a `ResizeObserver`. `scale = width / (end − start)` CSS pixels per second (0 before measurement). It writes to its element:
+
+- `--timeline-start`: `start`; `--timeline-scale`: `scale` followed by `px` — when the view or the width changes;
+- `--timeline-position`: the `position` prop (default 0), or with `read`, `read()` once per animation frame on the shared frame loop, written only when its text changes.
+
+With `readView`, `readView()` gives `[start, end]` once per animation frame. None of these changes renders a component.
+
+Parts place themselves in CSS from these variables, with the physical `left` and `translate`: time runs left to right in every direction (§11).
+
+| Part | Element | Behaviour |
+| --- | --- | --- |
+| `Timeline.Playhead` | `div` | `aria-hidden`; `position: absolute`, `inset-block: 0`, `left: 0`, `translate: calc((var(--timeline-position) − var(--timeline-start)) · var(--timeline-scale)) 0`. |
+| `Timeline.Item` | `div` | `position: absolute`, `inset-block: 0`, `left: 0`, `width: calc(duration · var(--timeline-scale))`, `translate: calc((at − var(--timeline-start)) · var(--timeline-scale)) 0`; `duration` defaults to 0. |
+| `Timeline.Grid` | `div` | `aria-hidden`, `position: absolute; inset: 0; overflow: hidden`. Draws in tiles (§10.4), placed on the view, with no start or end, a line `max(1, round(devicePixelRatio))` device pixels wide at every multiple of `gridStep(grid, scale of the tile, spacing)` (default spacing 12). A new `grid` with the same `steps`, and the same `spacing`, draws nothing again. |
+| `Timeline.Ruler` | `div` | `aria-hidden`, `position: relative; overflow: hidden`, and its `children`. Holds a `span` with `data-label` and the text `grid.label(k · step, step)` for every whole `k` with `k · step` in `[start − w/2, end + w/2]` (`w = end − start`, `step = gridStep(grid, scale, spacing)`, default spacing 64), placed with `position: absolute; left: 0; white-space: nowrap; translate: calc((k · step − var(--timeline-start)) · var(--timeline-scale)) 0`. The labels change only when the view leaves that stretch or the step changes; a new `grid` rewrites texts that differ. |
+
+### 10.4 Tiles
+
+`Timeline.Grid` and the waveform parts draw into canvas tiles appended to their element, without React:
+
+- A **layer** is drawn at one scale `s` (the timeline's scale when it starts). Its tile `i` covers `T = 1024 / s` seconds from `from + i · T` (from 0, with negative `i`, when the content has no start; the last tile ends with the content), is `round(length · s · devicePixelRatio)` device pixels wide and as tall as the part times `devicePixelRatio`, and is placed in time: `left: 0`, `height: 100%`, `width: calc(length · var(--timeline-scale))`, `translate: calc(offset · var(--timeline-scale)) 0`, where `offset` is the tile's start minus the content's start (waveform), or minus `var(--timeline-start)` (grid). At another scale it stretches in place.
+- A tile is cleared and drawn with `fillStyle` set to the part's computed `color`.
+- **In view** are the tiles overlapping `[start, end]` of the timeline; one tile on each side is drawn after them. Tiles more than two tiles away from the view are removed.
+- Tiles are drawn by one queue shared by all tiled parts, in animation frames, at most 4 ms per frame (a tile that starts within the budget finishes), taking parts in turn and, in each, the tiles in view before the ones beside them. A part out of the viewport (`IntersectionObserver`) or with no height draws nothing.
+- **A new layer** starts over the current one when the scale is outside ½ … 2 times the top layer's, or 150 ms after the last change of scale within that; a change below 10⁻⁶ of the scale is none. The current layer stays until the new one has drawn every tile in view, then is removed. A layer never finished is dropped when another starts, unless nothing else is shown. A change of the part's height, of `devicePixelRatio`, of `prefers-color-scheme` or of the inherited `color` (reported by a hidden element with a 1 ms transition of `color`) also starts a new layer.
+- Content that changes from a time on (audio arriving) marks the tiles that end after it as not drawn; they are drawn again in the next frames over what they show.
+
+### 10.5 Waveform
+
+`Waveform.Root` (`div`, `role="img"`, placed as a `Timeline.Item` with `at` (default 0) and `duration` (default `peaks.duration − offset`, at least 0)) shows the audio of `peaks` from `offset` seconds (default 0). It throws outside `Timeline.Root`. Without `duration`, when the peaks have `subscribe`, it writes its `width` again in the animation frame after the peaks change.
+
+`Waveform.Shape` and `Waveform.Progress` (`div`, `position: absolute; inset: 0`) draw the audio, or the channel `channel`, in tiles (§10.4) placed on the content `[at, at + duration)`. A tile draws one column per device pixel from `readPeaks` (with the root's `samples`), as a rectangle from the maximum to the minimum around the middle, at least one device pixel tall. Other `peaks`, `samples`, `offset`, `duration` or `channel` remove what is drawn and start a new layer; another `at` only changes which tiles are in view. When the peaks change from second `f`, the tiles from timeline time `at + f − offset` on are drawn again.
+
+`Waveform.Progress` is clipped to the played part: `clip-path: inset(0 max(0px, calc(100% − (var(--timeline-position) − at) · var(--timeline-scale))) 0 0)`.
+
+## 11. Direction
 
 The direction is read from the DOM (`getComputedStyle(element).direction`): at pointerdown for drags, at keydown for keys, and once at mount for styles that have no logical form.
 
@@ -300,8 +356,9 @@ The direction is read from the DOM (`getComputedStyle(element).direction`): at p
 - Horizontal meters clip the bar from the inline end.
 - Toggle groups: Left and Right move along the reading direction.
 - Vertical controls, knobs, Up and Down do not depend on direction.
+- Time on a timeline and the fields of number box segments run left to right in every direction (§10, §5.8).
 
-## 11. Performance budgets
+## 12. Performance budgets
 
 Checked on every change; a regression fails CI.
 
@@ -311,6 +368,8 @@ Checked on every change; a regression fails CI.
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 4 kB, React binding (with core) ≤ 16.8 kB. | `scripts/size.mjs` |
+| Playback and scrolling of a view draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
+| In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming; 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
+| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 22.4 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

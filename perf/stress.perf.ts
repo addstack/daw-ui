@@ -26,6 +26,8 @@ type Result = {
   /** Of which JavaScript. */
   scriptPerFrame: number;
   reactCommits: number;
+  /** Canvas tiles drawn by waveforms. */
+  canvasDraws: number;
 };
 
 const results: Result[] = [];
@@ -38,15 +40,15 @@ test.afterAll(() => {
   const ms = (value: number | undefined) => (value === undefined ? "–" : value.toFixed(1));
   const rows = results.map(
     (result) =>
-      `| ${result.scenario} | ${ms(result.mainThreadPerFrame)} | ${ms(result.scriptPerFrame)} | ${ms(result.p50)} / ${ms(result.p99)} | ${result.dropped} / ${result.frames} | ${result.longAnimationFrames} | ${ms(result.inputLatencyP50)} / ${ms(result.inputLatencyP95)} | ${result.reactCommits} |`,
+      `| ${result.scenario} | ${ms(result.mainThreadPerFrame)} | ${ms(result.scriptPerFrame)} | ${ms(result.p50)} / ${ms(result.p99)} | ${result.dropped} / ${result.frames} | ${result.longAnimationFrames} | ${ms(result.inputLatencyP50)} / ${ms(result.inputLatencyP95)} | ${result.reactCommits} | ${result.canvasDraws} |`,
   );
   writeFileSync(
     "perf-results/browser.md",
     [
       `### Browser (Chromium, production build, CPU ${CPU_SLOWDOWN}× slower)`,
       "",
-      "| Scenario | Main thread per frame (ms) | Script per frame (ms) | Frame p50 / p99 (ms) | Dropped frames | Long animation frames | Input → frame p50 / p95 (ms) | React commits |",
-      "| --- | --: | --: | --: | --: | --: | --: | --: |",
+      "| Scenario | Main thread per frame (ms) | Script per frame (ms) | Frame p50 / p99 (ms) | Dropped frames | Long animation frames | Input → frame p50 / p95 (ms) | React commits | Canvas tiles drawn |",
+      "| --- | --: | --: | --: | --: | --: | --: | --: | --: |",
       ...rows,
       "",
     ].join("\n"),
@@ -72,6 +74,7 @@ async function openStress(page: Page, view = "stress", query = ""): Promise<void
   await page.evaluate(() => {
     window.reactCommits = 0;
     window.e2e.inputLatencies = [];
+    window.e2e.canvasDraws = 0;
   });
 }
 
@@ -108,6 +111,7 @@ async function measure(
     mainThreadPerFrame: (after.task - before.task) / stats.frames,
     scriptPerFrame: (after.script - before.script) / stats.frames,
     reactCommits: await page.evaluate(() => window.reactCommits),
+    canvasDraws: await page.evaluate(() => window.e2e.canvasDraws),
   };
   results.push(result);
   return result;
@@ -170,5 +174,37 @@ test("automation: 64 knobs and 64 faders, driven with read", async ({ page }) =>
   await openStress(page, "automation", "&mode=read");
   const result = await measure(page, "Automation, 128 controls, read", 3000);
   // Budget: read values reach the DOM without rendering.
+  expect(result.reactCommits).toBe(0);
+});
+
+test("32 waveforms on one timeline: playback", async ({ page }) => {
+  await openStress(page, "waveforms", "&mode=play");
+  const result = await measure(page, "32 waveforms, playback", 3000);
+  // Budget: the playhead and the played parts move in CSS; nothing renders or draws.
+  expect(result.reactCommits).toBe(0);
+  expect(result.canvasDraws).toBe(0);
+});
+
+test("32 waveforms on one timeline: the view pages along", async ({ page }) => {
+  await openStress(page, "waveforms", "&mode=scroll");
+  const result = await measure(page, "32 waveforms, scrolling with playback", 3000);
+  // Budget: scrolling moves the tiles in CSS and draws only those that come into view,
+  // at most once each: 64 layers crossing no more than two tiles in 12 seconds of timeline.
+  expect(result.reactCommits).toBe(0);
+  expect(result.canvasDraws).toBeLessThanOrEqual(128);
+});
+
+test("32 waveforms on one timeline: recording a take", async ({ page }) => {
+  await openStress(page, "waveforms", "&mode=record");
+  const result = await measure(page, "32 waveforms, recording one more", 3000);
+  // Budget: nothing renders; the recording draws the tile it grows into, at most once per frame.
+  expect(result.reactCommits).toBe(0);
+  expect(result.canvasDraws).toBeLessThanOrEqual(result.frames + 2);
+});
+
+test("32 waveforms on one timeline: zooming", async ({ page }) => {
+  await openStress(page, "waveforms", "&mode=zoom");
+  const result = await measure(page, "32 waveforms, zooming", 3000);
+  // Budget: nothing renders; tiles are stretched in CSS and redrawn only past twice or half their scale.
   expect(result.reactCommits).toBe(0);
 });

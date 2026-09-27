@@ -218,3 +218,61 @@ h1 {
   width: 14px;
   height: 14px;
 }
+
+/* Waveforms: 16 tracks of 32 px across the page. */
+.timeline {
+  flex-basis: 100%;
+  overflow: hidden;
+  background: #111;
+}
+
+.track {
+  position: relative;
+  height: 32px;
+  border-bottom: 1px solid #2a2a2e;
+}
+
+.clip {
+  background: rgb(29 44 58 / 0.6);
+}
+
+.tracks {
+  position: relative;
+}
+
+.ruler {
+  height: 22px;
+  border-bottom: 1px solid #2a2a2e;
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.ruler [data-label] {
+  top: 2px;
+  padding-inline-start: 3px;
+}
+
+.ruler-marks {
+  color: #4b5563;
+}
+
+.grid {
+  color: rgb(255 255 255 / 0.04);
+}
+
+.grid-bars {
+  color: rgb(255 255 255 / 0.1);
+}
+
+.clip-shape {
+  color: #3b82f6;
+}
+
+.clip-progress {
+  color: #93c5fd;
+}
+
+.playhead {
+  width: 1px;
+  background: #fff;
+}
