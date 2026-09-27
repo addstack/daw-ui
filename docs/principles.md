@@ -52,6 +52,8 @@ Arabic, Hebrew and Persian interfaces run right to left, and a component must wo
 
 Every user action is wrapped in `onGestureStart` / `onGestureEnd`: a drag, a key press, a burst of wheel events, a reset, a typed value, a paint stroke, an exclusive solo that turns five toggles off. An application uses them to make each action one undo step and to record automation. A gesture starts only when something changes.
 
+**An action that can apply to many items belongs to the component that holds them, not to each item.** In a DAW, what the user does to one selected thing they do to all of them: dragging one of five selected clips moves the five, trimming one trims all, painting one step paints a stroke. So the container runs the gesture, applies it to every item in the selection, and reports it once, as a list of changes with one `onGestureStart` / `onGestureEnd`, which is one undo step however many items it moved. An item only starts the gesture where the pointer or focus is; acting on a single item is a selection of one, not a second code path. The container also keeps the changes consistent across the group: limits apply to the group as a whole (the most constrained item stops everyone), and snapping follows the item the user holds, the others keeping their relative places. `ToggleGroup` (paint strokes) and `Timeline.Root` (moving and trimming regions) work this way.
+
 ## 7. Performance
 
 Performance is a requirement, measured on every change.
