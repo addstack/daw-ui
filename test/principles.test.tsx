@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats } from "../src/core/index.js";
-import { Fader, Knob, Meter, NumberBox, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
+import { Fader, Knob, Meter, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -73,15 +73,14 @@ function EveryComponent() {
         <Meter.Clip />
       </Meter.Root>
       <Timeline.Root start={0} end={1} position={0.5}>
-        <Timeline.Track>
-          <Timeline.Region at={0.25} duration={0.5}>
-            <Timeline.RegionHeader>
-              <Timeline.RegionLabel>1</Timeline.RegionLabel>
-            </Timeline.RegionHeader>
-            <Timeline.RegionContent />
-            <Timeline.RegionHandle side="end" />
-          </Timeline.Region>
-        </Timeline.Track>
+        <div>
+          <Region.Root at={0.25} duration={0.5}>
+            <Region.Header>
+              <Region.Label>1</Region.Label>
+            </Region.Header>
+            <Region.Content />
+          </Region.Root>
+        </div>
         <Waveform.Root peaks={createPeaks([new Float32Array(8)], 8)}>
           <Waveform.Shape />
           <Waveform.Progress />
@@ -150,11 +149,11 @@ test("text the components show is not selectable, except a value being typed (se
       <Toggle data-testid="toggle">g</Toggle>
       <Timeline.Root start={0} end={1}>
         <Timeline.Ruler grid={clockGrid()} data-testid="ruler" />
-        <Timeline.Region at={0} duration={1}>
-          <Timeline.RegionHeader data-testid="region header">
-            <Timeline.RegionLabel data-testid="region label">h</Timeline.RegionLabel>
-          </Timeline.RegionHeader>
-        </Timeline.Region>
+        <Region.Root at={0} duration={1}>
+          <Region.Header data-testid="region header">
+            <Region.Label data-testid="region label">h</Region.Label>
+          </Region.Header>
+        </Region.Root>
       </Timeline.Root>
     </>,
   );

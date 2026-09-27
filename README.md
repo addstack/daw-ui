@@ -198,9 +198,9 @@ A peak meter with hold and a clip indicator. `read` is called once per animation
 
 Toggles subscribe to the group with selectors: painting one step of a 16 × 64 grid renders that step, not the grid.
 
-### Timeline and Waveform
+### Timeline, Region and Waveform
 
-A time axis with one playhead over every track, and audio drawn on it:
+A time axis with one playhead over whatever it holds, here rows of clips, and audio drawn on it:
 
 ```tsx
 const peaks = createPeaks([buffer.getChannelData(0)], buffer.sampleRate);
@@ -210,22 +210,24 @@ const grid = musicalGrid({ bpm: 120 });
   <Timeline.Ruler grid={grid} className="h-6 [&_[data-label]]:ps-1" />
   <Timeline.Grid grid={grid} className="text-white/10" />
   {tracks.map((track) => (
-    <Timeline.Track key={track.id} aria-label={track.name} className="h-16">
+    <div key={track.id} role="group" aria-label={track.name} className="relative h-16">
       {track.clips.map((clip) => (
-        <Timeline.Region key={clip.id} at={clip.start} duration={clip.length} offset={clip.offset}>
+        <Region.Root key={clip.id} at={clip.start} duration={clip.length} offset={clip.offset}>
           <Waveform.Root peaks={clip.peaks} aria-label={clip.name} className="h-full">
             <Waveform.Shape className="text-sky-700" />
             <Waveform.Progress className="text-sky-300" />
           </Waveform.Root>
-        </Timeline.Region>
+        </Region.Root>
       ))}
-    </Timeline.Track>
+    </div>
   ))}
   <Timeline.Playhead className="w-px bg-white" />
 </Timeline.Root>
 ```
 
-**Timeline** parts: `Root` (the view `start` … `end`, `readView` per frame, the playhead from `position` or `read`), `Playhead`, `Track` (a row), `Region` (a region, clip or pattern, a loop range, a marker: `at`, `duration`, `offset`) with `RegionHeader`, `RegionLabel`, `RegionContent` and `RegionHandle`, `Ruler` (labels) and `Grid` (lines) of a `musicalGrid({ bpm })` or `clockGrid()`, as fine as the zoom leaves room for: bars, beats, sixteenths. The root writes `--timeline-start` and `--timeline-scale`, and everything on it is placed in CSS from them: scrolling writes two variables, however many clips there are. The playhead is written only into the parts that follow it (the playhead, the played parts of waveforms), so a frame of playback recalculates the style of those alone. With `onRegionsChange`, regions are editable: a drag moves the selection (across tracks too), handles trim it, all snapped to a `snap` grid, and the timeline reports each gesture once, as a list of changes, one undo step; regions move without rendering meanwhile. Time runs left to right in every language.
+**Timeline** parts: `Root` (the view `start` … `end`, `readView` per frame, the playhead from `position` or `read`), `Playhead`, `Ruler` (labels) and `Grid` (lines) of a `musicalGrid({ bpm })` or `clockGrid()`, as fine as the zoom leaves room for: bars, beats, sixteenths. A timeline only shows time: what it holds, an arrangement's rows, a piano roll's notes, is the application's, and it knows nothing of it. The root writes `--timeline-start` and `--timeline-scale`, and everything on it is placed in CSS from them: scrolling writes two variables, however many clips there are. The playhead is written only into the parts that follow it (the playhead, the played parts of waveforms), so a frame of playback recalculates the style of those alone. Time runs left to right in every language.
+
+**Region** parts: `Root` (a clip or pattern, a loop range, a take: `at`, `duration`, `offset`, or `read` per frame; placed in time from the timeline's axis, and as tall as the row it is rendered in), `Header`, `Label` (names it) and `Content`. A new placement moves it without rendering what is inside. Selecting, moving and trimming regions will be an engine the application creates with a hook, not the regions' own behaviour.
 
 **Waveform** parts: `Root` (`role="img"`; in a region it shows what the region shows, on its own it is its own axis, as in a sample browser), `Shape` and `Progress` (the played part, clipped at the playhead in CSS), drawn in their CSS `color`. `createPeaks` computes min/max peaks at several resolutions in one pass (34 ms for ten minutes of stereo); `peaksFromAudiowaveform` reads peaks made ahead of time by the `audiowaveform` tool; `createPeaksRecorder` grows as you `append` blocks while recording, and its waveform draws only the tile the audio arrives in. Given the `samples`, a waveform zoomed in beyond the peaks draws from them, down to single samples. The waveform is drawn into canvas tiles once, placed in time by CSS: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and redraws them sharp when it rests, and one queue for all waveforms draws at most 4 ms per frame, visible tiles first.
 
@@ -294,9 +296,8 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | The same, the view paging along with playback | 4.6 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
 | The same, recording a 33rd take | 3.5 | 0.3 | 0 of 181 | – | 0, one tile drawn per frame |
 | The same, zooming without pause | 8.9 | 0.8 | 4 of 177 | – | 0 |
-| The same, editable, dragging a region | 0.6 | 0.2 | 0 of 91 | 15.5 / 16.5 | 1, when the application keeps the move |
 
-A 60 Hz frame has 16.7 ms. The last row is the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
+A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
 The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size (24.8 kB for everything, minified and gzipped). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 

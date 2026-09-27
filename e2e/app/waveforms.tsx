@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { createPeaks, createPeaksRecorder, musicalGrid, type Peaks } from "../../src/core/index.js";
-import { Timeline, Waveform } from "../../src/react/index.js";
+import { Region, Timeline, Waveform } from "../../src/react/index.js";
 
 // 16 tracks with two 4-minute clips each on one timeline, with one playhead
 // over all of them, driven once per frame:
@@ -9,8 +9,8 @@ import { Timeline, Waveform } from "../../src/react/index.js";
 // - ?mode=scroll: the view pages along at 4 seconds per second;
 // - ?mode=zoom: the view zooms in and out without pause;
 // - ?mode=record: playback, and a 17th track records a take in blocks of 128 samples, as an AudioWorklet delivers them.
-// A ruler and a grid of bars and beats run over all of it. With ?edit, regions are editable and snap to the
-// grid, and the application keeps where a gesture puts them.
+// A ruler and a grid of bars and beats run over all of it. The tracks are the page's own rows: the timeline
+// knows nothing of them.
 
 const TRACKS = 16;
 const SAMPLE_RATE = 48_000;
@@ -79,8 +79,6 @@ export function Waveforms() {
   const search = new URLSearchParams(location.search);
   const showRuler = search.get("ruler") !== "0";
   const showGrid = search.get("grid") !== "0";
-  const editable = search.has("edit");
-  const [moved, setMoved] = useState<Record<string, { at: number; duration: number; offset: number }>>({});
   return (
     <main>
       <h1>daw-ui waveforms</h1>
@@ -90,14 +88,6 @@ export function Waveforms() {
         end={60}
         readView={mode === "play" ? undefined : view}
         read={elapsed}
-        {...(editable
-          ? {
-              snap: grid,
-              onRegionsChange: () => {},
-              onGestureEnd: (changes: { value: string; at: number; duration: number; offset: number }[]) =>
-                setMoved((current) => ({ ...current, ...Object.fromEntries(changes.map(({ value, ...place }) => [value, place])) })),
-            }
-          : {})}
       >
         {showRuler && (
           <Timeline.Ruler className="ruler" grid={grid} data-testid="ruler">
@@ -108,34 +98,25 @@ export function Waveforms() {
           {showGrid && <Timeline.Grid className="grid" grid={grid} />}
           {showGrid && <Timeline.Grid className="grid-bars" grid={grid} spacing={64} />}
           {Array.from({ length: TRACKS }, (_, track) => (
-            <Timeline.Track key={track} className="track" aria-label={`Track ${track + 1}`}>
+            <div key={track} className="track" role="group" aria-label={`Track ${track + 1}`}>
               {[0, 240].map((at) => (
-                <Timeline.Region
-                  key={at}
-                  className="clip"
-                  value={`${track}-${at}`}
-                  at={at}
-                  duration={235}
-                  offset={(track * 7) % 60}
-                  length={SECONDS}
-                  {...moved[`${track}-${at}`]}
-                >
+                <Region.Root key={at} className="clip" at={at} duration={235} offset={(track * 7) % 60}>
                   <Waveform.Root className="clip-waveform" peaks={peaks} aria-label={`Track ${track + 1} at ${at}`}>
                     <Waveform.Shape className="clip-shape" />
                     <Waveform.Progress className="clip-progress" />
                   </Waveform.Root>
-                </Timeline.Region>
+                </Region.Root>
               ))}
-            </Timeline.Track>
+            </div>
           ))}
           {mode === "record" && (
-            <Timeline.Track className="track" aria-label="Recording">
-              <Timeline.Region className="clip" at={0} read={() => ({ duration: recording.duration })}>
+            <div className="track" role="group" aria-label="Recording">
+              <Region.Root className="clip" at={0} read={() => ({ duration: recording.duration })}>
                 <Waveform.Root className="clip-waveform" peaks={recording} aria-label="Recording">
                   <Waveform.Shape className="clip-shape" />
                 </Waveform.Root>
-              </Timeline.Region>
-            </Timeline.Track>
+              </Region.Root>
+            </div>
           )}
         </div>
         <Timeline.Playhead className="playhead" data-testid="playhead" />

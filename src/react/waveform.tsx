@@ -5,7 +5,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { readPeaks, type Peaks } from "../core/index.js";
 import { useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import { TimeTiles, type TilePainter, type TileStretch } from "./time-tiles.js";
-import { RegionPlacement, useOptionalRegion, useTimelineView, type TimelineView } from "./timeline.js";
+import { RegionPlacement, useOptionalRegion } from "./region.js";
+import { useTimelineView, type TimelineView } from "./timeline.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
 
 export type WaveformState = { offset: number; duration: number };
@@ -33,7 +34,7 @@ function useWaveformContext(part: string): WaveformContextValue {
 }
 
 /**
- * Audio, drawn from its peaks. In a `Timeline.Region`, it shows the part
+ * Audio, drawn from its peaks. In a `Region.Root`, it shows the part
  * of the audio the region shows, from its `offset` for its `duration`, on
  * the timeline's axis, and follows the region without rendering. On its
  * own, as the preview of a sample, it shows `offset` … `offset + duration`

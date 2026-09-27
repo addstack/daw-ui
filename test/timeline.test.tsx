@@ -4,7 +4,7 @@ import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { clockGrid, createPeaks, createPeaksRecorder, musicalGrid, type Peaks } from "../src/core/index.js";
-import { Timeline, Waveform } from "../src/react/index.js";
+import { Region, Timeline, Waveform } from "../src/react/index.js";
 
 // jsdom has no layout, animation frames or canvas: the tests give the timeline a
 // width, run frames when they say so, and record what the tiles draw.
@@ -114,19 +114,28 @@ describe("Timeline", () => {
     expect(playhead.style.translate).toBe("calc((0 - var(--timeline-start)) * var(--timeline-scale)) 0");
   });
 
-  test("a track is a group that holds regions", () => {
+  test("holds anything: what is inside it is the application's, it adds no roles or elements for it", () => {
     render(
-      <Timeline.Root start={0} end={10}>
-        <Timeline.Track aria-label="Drums" data-testid="track" />
+      <Timeline.Root start={0} end={10} data-testid="timeline">
+        <div data-testid="row" />
       </Timeline.Root>,
     );
-    expect(screen.getByRole("group", { name: "Drums" })).toBe(screen.getByTestId("track"));
+    const timeline = screen.getByTestId("timeline");
+    expect(timeline.getAttribute("role")).toBeNull();
+    expect([...timeline.children]).toEqual([screen.getByTestId("row")]);
   });
 
+  test("parts outside a root say where they belong", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => render(<Timeline.Playhead />)).toThrow(/Timeline.Root/);
+  });
+});
+
+describe("Region", () => {
   test("a region is placed in CSS from the view's variables", () => {
     render(
       <Timeline.Root start={0} end={10}>
-        <Timeline.Region at={4} duration={2.5} offset={1} data-testid="region" />
+        <Region.Root at={4} duration={2.5} offset={1} data-testid="region" />
       </Timeline.Root>,
     );
     const region = screen.getByTestId("region");
@@ -140,7 +149,7 @@ describe("Timeline", () => {
     render(
       <Profiler id="region" onRender={() => commits++}>
         <Timeline.Root start={0} end={10}>
-          <Timeline.Region at={2} read={() => ({ duration: length })} data-testid="region" />
+          <Region.Root at={2} read={() => ({ duration: length })} data-testid="region" />
         </Timeline.Root>
       </Profiler>,
     );
@@ -151,9 +160,37 @@ describe("Timeline", () => {
     expect(commits).toBe(0);
   });
 
-  test("parts outside a root say where they belong", () => {
+  test("fills the height of the box it is placed in", () => {
+    render(
+      <Timeline.Root start={0} end={10}>
+        <div style={{ position: "relative" }}>
+          <Region.Root at={0} duration={1} data-testid="region" />
+        </div>
+      </Timeline.Root>,
+    );
+    const { style } = screen.getByTestId("region");
+    expect([style.position, style.insetBlock, style.left]).toEqual(["absolute", "0px", "0px"]);
+  });
+
+  test("is a group named by its label, with a header and content for the application", () => {
+    render(
+      <Timeline.Root start={0} end={10}>
+        <Region.Root at={0} duration={1} data-testid="region">
+          <Region.Header data-testid="header">
+            <Region.Label>Beat</Region.Label>
+          </Region.Header>
+          <Region.Content data-testid="content" />
+        </Region.Root>
+      </Timeline.Root>,
+    );
+    expect(screen.getByRole("group", { name: "Beat" })).toBe(screen.getByTestId("region"));
+    expect(screen.getByTestId("content").style.position).toBe("relative");
+  });
+
+  test("parts outside a region, and a region outside a timeline, say where they belong", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => render(<Timeline.Playhead />)).toThrow(/Timeline.Root/);
+    expect(() => render(<Region.Root at={0} />)).toThrow(/Timeline.Root/);
+    expect(() => render(<Region.Label />)).toThrow(/Region.Root/);
   });
 });
 
@@ -161,14 +198,14 @@ describe("Waveform", () => {
   function Session({ view = [0, 10], time = 0, at = 0, offset = 0 }: { view?: [number, number]; time?: number; at?: number; offset?: number }) {
     return (
       <Timeline.Root start={view[0]} end={view[1]} position={time} data-testid="timeline">
-        <Timeline.Track>
-          <Timeline.Region at={at} duration={60 - offset} offset={offset}>
+        <div>
+          <Region.Root at={at} duration={60 - offset} offset={offset}>
             <Waveform.Root peaks={minute} aria-label="Take 1" data-testid="waveform">
               <Waveform.Shape data-testid="shape" style={{ color: "rgb(1, 2, 3)" }} />
               <Waveform.Progress data-testid="progress" />
             </Waveform.Root>
-          </Timeline.Region>
-        </Timeline.Track>
+          </Region.Root>
+        </div>
       </Timeline.Root>
     );
   }
@@ -423,11 +460,11 @@ describe("recording", () => {
     recorder.append([new Float32Array(2000).fill(0.5)]);
     render(
       <Timeline.Root start={0} end={10}>
-        <Timeline.Region at={0} read={() => ({ duration: recorder.duration })} data-testid="region">
+        <Region.Root at={0} read={() => ({ duration: recorder.duration })} data-testid="region">
           <Waveform.Root peaks={recorder}>
             <Waveform.Shape />
           </Waveform.Root>
-        </Timeline.Region>
+        </Region.Root>
       </Timeline.Root>,
     );
     frame();
@@ -451,11 +488,11 @@ describe("zoomed in beyond the peaks", () => {
     // 1000 px for 10 ms: two pixels per sample.
     return (
       <Timeline.Root start={0.5} end={0.51}>
-        <Timeline.Region at={0} duration={1}>
+        <Region.Root at={0} duration={1}>
           <Waveform.Root peaks={peaks} samples={samples}>
             <Waveform.Shape />
           </Waveform.Root>
-        </Timeline.Region>
+        </Region.Root>
       </Timeline.Root>
     );
   }

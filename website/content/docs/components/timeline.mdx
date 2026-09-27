@@ -1,9 +1,9 @@
 ---
 title: Timeline
-description: A time axis with tracks of regions (clips, patterns, markers), a ruler, a grid and one playhead, that moves without rendering.
+description: Shows time, a ruler, a grid and one playhead, over whatever it holds, and moves without rendering.
 ---
 
-<ComponentPreview name="waveform" />
+<ComponentPreview name="timeline-arrangement" />
 
 ## Anatomy
 
@@ -19,22 +19,13 @@ const grid = musicalGrid({ bpm: 120 });
   </Timeline.Ruler>
   <div className="relative">
     <Timeline.Grid grid={grid} />
-    <Timeline.Track aria-label="Drums">
-      <Timeline.Region at={4} duration={8} offset={1.5}>
-        <Timeline.RegionHeader>
-          <Timeline.RegionLabel>{clip.name}</Timeline.RegionLabel>
-        </Timeline.RegionHeader>
-        <Timeline.RegionContent>
-          <Waveform.Root peaks={peaks} />
-        </Timeline.RegionContent>
-      </Timeline.Region>
-    </Timeline.Track>
+    {/* Whatever you place on the axis: rows of regions, notes, a waveform. */}
   </div>
   <Timeline.Playhead />
 </Timeline.Root>
 ```
 
-`Timeline.Root` is the time axis: `start` … `end` seconds fill its width. A `Track` is a row, one track of an arrangement. A `Region` is what lies on it for a time: a region, clip or pattern (the same thing in Logic, Ableton and FL Studio), a loop range, or a marker with no duration. Its content, a [waveform](/docs/components/waveform), a label, is yours to put inside.
+`Timeline.Root` is the time axis: `start` … `end` seconds fill its width. The ruler labels it, the grid draws its lines, and the playhead runs across its whole height. That is all a timeline does: it shows time.
 
 Everything on the axis places itself in CSS from two variables the root writes:
 
@@ -43,29 +34,49 @@ Everything on the axis places itself in CSS from two variables the root writes:
 | `--timeline-start` | Seconds at the left edge. |
 | `--timeline-scale` | CSS pixels per second. |
 
-Scrolling or zooming writes these two, whatever the number of tracks and regions: nothing renders, and nothing runs for each region. The playhead is written, as a number, only into the parts that follow it (`Playhead`, `Waveform.Progress`), so a frame of playback recalculates the style of those parts alone. To follow the playhead with an element of your own, render it as the `Playhead` (`render={<YourLine />}`). Place regions in a `Track`, or another element that spans the timeline's width.
-
-## Regions
-
-A region starts `at` seconds on the timeline, lasts `duration`, and shows its content from `offset` seconds into it, like a clip whose start was trimmed. The content follows the region: a waveform in it shows the audio from `offset` for `duration`.
-
-```tsx
-<Timeline.Region at={clip.start} duration={clip.length} offset={clip.offset}>
-  <Waveform.Root peaks={clip.peaks} className="h-full" />
-</Timeline.Region>
-```
-
-A new placement, from props or from `read`, rewrites the region's position and width without rendering what is inside, and a waveform in it draws nothing it has drawn already: moving or trimming a region only places its tiles again. For a placement that changes on its own, pass `read`, called once per animation frame; a take being recorded grows like this:
-
-```tsx
-<Timeline.Region at={recordStart} read={() => ({ duration: take.duration })}>
-  <Waveform.Root peaks={take} className="h-full" />
-</Timeline.Region>
-```
+Scrolling or zooming writes these two, whatever the timeline holds: nothing renders, and nothing runs for each thing on it. The playhead is written, as a number, only into the parts that follow it (`Playhead`, `Waveform.Progress`), so a frame of playback recalculates the style of those parts alone. To follow the playhead with an element of your own, render it as the `Playhead` (`render={<YourLine />}`).
 
 Time runs left to right in every language, as in music notation and every DAW, also in a right-to-left page.
 
+## What it holds
+
+A timeline does not know what is on it: an arrangement's tracks, a piano roll's notes, one take, or nothing. Parts placed inside read its axis; it knows nothing of them. An arrangement, as in the demo, is rows of [regions](/docs/components/region) in the timeline, and the track headers in a column beside it, with rows of the same height:
+
+```tsx
+<div className="flex">
+  <div className="w-28">
+    <div className="h-6" /> {/* beside the ruler */}
+    {tracks.map((track) => (
+      <div key={track.id} className="h-16">
+        {track.name} <Toggle aria-label={t('mute')}>M</Toggle>
+      </div>
+    ))}
+  </div>
+
+  <Timeline.Root start={0} end={12} className="flex-1">
+    <Timeline.Ruler grid={grid} className="h-6" />
+    <div className="relative">
+      <Timeline.Grid grid={grid} />
+      {tracks.map((track) => (
+        <div key={track.id} role="group" aria-label={track.name} className="relative h-16">
+          {track.clips.map((clip) => (
+            <Region.Root key={clip.id} at={clip.at} duration={clip.duration}>…</Region.Root>
+          ))}
+        </div>
+      ))}
+    </div>
+    <Timeline.Playhead />
+  </Timeline.Root>
+</div>
+```
+
+A region takes its place in time from the timeline, and its height from the row it is in.
+
+Editing what is on a timeline, selecting, moving and trimming clips or notes, is not the timeline's: it will be an engine your application creates with a hook and hands to the parts, as shadcn's Carousel takes its behaviour from Embla. See the [principles](/docs/principles), section 6.
+
 ## Playback, scrolling and zoom
+
+<ComponentPreview name="waveform" />
 
 Pass values that change on every frame as functions, which the timeline calls once per animation frame:
 
@@ -78,60 +89,9 @@ Pass values that change on every frame as functions, which the timeline calls on
 />
 ```
 
-`start`, `end` and `position` are for values that change rarely, from React state. The view in the demo zooms with a fader whose `onValueChange` writes to a ref that `readView` reads: dragging it renders nothing.
+`start`, `end` and `position` are for values that change rarely, from React state. The view in this demo zooms with a fader whose `onValueChange` writes to a ref that `readView` reads: dragging it renders nothing.
 
 The timeline does not scroll or zoom by itself: it shows the view you give it, so the gestures and their policy (scroll with the wheel, zoom around the pointer, follow the playhead) stay in your application.
-
-## Editing regions
-
-<ComponentPreview name="timeline-editing" />
-
-With `onRegionsChange`, regions with a `value` are editable: a press selects a region, a drag moves it, its handles trim it. What the user does to one selected region they do to all of them, so the timeline, not each region, runs the gesture and reports it once, as a list of changes:
-
-```tsx
-<Timeline.Root
-  snap={grid}
-  onRegionsChange={(changes, { edit }) => preview(changes)}   // as the gesture goes
-  onGestureEnd={(changes) => commit(changes)}                  // [{ value, at, duration, offset, track }]: one undo step
->
-  <Timeline.Track value="drums" aria-label="Drums">
-    <Timeline.Region value={clip.id} at={clip.start} duration={clip.length} offset={clip.offset} length={clip.fileLength}>
-      <Timeline.RegionHeader>
-        <ClipMenu clip={clip} />
-        <Timeline.RegionLabel>{clip.name}</Timeline.RegionLabel>
-      </Timeline.RegionHeader>
-      <Timeline.RegionContent>
-        <Waveform.Root peaks={clip.peaks} className="h-full" />
-      </Timeline.RegionContent>
-      <Timeline.RegionHandle side="start" aria-label="Start" />
-      <Timeline.RegionHandle side="end" aria-label="End" />
-    </Timeline.Region>
-  </Timeline.Track>
-</Timeline.Root>
-```
-
-- **Regions show where a gesture takes them, without rendering.** Their content follows: a waveform places its tiles again, and draws nothing it has drawn. When the gesture ends they return to their props, so keep the changes by updating them, in `onGestureEnd` or as they come.
-- **Moving** a region moves the selection with it, along the timeline and to the track under the pointer (`track` is that track's `value`). A press on a control inside a region, such as its menu, does not move it.
-- **Trimming** with a handle moves the end, or the start and the content with it, so the audio stays where it was. `length`, the seconds of content, stops a trim where the content ends; without it, as for a pattern that repeats, the end goes on. What the new edge means (a trim, a loop, a stretch) is the application's to decide; the modifier keys are in `details.event`.
-- **Snapping** follows the region the user holds, to the finest lines of `snap` at least 12 px apart, those a `Timeline.Grid` shows by default; the others keep their places relative to it. Shift does not snap.
-- **Limits hold for the group:** the region that can go least stops them all, at the start of the timeline, at the start or end of its content, and at one snap step long.
-- **Selection:** a press selects a region alone, Cmd or Ctrl adds it or takes it out, a press on a track outside its regions clears it. `selected` and `onSelectedChange` control it; regions show it as `data-selected`.
-
-Handles are there only while their region is pointed at, focused, selected or being edited, so regions nobody touches cost nothing. Style them as you like: a visible bar, or a transparent zone that only changes the cursor, as in the demo.
-
-| Input | Effect |
-| --- | --- |
-| Drag a region | Moves the selection; across tracks too. |
-| Drag a handle | Trims the selection's start or end. |
-| <kbd>Shift</kbd> while dragging | Does not snap. |
-| Press, <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+press, press on a track | Selects alone, adds or takes out, clears. |
-| <kbd>Tab</kbd> | Into the regions, one tab stop for them all, then the focused region's handles. |
-| Arrows | The previous or next region on the track, or the nearest on the track above or below. |
-| <kbd>Space</kbd> | Selects (with <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>: adds or takes out). |
-| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+arrows | Moves the selection by a snap step (<kbd>Shift</kbd>: a pixel), or to the next track. |
-| Arrows on a handle | Moves its edge by a snap step (<kbd>Shift</kbd>: a pixel). |
-
-Editable, the timeline is a `grid`, its tracks `row`s and its regions `gridcell`s named by their `RegionLabel`; handles are `slider`s whose value is the edge's time, announced with `format`.
 
 ## Ruler and grid
 
@@ -146,7 +106,7 @@ A grid says where lines fall and what they read. `musicalGrid({ bpm, beatsPerBar
 </Timeline.Ruler>
 
 <div className="relative">
-  {/* Minor and major lines under the tracks: two grids, the major ones as far apart as the labels. */}
+  {/* Minor and major lines under what the timeline holds: two grids, the major ones as far apart as the labels. */}
   <Timeline.Grid grid={grid} className="text-white/5" />
   <Timeline.Grid grid={grid} spacing={64} className="text-white/15" />
   {tracks}
@@ -167,52 +127,9 @@ The time axis. Renders a `<div>` with `position: relative`.
 
 ### Playhead
 
-A line at the playhead, across everything on the timeline. Renders a `<div>`, hidden from assistive technology: give it a width and a color.
+A line at the playhead, across the timeline's height. Renders a `<div>`, hidden from assistive technology: give it a width and a color.
 
 <PropsTable part="Timeline.Playhead" />
-
-### Track
-
-A row of the timeline that holds its regions. Renders a `<div>` with `role="group"` and `position: relative`: name it with `aria-label`.
-
-<PropsTable part="Timeline.Track" />
-
-### Region
-
-Something that lasts on the timeline: a region, clip or pattern, a loop range, a marker. Renders a `<div>` placed and sized in CSS from `at` and `duration`, holding its content: a `group`, or a `gridcell` when editable.
-
-<PropsTable part="Timeline.Region" />
-
-| Data attribute | |
-| --- | --- |
-| `data-selected` | While the region is selected. |
-| `data-dragging` | While a gesture moves or trims it. |
-
-The header, the content and the handles carry them too.
-
-### RegionHeader
-
-The top of a region, for its label and your controls. Renders a `<div>`.
-
-<PropsTable part="Timeline.RegionHeader" />
-
-### RegionLabel
-
-The name of a region, which names it for assistive technology. Renders a `<span>`.
-
-<PropsTable part="Timeline.RegionLabel" />
-
-### RegionContent
-
-Where the content goes: a waveform, notes. Renders a `<div>` with `position: relative`.
-
-<PropsTable part="Timeline.RegionContent" />
-
-### RegionHandle
-
-Trims the start or the end, at that edge, across the region's height. Renders a `<div>` with `role="slider"`, only while the region is active: name it with `aria-label`.
-
-<PropsTable part="Timeline.RegionHandle" />
 
 ### Ruler
 

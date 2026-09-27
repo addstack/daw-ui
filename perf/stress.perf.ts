@@ -221,14 +221,3 @@ test("32 waveforms on one timeline: zooming", async ({ page }) => {
   // Budget: nothing renders; tiles are stretched in CSS and redrawn only past twice or half their scale.
   expect(result.reactCommits).toBe(0);
 });
-
-test("32 waveforms on one timeline: dragging a region", async ({ page }) => {
-  await openStress(page, "waveforms", "&mode=play&start=manual&edit");
-  const region = page.getByRole("gridcell").first();
-  const box = (await region.boundingBox())!;
-  const from = { x: box.x + 40, y: box.y + box.height / 2 };
-  const result = await measure(page, "32 waveforms, dragging a region", 1500, () => glide(page, from, { x: from.x + 120, y: from.y }, 60));
-  // Budget: the region and its waveform move without rendering; commits come only from the press (the selection
-  // shows its handles) and from the application keeping the change when the gesture ends.
-  expect(result.reactCommits).toBeLessThanOrEqual(4);
-});

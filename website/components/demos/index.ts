@@ -9,7 +9,7 @@ import WrapKnobDemo from './knob-wrap';
 import MeterDemo from './meter';
 import NumberBoxDemo from './number-box';
 import SegmentsDemo from './number-box-segments';
-import EditingDemo from './timeline-editing';
+import ArrangementDemo from './timeline-arrangement';
 import ToggleDemo from './toggle';
 import MixerDemo from './toggle-group-mixer';
 import SequencerDemo from './toggle-group-sequencer';
@@ -28,7 +28,7 @@ export const demos = {
   meter: MeterDemo,
   'number-box': NumberBoxDemo,
   'number-box-segments': SegmentsDemo,
-  'timeline-editing': EditingDemo,
+  'timeline-arrangement': ArrangementDemo,
   toggle: ToggleDemo,
   'toggle-group-mixer': MixerDemo,
   'toggle-group-sequencer': SequencerDemo,

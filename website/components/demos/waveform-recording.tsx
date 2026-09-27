@@ -1,7 +1,7 @@
 'use client';
 
 import { clockGrid, createPeaksRecorder, type PeaksRecorder } from '@addstack/daw-ui';
-import { Timeline, Toggle, Waveform } from '@addstack/daw-ui/react';
+import { Region, Timeline, Toggle, Waveform } from '@addstack/daw-ui/react';
 import { useEffect, useRef, useState } from 'react';
 
 const RATE = 22_050;
@@ -71,13 +71,13 @@ export default function RecordingDemo() {
           <Timeline.Grid grid={grid} spacing={64} style={{ top: '65%' }} className="text-neutral-600" />
         </Timeline.Ruler>
         {/* The region grows with the take: read once per frame, without rendering. */}
-        <Timeline.Track aria-label="Vocals" className="h-20">
-          <Timeline.Region at={0} read={() => ({ duration: take.duration })} className="bg-red-950/60">
+        <div role="group" aria-label="Vocals" className="relative h-20">
+          <Region.Root at={0} read={() => ({ duration: take.duration })} className="bg-red-950/60">
             <Waveform.Root peaks={take} aria-label="Take" className="h-full">
               <Waveform.Shape className="text-red-400" />
             </Waveform.Root>
-          </Timeline.Region>
-        </Timeline.Track>
+          </Region.Root>
+        </div>
         <Timeline.Playhead className="w-px bg-white" />
       </Timeline.Root>
     </div>

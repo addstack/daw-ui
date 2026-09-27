@@ -1,7 +1,7 @@
 'use client';
 
 import { createPeaks, formats, musicalGrid } from '@addstack/daw-ui';
-import { Fader, Timeline, Toggle, Waveform } from '@addstack/daw-ui/react';
+import { Fader, Region, Timeline, Toggle, Waveform } from '@addstack/daw-ui/react';
 import { useMemo, useRef } from 'react';
 
 const RATE = 22_050;
@@ -81,14 +81,14 @@ export default function WaveformDemo() {
           <Timeline.Grid grid={grid} className="text-white/5" />
           <Timeline.Grid grid={grid} spacing={64} className="text-white/15" />
           {tracks.map((track) => (
-            <Timeline.Track key={track.name} aria-label={track.name} className="h-14 border-b border-neutral-800 last:border-0">
-              <Timeline.Region at={track.at} duration={track.peaks.duration} className="bg-sky-950/70">
+            <div key={track.name} role="group" aria-label={track.name} className="relative h-14 border-b border-neutral-800 last:border-0">
+              <Region.Root at={track.at} duration={track.peaks.duration} className="bg-sky-950/70">
                 <Waveform.Root peaks={track.peaks} aria-label={track.name} className="h-full">
                   <Waveform.Shape className="text-sky-700" />
                   <Waveform.Progress className="text-sky-300" />
                 </Waveform.Root>
-              </Timeline.Region>
-            </Timeline.Track>
+              </Region.Root>
+            </div>
           ))}
         </div>
         <Timeline.Playhead className="w-px bg-white" />

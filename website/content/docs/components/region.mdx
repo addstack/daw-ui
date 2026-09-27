@@ -1,0 +1,74 @@
+---
+title: Region
+description: Something that lasts on a timeline, a clip or a pattern with a header and content, placed in CSS from the timeline's axis.
+---
+
+<ComponentPreview name="timeline-arrangement" />
+
+## Anatomy
+
+```tsx
+import { Region, Timeline, Waveform } from '@addstack/daw-ui/react';
+
+<Timeline.Root start={0} end={30}>
+  <div className="relative h-16">
+    <Region.Root at={4} duration={8} offset={1.5}>
+      <Region.Header>
+        <Region.Label>{clip.name}</Region.Label>
+      </Region.Header>
+      <Region.Content>
+        <Waveform.Root peaks={clip.peaks} className="h-full" />
+      </Region.Content>
+    </Region.Root>
+  </div>
+</Timeline.Root>
+```
+
+A region is what lies on a [timeline](/docs/components/timeline) for a time: a clip or a pattern (the same thing in Logic, Ableton and FL Studio), a loop range, a take being recorded. Its header holds its name and your controls, such as a menu; its content, a [waveform](/docs/components/waveform) or notes, is yours to put inside.
+
+## Placement
+
+A region starts `at` seconds on the timeline, lasts `duration`, and shows its content from `offset` seconds into it, like a clip whose start was trimmed. The content follows the region: a waveform in it shows the audio from `offset` for `duration`.
+
+- **In time,** it follows the axis of the `Timeline.Root` around it, placed in CSS from the timeline's variables: scrolling and zooming move it without work.
+- **In height,** it fills the box it is placed in. Render it in the row it belongs to, an element with `position: relative`: the region does not know what the row means, a track of an arrangement or anything else.
+
+A new placement, from props or from `read`, rewrites the region's position and width without rendering what is inside, and a waveform in it draws nothing it has drawn already: moving or trimming a region only places its tiles again. For a placement that changes on its own, pass `read`, called once per animation frame; a take being recorded grows like this:
+
+```tsx
+<Region.Root at={recordStart} read={() => ({ duration: take.duration })}>
+  <Waveform.Root peaks={take} className="h-full" />
+</Region.Root>
+```
+
+A region only shows. Selecting, moving and trimming regions will be an engine your application creates with a hook, not the region's own behaviour: see the [principles](/docs/principles), section 6.
+
+## Accessibility
+
+A region is a `group` named by its `Region.Label`. Name the row it is in too, for example with `role="group"` and `aria-label` in your application's language.
+
+## API reference
+
+### Root
+
+Something that lasts on the timeline. Renders a `<div>` with `role="group"`, placed and sized in CSS from `at` and `duration`, filling the height of its container.
+
+<PropsTable part="Region.Root" />
+
+### Header
+
+The top of a region, for its label and your controls. Renders a `<div>`.
+
+<PropsTable part="Region.Header" />
+
+### Label
+
+The name of a region, which names it for assistive technology. Renders a `<span>`.
+
+<PropsTable part="Region.Label" />
+
+### Content
+
+Where the content goes: a waveform, notes. Renders a `<div>` with `position: relative`.
+
+<PropsTable part="Region.Content" />

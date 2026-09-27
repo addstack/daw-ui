@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Fader, Knob, Meter, NumberBox, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
+import { Fader, Knob, Meter, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -39,15 +39,14 @@ test("every component renders on the server", () => {
         </Meter.Track>
       </Meter.Root>
       <Timeline.Root start={0} end={1} position={0.5}>
-        <Timeline.Track>
-          <Timeline.Region at={0.25} duration={0.5}>
-            <Timeline.RegionHeader>
-              <Timeline.RegionLabel>1</Timeline.RegionLabel>
-            </Timeline.RegionHeader>
-            <Timeline.RegionContent />
-            <Timeline.RegionHandle side="end" />
-          </Timeline.Region>
-        </Timeline.Track>
+        <div>
+          <Region.Root at={0.25} duration={0.5}>
+            <Region.Header>
+              <Region.Label>1</Region.Label>
+            </Region.Header>
+            <Region.Content />
+          </Region.Root>
+        </div>
         <Waveform.Root peaks={createPeaks([new Float32Array(8)], 8)}>
           <Waveform.Shape />
           <Waveform.Progress />

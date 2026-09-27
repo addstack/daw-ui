@@ -47,14 +47,12 @@ const PARTS = [
   "ToggleGroup",
   "Timeline.Root",
   "Timeline.Playhead",
-  "Timeline.Track",
-  "Timeline.Region",
-  "Timeline.RegionHeader",
-  "Timeline.RegionLabel",
-  "Timeline.RegionContent",
-  "Timeline.RegionHandle",
   "Timeline.Ruler",
   "Timeline.Grid",
+  "Region.Root",
+  "Region.Header",
+  "Region.Label",
+  "Region.Content",
   "Waveform.Root",
   "Waveform.Shape",
   "Waveform.Progress",
@@ -123,7 +121,7 @@ function describe(list: string[]): { full: string; short: string } {
 
 const exportName = (part: string) => part.replace(".", "_");
 const content = [
-  `import type { Fader, Knob, Meter, NumberBox, Timeline, Toggle, ToggleGroup, Waveform } from "@addstack/daw-ui/react";`,
+  `import type { Fader, Knob, Meter, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "@addstack/daw-ui/react";`,
   ...PARTS.map((part) => `export type ${exportName(part)} = ${part}.Props;`),
 ].join("\n");
 

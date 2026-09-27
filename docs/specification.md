@@ -11,7 +11,7 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [7. Meter](#7-meter)
 - [8. Toggle](#8-toggle)
 - [9. ToggleGroup](#9-togglegroup)
-- [10. Timeline and Waveform](#10-timeline-and-waveform)
+- [10. Timeline, Region and Waveform](#10-timeline-region-and-waveform)
 - [11. Direction](#11-direction)
 - [12. Performance budgets](#12-performance-budgets)
 
@@ -35,7 +35,7 @@ Each part:
 - accepts `render`: an element, which is cloned with the part's props merged into its own, or a function `(props, state) => element`;
 - merges props in this way: the user's event handler runs first, and if it calls `event.preventDefault()`, the part's own handler is skipped; class names are joined; the user's style is spread over the part's inline style; refs all receive the element.
 
-Inline styles set by parts are limited to positioning (`position`, logical insets, `translate`, `clip-path`), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle` and `Timeline.Ruler`. The text input of a number box being edited is selectable.
+Inline styles set by parts are limited to positioning (`position`, logical insets, `translate`, `clip-path`), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header` and `Region.Label`. The text input of a number box being edited is selectable.
 
 ## 3. Value model
 
@@ -293,7 +293,7 @@ Toggles are arranged into lines: one line per lane (in order of first appearance
 
 Handled keys prevent their default action. With Shift, an arrow move within the same lane between paintable toggles also sets the target toggle to the state of the one focus came from (reason `"paint"`, one gesture).
 
-## 10. Timeline and Waveform
+## 10. Timeline, Region and Waveform
 
 ### 10.1 Peaks (`createPeaks`, `createPeaksRecorder`, `peaksFromAudiowaveform`, `readPeaks`)
 
@@ -317,36 +317,27 @@ A `TimeGrid` is `{ steps, label(time, step) }`: `steps` are seconds between line
 
 The playhead is the `position` prop (default 0), or with `read`, `read()` once per animation frame on the shared frame loop. When it changes, it is written, with the number written in, only into the CSS of the parts that follow it (`Timeline.Playhead`, `Waveform.Progress`), never as a CSS variable: a variable on the root would recalculate the style of everything on the timeline every frame, and one on each part would make every part that defines it costlier to recalculate when the view scrolls.
 
-With `readView`, `readView()` gives `[start, end]` once per animation frame. None of these changes renders a component. With `onRegionsChange` the root is `role="grid"` with `aria-multiselectable`, and takes `snap`, `format`, `selected`, `defaultSelected`, `onSelectedChange`, `onGestureStart` and `onGestureEnd` for editing (§10.4).
+With `readView`, `readView()` gives `[start, end]` once per animation frame. None of these changes renders a component. The root adds no role and no element for what it holds: its children are the application's, and it knows nothing of them.
 
 Parts place themselves in CSS from these variables, with the physical `left` and `translate`: time runs left to right in every direction (§11).
 
 | Part | Element | Behaviour |
 | --- | --- | --- |
-| `Timeline.Playhead` | `div` | `aria-hidden`; `position: absolute`, `inset-block: 0`, `left: 0`, `translate: calc((position − var(--timeline-start)) · var(--timeline-scale)) 0`, rewritten when the playhead moves. |
-| `Timeline.Track` | `div` | `role="group"`, or `row` when editable (§10.4); `position: relative`. `value` names it in changes. A primary press on it outside its regions clears the selection. |
-| `Timeline.Region` | `div` | Holds a placement outside React: `at`, `duration` (default 0) and `offset` (default 0) from props (except during a gesture on it, §10.4), and with `read`, `read()` once per animation frame, its fields replacing those given. `position: absolute`, `inset-block: 0`, `left: 0`, `width: calc(duration · var(--timeline-scale))`, `translate: calc((at − var(--timeline-start)) · var(--timeline-scale)) lift`, with the numbers written in (no CSS variables of its own); a new placement rewrites `width` and `translate` without rendering. `data-region`; `data-selected` and `data-dragging` (§10.4); `role="group"`, or when editable `role="gridcell"`, `aria-selected`, `tabindex` and `touch-action: none`; `aria-labelledby` = its mounted `RegionLabel`. |
-| `Timeline.RegionHeader` | `div` | `user-select: none`, `data-selected`, `data-dragging`. |
-| `Timeline.RegionLabel` | `span` | `user-select: none`. Its id labels the region while mounted. |
-| `Timeline.RegionContent` | `div` | `position: relative`, `data-selected`, `data-dragging`. |
-| `Timeline.RegionHandle` | `div`, only while its region is active (§10.4) | `role="slider"`, `aria-orientation="horizontal"`, `aria-valuenow` = the edge's time (`at`, or `at + duration`), `aria-valuetext` = `format` of it (default `formats.number({ digits: 2, unit: "s" })`), `tabindex` 0 when its region is the tab stop, else −1; `data-region-handle`, `data-side`; `position: absolute; inset-block: 0`, `left: 0` (start) or `right: 0` (end), `touch-action: none`. |
+| `Timeline.Playhead` | `div` | `aria-hidden`; `position: absolute`, `inset-block: 0` (the root's height), `left: 0`, `translate: calc((position − var(--timeline-start)) · var(--timeline-scale)) 0`, rewritten when the playhead moves. |
 | `Timeline.Grid` | `div` | `aria-hidden`, `position: absolute; inset: 0; overflow: hidden`. Draws in tiles (§10.5), placed on the view, with no start or end, a line `max(1, round(devicePixelRatio))` device pixels wide at every multiple of `gridStep(grid, scale of the tile, spacing)` (default spacing 12). A new `grid` with the same `steps`, and the same `spacing`, draws nothing again. |
 | `Timeline.Ruler` | `div` | `aria-hidden`, `position: relative; overflow: hidden`, and its `children`. Holds a `span` with `data-label` and the text `grid.label(k · step, step)` for every whole `k` with `k · step` in `[start − w/2, end + w/2]` (`w = end − start`, `step = gridStep(grid, scale, spacing)`, default spacing 64), placed with `position: absolute; left: 0; white-space: nowrap; translate: calc((k · step − var(--timeline-start)) · var(--timeline-scale)) 0`. The labels change only when the view leaves that stretch or the step changes; a new `grid` rewrites texts that differ. |
 
-### 10.4 Editing
+### 10.4 Region
 
-Regions are **editable** when the root has `onRegionsChange` and they have a `value`.
+`Region.Root` (`div`, `role="group"`) must be inside a `Timeline.Root`. It holds a placement outside React: `at`, `duration` (default 0) and `offset` (default 0) from props, and with `read`, `read()` once per animation frame, its fields replacing those given. `position: absolute`, `inset-block: 0` (the height of the box it is in), `left: 0`, `width: calc(duration · var(--timeline-scale))`, `translate: calc((at − var(--timeline-start)) · var(--timeline-scale)) 0`, with the numbers written in (no CSS variables of its own); a new placement rewrites `width` and `translate` without rendering. `aria-labelledby` = its mounted `Region.Label`.
 
-- **Selection.** A set of region values, controlled by `selected` (`onSelectedChange` is called and the set changes when the parent passes it) or starting at `defaultSelected`. A primary press on a region selects it alone, unless it is selected; with Cmd or Ctrl it toggles it. A press that selected a region already selected, and did not become a drag, selects it alone on release. `onSelectedChange(values, { reason: "press" | "keyboard", event })` is called when the set changes. Regions show `data-selected` and `aria-selected` by writing them, without rendering.
-- **Active.** A region is active while pointed at (between `pointerenter` and `pointerleave`), focused or containing focus, selected, or in a gesture. Its `RegionHandle`s are rendered only while it is active.
-- **Tab stop.** Of the editable regions, the last focused is in the tab order (`tabindex` 0), or the first registered; the others are −1.
-- **Gestures.** A primary press on a region (not on a handle, nor on a descendant `button`, `a[href]`, `input`, `select`, `textarea`, `[contenteditable=true]` or an element with `role` `button`, `menuitem` or `slider`) starts a *move*; on a handle, a *start* or *end* trim. The press prevents the default action, focuses the region and selects as above; with Cmd or Ctrl on a selected region it only deselects it. The gesture applies to the selection it leaves, read with the tracks' boxes once, at the press. It becomes a drag once the pointer has moved 3 px; then every pointer move places the group:
-  - `snap(t)` rounds `t` to the step `gridStep(snap, scale, 12)`, unless Shift is held or there is no `snap`. The minimum duration is that step, or one pixel of time without snapping.
-  - The held region's start (move, start) or end (end) goes to `snap(its value + pointer time − time at the press)`, where pointer time is `start + (clientX − root's left) / scale`: `delta` is the difference. Over the group, `delta` is clamped: for a move, so that no region starts before 0; for an end trim, so that no duration is under the minimum nor, with `length`, goes past `length − offset`; for a start trim, so that no `offset` nor `at` goes under 0 and no duration under the minimum.
-  - For a move, the track under the pointer (the first whose box's bottom is below it, or the last) gives a number of tracks to shift by, clamped so that every region of the group lands on a track, and 0 if one is outside a track; each region is lifted by the vertical distance between its track's box and its new one.
-  - Each region is placed: a move adds `delta` to `at`; an end trim adds it to `duration`; a start trim adds it to `at` and `offset` and takes it from `duration`. When the changes differ from the last ones, `onGestureStart()` is called before the first, then `onRegionsChange(changes, { reason: "drag", edit, event })`, `changes` being `{ value, at, duration, offset, track }` per region of the group, `track` the `value` of its new track.
-  - On release, `onGestureEnd(changes)` with the last changes, if any; then every region of the group returns to its props, with no lift. `data-dragging` is on the group's regions and their parts during the drag.
-- **Keys** on a focused editable region: arrows focus the previous or next region on its track (by `at`), or the region nearest in `at` on the track above or below; Space selects as a press does. With Cmd or Ctrl, arrows edit the selection (an unselected region alone): left and right move it by one snap step (without `snap`, 10 px of time; with Shift, one pixel), up and down by one track. On a handle, left and right move its edge by that step. Each key is one gesture: `onGestureStart`, `onRegionsChange` with reason `"keyboard"`, `onGestureEnd`, if anything changed; the regions then return to their props. After a key that moves a region to another track, the region with its value is focused when it mounts again.
+| Part | Element | Behaviour |
+| --- | --- | --- |
+| `Region.Header` | `div` | `user-select: none`. |
+| `Region.Label` | `span` | `user-select: none`. Its id labels the region while mounted. |
+| `Region.Content` | `div` | `position: relative`. |
+
+A region has no behaviour of its own: selecting, moving and trimming regions is for an editing engine the application owns (principles, section 6).
 
 ### 10.5 Tiles
 
@@ -364,7 +355,7 @@ Regions are **editable** when the root has `onRegionsChange` and they have a `va
 
 `Waveform.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`, sized by CSS) shows the audio of `peaks`:
 
-- **In a `Timeline.Region`**, from the region's `offset` for its `duration`, on the timeline's axis, where the region starts `at`. Its own `offset`, `duration`, `position` and `read` do not apply.
+- **In a `Region.Root`**, from the region's `offset` for its `duration`, on the timeline's axis, where the region starts `at`. Its own `offset`, `duration`, `position` and `read` do not apply.
 - **Otherwise, on its own**, from `offset` (default 0) for `duration` (default `peaks.duration − offset`, at least 0; growing with peaks that have `subscribe`), as its own axis (§10.3) from 0 to that duration across its width, with the playhead at `position − offset` (default 0), or `read() − offset` once per animation frame.
 
 `Waveform.Shape` and `Waveform.Progress` (`div`, `position: absolute; inset: 0`) draw the audio, or the channel `channel`, in tiles (§10.5). A tile draws one column per device pixel from `readPeaks` (with the root's `samples`), as a rectangle from the maximum to the minimum around the middle, at least one device pixel tall. Other `peaks`, `samples` or `channel` remove what is drawn and start a new layer; a new `at`, `duration` or `offset` only places the tiles again and draws the ones that come into view. When the peaks change from second `f` of the audio, the tiles from `f` on are drawn again.
@@ -391,9 +382,8 @@ Checked on every change; a regression fails CI.
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
-| Playback, scrolling, and moving or trimming a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
-| Dragging a region renders nothing between the press and the release. | `test/timeline-editing.test.tsx` |
-| In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, and at most 4 for a drag of a region (the press showing the handles, and the application keeping the change); 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 27.3 kB. | `scripts/size.mjs` |
+| Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
+| In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming; 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
+| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 23.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.
