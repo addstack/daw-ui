@@ -18,6 +18,7 @@ import MultiSliderDemo from './multi-slider';
 import VelocityLaneDemo from './multi-slider-velocity-lane';
 import NotesDemo from './notes';
 import NumberBoxDemo from './number-box';
+import PianoRollBlockDemo from './piano-roll';
 import SegmentsDemo from './number-box-segments';
 import RegionDemo from './region';
 import RegionEditingDemo from './region-editing';
@@ -52,6 +53,7 @@ export const demos = {
   notes: NotesDemo,
   'number-box': NumberBoxDemo,
   'number-box-segments': SegmentsDemo,
+  'piano-roll': PianoRollBlockDemo,
   region: RegionDemo,
   'region-editing': RegionEditingDemo,
   timeline: TimelineDemo,

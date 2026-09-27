@@ -1,0 +1,25 @@
+---
+title: Piano roll
+description: The notes of a MIDI clip beside the keys, with a velocity lane, playback and editing, composed from Timeline, Keys, Notes, MultiSlider and Toggle.
+---
+
+<ComponentPreview name="piano-roll" />
+
+A block is a composition of components, to copy and adapt: the library has no `PianoRoll` component, because what a piano roll edits and how is your application's. The code tab has all of it. Press ▶ to play the loop; press the keys to hear them.
+
+## How it is composed
+
+| Part of the block | Component |
+| --- | --- |
+| Time: bars across, the ruler, the grid, the playhead | [`Timeline`](/docs/components/timeline) |
+| The keys beside the rows, lit by the notes that play | [`Keys`](/docs/components/keys), `layout="rows"` |
+| The notes, and the selected one over them | [`Notes`](/docs/components/notes) |
+| One velocity per note, under the notes | [`MultiSlider`](/docs/components/multi-slider) |
+| Play and stop | [`Toggle`](/docs/components/toggle) |
+| Names of notes and positions | [`formats.pitch`, `formats.position`](/docs/guides/values-and-formats) |
+
+- **Rows that line up.** The keys and the notes share `range` (C3 to C5) and a height of 12 px per semitone: with `layout="rows"`, key `n` is exactly the row where `Notes` draws pitch `n`. The darker rows under the black keys are `div`s of the page's own.
+- **Notes on the timeline.** Outside a region, `Notes.Root` lies on the timeline itself, from its second 0, and `Notes.Progress` shows what has played. It is placed over the rows with `style`, since it positions itself.
+- **Editing is the application's.** A press on the roll turns into seconds and a pitch; a press on a note drags it in sixteenths and semitones, a press elsewhere adds a note of a beat, the secondary button removes one. From the keyboard, the roll is one tab stop: arrows select a note, Up and Down move it a semitone (Shift: an octave), Shift+Left and Shift+Right a sixteenth, Delete removes it. The note being dragged is drawn on its own layer, the second `Notes.Root`, so that the others are not drawn again on every move.
+- **Velocities under the notes.** Each item of the multi-slider sits at its note's start, placed with `style` on the timeline's CSS variables, `calc((at - var(--timeline-start)) * var(--timeline-scale))`; a stroke across a chord sets all its notes. The block keeps the velocities each stroke leaves.
+- **Playback outside React.** The transport is a ref: the timeline's `read` and the keys' `read` ask where the loop is once per frame, and nothing renders while it plays. The sound is a small Web Audio synth in the block; in an application, your audio engine plays the notes, and the keys show what it plays.
