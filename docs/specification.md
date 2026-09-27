@@ -36,6 +36,8 @@ Each part:
 - accepts `render`: an element, which is cloned with the part's props merged into its own, or a function `(props, state) => element`;
 - merges props in this way: the user's event handler runs first, and if it calls `event.preventDefault()`, the part's own handler is skipped; class names are joined; the user's style is spread over the part's inline style; refs all receive the element.
 
+A part that moves focus because of a pointer press, or of a click on a `Label`, calls `focus({ preventScroll: true, focusVisible: false })`: it shows no focus ring, as the browser's own focusing on a click shows none. Focus moved by keys keeps the ring.
+
 Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
 
 ## 3. Value model

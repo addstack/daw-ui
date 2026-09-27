@@ -6,6 +6,7 @@ import { numberFormat } from "../core/format.js";
 import { gridStep, type CurvePoint, type Range, type TimeGrid, type ValueFormat } from "../core/index.js";
 import { curvePosition, pointAfter } from "../core/curve.js";
 import type { ContentAxis } from "./content.js";
+import { focusFromPointer } from "./render.js";
 
 /** An axis a point does not move on: `"both"`, and it cannot be grabbed at all. */
 export type CurveLock = "time" | "value" | "both";
@@ -305,7 +306,7 @@ export class CurveEditing {
   pressPoint(index: number, event: PointerEvent, handle: HTMLElement): void {
     if (event.button !== 0 || !this.target) return;
     event.preventDefault();
-    handle.focus({ preventScroll: true });
+    focusFromPointer(handle);
     this.current = index;
     const toggle = event.metaKey || event.ctrlKey;
     const wasSelected = this.selection.has(index);

@@ -45,6 +45,17 @@ export type PartProps<Tag extends keyof JSX.IntrinsicElements, State> = Omit<
 };
 
 /**
+ * Moves focus to a control a pointer pressed or a label that was clicked.
+ * A press prevents the browser's own focusing (and text selection), so the
+ * part focuses the control itself; it asks for no focus ring, which is for
+ * the keyboard, as the browser's own focusing on a click shows none
+ * (docs/principles.md, section 2).
+ */
+export function focusFromPointer(element: HTMLElement | null | undefined): void {
+  element?.focus({ preventScroll: true, focusVisible: false });
+}
+
+/**
  * The style of parts that show text: interface text is not document
  * content, so a drag across controls or a double-click never selects it
  * (docs/principles.md, section 5). A text input being edited stays selectable.

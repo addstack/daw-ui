@@ -13,7 +13,7 @@ import {
 import { zoneOf } from "../core/index.js";
 import { useRightToLeft } from "./direction.js";
 import { mergeLive, type Live } from "./live.js";
-import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, focusFromPointer, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
   controlLive,
   splitValueControlProps,
@@ -152,7 +152,7 @@ export function FaderLabel(props: FaderLabel.Props) {
     ...staticFaderAttributes(state),
     ...live.attributes,
     style: unselectable,
-    onClick: () => document.getElementById(context.control.controlId)?.focus(),
+    onClick: () => focusFromPointer(document.getElementById(context.control.controlId)),
   });
 }
 

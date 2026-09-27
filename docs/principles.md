@@ -21,7 +21,7 @@ The package ships behaviour, not looks. Someone else must be able to publish a s
 - Every control has the right role and state: `slider` for knobs and faders, `spinbutton` for number boxes, `meter` for level meters, `button` with `aria-pressed` for toggles.
 - Values are announced as users read them: `aria-valuetext` comes from the same `format` that draws the value ("-6.0 dB", not "-6").
 - Every part without visible text needs an accessible name. The library never invents one; a `Label` part or an `aria-label` from the consumer provides it.
-- Focus is visible and predictable. Groups use a roving tab index, so a 16×64 step grid is one tab stop.
+- Focus is visible and predictable. Groups use a roving tab index, so a 16×64 step grid is one tab stop. A press with a pointer moves focus to what it pressed without a focus ring, which is for the keyboard.
 
 ## 3. Internationalization
 

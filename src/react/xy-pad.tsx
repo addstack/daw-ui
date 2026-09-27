@@ -19,7 +19,7 @@ import { createRange, type Range, type Scale, type ValueFormat } from "../core/i
 import { isRightToLeft, useRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { writeLive } from "./live.js";
-import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, focusFromPointer, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import { FINE, useIsomorphicLayoutEffect } from "./value-control.js";
 
 /** A thumb's value: across, then up. */
@@ -360,7 +360,7 @@ export function XYPadControl(props: XYPadControl.Props) {
         if (d < distance) [nearest, distance] = [index, d];
       });
       dragThumb(context, nearest, event, true);
-      control.querySelectorAll<HTMLElement>("[data-xy-thumb]")[nearest]?.focus({ preventScroll: true });
+      focusFromPointer(control.querySelectorAll<HTMLElement>("[data-xy-thumb]")[nearest]);
     },
     style: { position: "relative", touchAction: "none" },
   });
@@ -469,7 +469,7 @@ export function XYPadThumb({ index, ...props }: XYPadThumb.Props) {
     "data-xy-thumb": "",
     ...dataAttributes({ dragging: state.dragging, disabled: context.disabled }),
     onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
-      event.currentTarget.focus({ preventScroll: true });
+      focusFromPointer(event.currentTarget);
       dragThumb(context, index, event, false);
     },
     onKeyDown,

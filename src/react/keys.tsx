@@ -17,7 +17,7 @@ import type { ValueFormat } from "../core/index.js";
 import { isRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { writeLive } from "./live.js";
-import { dataAttributes, unselectable, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, focusFromPointer, unselectable, useRenderPart, type PartProps } from "./render.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
 
 export type KeysReason = "pointer" | "keyboard";
@@ -318,7 +318,7 @@ export function KeysRoot({
       if (hit && next !== null) press(next, velocityAt(hit.box, x, y), "pointer", moved);
     };
     glide(event.clientX, event.clientY, event.nativeEvent, first);
-    store.element(first)?.focus({ preventScroll: true });
+    focusFromPointer(store.element(first));
     try {
       root.setPointerCapture(pointerId);
     } catch {

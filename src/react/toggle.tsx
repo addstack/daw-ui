@@ -15,7 +15,7 @@ import {
 
 import { boxesAlongSegment, type Point } from "../core/index.js";
 import { isRightToLeft } from "./direction.js";
-import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, focusFromPointer, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
 
 export type ToggleChangeReason =
@@ -587,7 +587,7 @@ export function Toggle(props: Toggle.Props) {
     if (event.button === 0) {
       // No text selection while painting; focus still moves to the toggle.
       event.preventDefault();
-      event.currentTarget.focus({ preventScroll: true });
+      focusFromPointer(event.currentTarget);
     }
 
     if (behavior === "toggle") {

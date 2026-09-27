@@ -19,7 +19,7 @@ import {
 
 import type { ValueField, ValueSegment } from "../core/index.js";
 import { liveProps, mergeLive, type Live } from "./live.js";
-import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { dataAttributes, focusFromPointer, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
   FINE,
   splitValueControlProps,
@@ -242,7 +242,7 @@ export function NumberBoxLabel(props: NumberBoxLabel.Props) {
     id,
     ...stateAttributes(state),
     style: unselectable,
-    onClick: () => document.getElementById(control.controlId)?.focus(),
+    onClick: () => focusFromPointer(document.getElementById(control.controlId)),
   });
 }
 

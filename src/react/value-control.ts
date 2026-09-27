@@ -19,7 +19,7 @@ import { createRange, zoneOf, type Range, type Scale, type ValueFormat, type Zon
 import { isRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { liveProps, mergeLive, useLive, type Live, type LiveListener } from "./live.js";
-import { dataAttributes } from "./render.js";
+import { dataAttributes, focusFromPointer } from "./render.js";
 
 export const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -363,7 +363,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
       const element = event.currentTarget;
       // No text selection while dragging; focus still moves to the control.
       event.preventDefault();
-      element.focus({ preventScroll: true });
+      focusFromPointer(element);
 
       const { orientation } = optionsRef.current;
       const towardsStart = orientation === "horizontal" && isRightToLeft(element) ? -1 : 1;

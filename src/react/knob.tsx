@@ -13,7 +13,7 @@ import {
 import { arcPath, knobAngle, polar } from "../core/index.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { mergeLive, type Live } from "./live.js";
-import { unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
+import { focusFromPointer, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
 import {
   controlLive,
   splitValueControlProps,
@@ -117,7 +117,7 @@ export function KnobLabel(props: KnobLabel.Props) {
     ...staticAttributes(control.state),
     ...live.attributes,
     style: unselectable,
-    onClick: () => document.getElementById(control.controlId)?.focus(),
+    onClick: () => focusFromPointer(document.getElementById(control.controlId)),
   });
 }
 
