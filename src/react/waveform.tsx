@@ -1,15 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties } from "react";
+import { createContext, useContext } from "react";
 
 import { readPeaks, type Peaks } from "../core/index.js";
+import { ContentPainter, useContentAxis, useContentDrawing, usePlayedClip, type ContentAxis, type ContentKind, type ContentState } from "./content.js";
 import { useMergedRef, useRenderPart, type PartProps } from "./render.js";
-import { TimeTiles, type TilePainter, type TileStretch } from "./time-tiles.js";
-import { RegionPlacement, useOptionalRegion } from "./region.js";
-import { useTimelineView, type TimelineView } from "./timeline.js";
-import { useIsomorphicLayoutEffect } from "./value-control.js";
+import type { TileStretch } from "./time-tiles.js";
 
-export type WaveformState = { offset: number; duration: number };
+export type WaveformState = ContentState;
 
 /** What a waveform draws. */
 type WaveformSource = {
@@ -18,12 +16,7 @@ type WaveformSource = {
   channel: number | undefined;
 };
 
-type WaveformContextValue = {
-  view: TimelineView;
-  placement: RegionPlacement;
-  state: WaveformState;
-  source: Omit<WaveformSource, "channel">;
-};
+type WaveformContextValue = { axis: ContentAxis; source: Omit<WaveformSource, "channel"> };
 
 const WaveformContext = createContext<WaveformContextValue | null>(null);
 
@@ -34,10 +27,10 @@ function useWaveformContext(part: string): WaveformContextValue {
 }
 
 /**
- * Audio, drawn from its peaks. In a `Region.Root`, it shows the part
- * of the audio the region shows, from its `offset` for its `duration`, on
- * the timeline's axis, and follows the region without rendering. On its
- * own, as the preview of a sample, it shows `offset` … `offset + duration`
+ * Audio, drawn from its peaks. In a `Region.Root`, it shows the part of the
+ * audio the region shows, from its `offset` for its `duration`, on the
+ * timeline's axis, and follows the region without rendering. On its own,
+ * as the preview of a sample, it shows `offset` … `offset + duration`
  * across its width, and takes its playhead from `position` or `read`.
  *
  * Size it with CSS; in a region, it spans the region's width. Renders a
@@ -45,47 +38,10 @@ function useWaveformContext(part: string): WaveformContextValue {
  * language.
  */
 export function WaveformRoot({ peaks, samples, offset = 0, duration, position, read, ...props }: WaveformRoot.Props) {
-  const region = useOptionalRegion();
-  const own = region === null;
-  const length = () => duration ?? Math.max(0, peaks.duration - offset);
-
-  // On its own, the waveform is its own axis: 0 … its duration across its width, where 0 is `offset` in the audio.
-  const axis = useTimelineView(
-    {
-      start: 0,
-      end: Math.max(length(), 0.001),
-      position: (position ?? offset) - offset,
-      read: read && (() => read() - offset),
-    },
-    own,
-  );
-  const [ownPlacement] = useState(() => new RegionPlacement(0, length(), offset));
-  useIsomorphicLayoutEffect(() => ownPlacement.set(0, length(), offset));
-
   // Peaks that grow, as while recording, lengthen a waveform on its own without rendering.
-  useEffect(() => {
-    if (!own || duration !== undefined || !peaks.subscribe) return;
-    return peaks.subscribe(() => {
-      ownPlacement.set(0, length(), offset);
-      axis.view.set(0, Math.max(length(), 0.001));
-    });
-  });
-
-  const view = region?.view ?? axis.view;
-  const placement = region?.placement ?? ownPlacement;
-  const state: WaveformState = region ? { offset: region.placement.offset, duration: region.placement.duration } : { offset, duration: length() };
-  const rendered = useRenderPart("div", state, props, {
-    role: "img",
-    ...(own
-      ? {
-          ref: axis.ref,
-          style: { position: "relative", overflow: "hidden", ...axis.style } as CSSProperties,
-        }
-      : { style: { position: "relative", overflow: "hidden" } }),
-  });
-  return (
-    <WaveformContext.Provider value={{ view, placement, state, source: { peaks, samples } }}>{rendered}</WaveformContext.Provider>
-  );
+  const axis = useContentAxis({ length: () => peaks.duration, offset, duration, position, read, subscribe: peaks.subscribe });
+  const rendered = useRenderPart("div", axis.state, props, { role: "img", ...axis.root });
+  return <WaveformContext.Provider value={{ axis, source: { peaks, samples } }}>{rendered}</WaveformContext.Provider>;
 }
 
 export namespace WaveformRoot {
@@ -120,35 +76,10 @@ export namespace WaveformRoot {
 // One buffer of columns for every waveform: tiles are drawn one at a time.
 let columns = new Float32Array(0);
 
-/**
- * Paints peaks: one column per device pixel, from the maximum to the
- * minimum around the middle. Tiles are in seconds of audio, so moving or
- * trimming the region only places them again, and draws only what comes
- * into view.
- */
-class WaveformPainter implements TilePainter {
-  constructor(
-    public source: WaveformSource,
-    private readonly view: TimelineView,
-    private readonly placement: RegionPlacement,
-  ) {}
-
+/** Paints peaks: one column per device pixel, from the maximum to the minimum around the middle. */
+class WaveformPainter extends ContentPainter<WaveformSource> {
   extent() {
     return { from: 0, to: this.source.peaks.duration };
-  }
-
-  shown() {
-    const { duration, offset } = this.placement;
-    return { from: offset, to: offset + duration };
-  }
-
-  inView() {
-    const { at, duration, offset } = this.placement;
-    return { from: Math.max(offset, this.view.start - at + offset), to: Math.min(offset + duration, this.view.end - at + offset) };
-  }
-
-  place(start: number) {
-    return String(start - this.placement.offset);
   }
 
   paint(context: CanvasRenderingContext2D, { start, length, width, height }: TileStretch): void {
@@ -171,78 +102,18 @@ class WaveformPainter implements TilePainter {
   }
 }
 
-const sameAudio = (a: WaveformSource, b: WaveformSource) =>
-  a.peaks === b.peaks && a.samples === b.samples && a.channel === b.channel;
+const audio: ContentKind<WaveformSource> = {
+  same: (a, b) => a.peaks === b.peaks && a.samples === b.samples && a.channel === b.channel,
+  // Audio that arrives is drawn again from where it changed; the last tile grows with it.
+  changes: (source, changed) => source.peaks.subscribe?.(changed),
+};
 
-/** Tiles of a waveform, which follow its audio as it grows and its placement as it moves. */
-class WaveformDrawing {
-  private readonly painter: WaveformPainter;
-  private readonly tiles: TimeTiles;
-  private unsubscribePeaks: (() => void) | undefined;
-  private readonly unsubscribePlacement: () => void;
+const createPainter = (...args: ConstructorParameters<typeof WaveformPainter>) => new WaveformPainter(...args);
 
-  constructor(element: HTMLElement, view: TimelineView, placement: RegionPlacement, source: WaveformSource) {
-    this.painter = new WaveformPainter(source, view, placement);
-    this.tiles = new TimeTiles(element, view, this.painter);
-    this.listen(source.peaks);
-    // Moving, trimming or lengthening the region draws nothing already drawn: a new offset places the tiles again,
-    // and the change of what is in view draws what comes into it.
-    let offset = placement.offset;
-    this.unsubscribePlacement = placement.subscribe(() => {
-      if (placement.offset !== offset) {
-        offset = placement.offset;
-        this.tiles.reposition();
-      }
-      this.tiles.cull();
-    });
-  }
-
-  update(source: WaveformSource): void {
-    const previous = this.painter.source;
-    this.painter.source = source;
-    if (previous.peaks !== source.peaks) this.listen(source.peaks);
-    if (sameAudio(previous, source)) this.tiles.cull();
-    else this.tiles.reset();
-  }
-
-  destroy(): void {
-    this.unsubscribePeaks?.();
-    this.unsubscribePlacement();
-    this.tiles.destroy();
-  }
-
-  private listen(peaks: Peaks): void {
-    this.unsubscribePeaks?.();
-    // Audio that arrives is drawn again from where it changed; the last tile grows with it.
-    this.unsubscribePeaks = peaks.subscribe?.((from) => this.tiles.invalidate(from));
-  }
-}
-
-/** Keeps canvas tiles drawing the waveform inside the part's element. */
-function useDrawing(context: WaveformContextValue, channel: number | undefined) {
-  const source: WaveformSource = { ...context.source, channel };
-  const latest = useRef(source);
-  latest.current = source;
-  const drawing = useRef<WaveformDrawing | null>(null);
-
-  const { view, placement } = context;
-  const ref = useCallback(
-    (element: HTMLElement | null) => {
-      if (!element) return;
-      const current = new WaveformDrawing(element, view, placement, latest.current);
-      drawing.current = current;
-      return () => {
-        current.destroy();
-        drawing.current = null;
-      };
-    },
-    [view, placement],
-  );
-  // A render with other audio or another channel draws again; any other render does not.
-  useIsomorphicLayoutEffect(() => {
-    drawing.current?.update(latest.current);
-  });
-  return ref;
+function useWaveformDrawing(part: string, channel: number | undefined) {
+  const { axis, source } = useWaveformContext(part);
+  const drawing = useContentDrawing(axis, { ...source, channel }, createPainter, audio);
+  return { axis, drawing };
 }
 
 /**
@@ -251,9 +122,8 @@ function useDrawing(context: WaveformContextValue, channel: number | undefined) 
  * above the other, render one per channel and place them with `style`.
  */
 export function WaveformShape({ channel, ...props }: WaveformShape.Props) {
-  const context = useWaveformContext("Shape");
-  const ref = useDrawing(context, channel);
-  return useRenderPart("div", context.state, props, { ref, style: { position: "absolute", inset: 0 } });
+  const { axis, drawing } = useWaveformDrawing("Shape", channel);
+  return useRenderPart("div", axis.state, props, { ref: drawing, style: { position: "absolute", inset: 0 } });
 }
 
 export namespace WaveformShape {
@@ -273,40 +143,11 @@ export namespace WaveformShape {
  * playhead: playback rewrites its `clip-path` and draws nothing.
  */
 export function WaveformProgress({ channel, ...props }: WaveformProgress.Props) {
-  const context = useWaveformContext("Progress");
-  const drawing = useDrawing(context, channel);
-  const { placement, view } = context;
-  // The playhead, and a region that moves, clip the played part without rendering.
-  const follow = useCallback(
-    (element: HTMLElement | null) => {
-      if (!element) return;
-      const clip = () => {
-        const clipPath = playedClip(placement.at, view.position);
-        if (element.style.clipPath !== clipPath) element.style.clipPath = clipPath;
-      };
-      const stopFollowing = view.follow(clip);
-      const stopListening = placement.subscribe(clip);
-      return () => {
-        stopFollowing();
-        stopListening();
-      };
-    },
-    [placement, view],
-  );
-  const ref = useMergedRef(drawing, follow);
-  return useRenderPart("div", context.state, props, {
-    ref,
-    style: { position: "absolute", inset: 0, clipPath: playedClip(placement.at, view.position) },
-  });
+  const { axis, drawing } = useWaveformDrawing("Progress", channel);
+  const played = usePlayedClip(axis);
+  const ref = useMergedRef(drawing, played.ref);
+  return useRenderPart("div", axis.state, props, { ref, style: { position: "absolute", inset: 0, clipPath: played.clipPath } });
 }
-
-/**
- * Clips a progress layer to the part before the playhead, for a region that
- * starts `at` seconds on the timeline: the numbers written in, no CSS
- * variable of its own.
- */
-const playedClip = (at: number, position: number) =>
-  `inset(0 max(0px, calc(100% - ${position - at} * var(--timeline-scale))) 0 0)`;
 
 export namespace WaveformProgress {
   export type State = WaveformState;

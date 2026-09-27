@@ -1,0 +1,75 @@
+---
+title: Notes
+description: The notes of a MIDI clip or a pattern, in a region of a timeline or on their own, drawn on canvas once and moved by CSS.
+---
+
+<ComponentPreview name="notes" />
+
+## Anatomy
+
+```tsx
+import { Notes, type Note } from '@addstack/daw-ui/react';
+
+const notes: Note[] = [
+  { at: 0, duration: 0.5, pitch: 60 },
+  { at: 0.5, duration: 0.5, pitch: 64 },
+];
+
+<Notes.Root notes={notes} read={() => player.currentTime} aria-label="Chords" className="h-10 w-64">
+  <Notes.Shape className="text-neutral-400" />
+  <Notes.Progress className="text-emerald-500" />
+</Notes.Root>
+```
+
+Notes are drawn as bars: in time across, and one row per pitch, the highest at the top. A note starts `at` seconds into the clip, lasts `duration`, and has a `pitch`, a MIDI note number or any number that orders notes from low to high. Times are in seconds, like everything on a timeline: converting from beats or ticks, with the song's tempo changes, is your application's.
+
+Like a [waveform](/docs/components/waveform), notes need nothing around them: in a clip browser, they show the clip across their own width, from `offset` for `duration` (up to the last note by default), and take their playhead from `position` or `read`, in seconds of the clip. They are an image named by `aria-label`, in your application's language; size them with CSS.
+
+Notes only show. Editing them, as in a piano roll, will be an engine your application creates with a hook: see the [principles](/docs/principles), section 6.
+
+## In a timeline
+
+In a [`Region`](/docs/components/region) on a [timeline](/docs/components/timeline), notes show the part of the clip the region shows, from its `offset` for its `duration`, on the timeline's axis, and follow the region as it moves; the timeline gives them the playhead. The arrangement in the [timeline demo](/docs/components/timeline) has a MIDI track like this:
+
+```tsx
+<div className="relative h-16">
+  <Region.Root at={4} duration={4}>
+    <Region.Content className="h-full">
+      <Notes.Root notes={clip.notes} className="h-full">
+        <Notes.Shape className="text-emerald-500" />
+        <Notes.Progress className="text-emerald-300" />
+      </Notes.Root>
+    </Region.Content>
+  </Region.Root>
+</div>
+```
+
+## Rows
+
+By default, the rows go from the lowest to the highest pitch of the notes, so a clip fills its height, as clip previews do in DAWs. `range` sets them instead: `range={[21, 108]}` gives the 88 keys of a piano, one row each, to line up with keys drawn beside it. Notes outside the range are not drawn.
+
+## How it stays fast
+
+Notes are drawn like waveforms, in canvas tiles placed in time with the timeline's CSS variables: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and draws them sharp when it rests, and a region that moves only places its tiles again. A tile finds its notes by a binary search over the notes sorted by start, so a clip of thousands of notes costs what is on screen.
+
+A new `notes` array draws them again. Keep the same array between renders while the notes stay the same: from state, or with `useMemo`.
+
+## API reference
+
+### Root
+
+Renders a `<div>` with `role="img"`, `position: relative` and `overflow: hidden`. On its own, it is its own time axis, with `--timeline-start` and `--timeline-scale`.
+
+<PropsTable part="Notes.Root" />
+
+### Shape
+
+The notes, drawn on canvas in the CSS `color` of this element. Renders a `<div>` that fills the root.
+
+<PropsTable part="Notes.Shape" />
+
+### Progress
+
+The notes before the playhead, drawn over the shape in its own `color`, clipped in CSS at the playhead. Renders a `<div>` that fills the root.
+
+<PropsTable part="Notes.Progress" />

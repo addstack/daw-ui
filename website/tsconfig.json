@@ -16,8 +16,8 @@
     "incremental": true,
     "paths": {
       "@/*": ["./*"],
-      "@addstack/daw-ui": ["../dist/core/index.js"],
-      "@addstack/daw-ui/react": ["../dist/react/index.js"]
+      "@addstack/daw-ui": ["../dist/core/index"],
+      "@addstack/daw-ui/react": ["../dist/react/index"]
     },
     "plugins": [{ "name": "next" }]
   },

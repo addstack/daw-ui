@@ -63,3 +63,24 @@ test("a recording widens as audio arrives", async ({ page }) => {
   await expect.poll(width).toBeGreaterThan(before + 5);
   await expect.poll(() => take.locator("canvas").count()).toBeGreaterThan(0);
 });
+
+test("notes draw into canvas tiles, one bar per note, in their CSS color", async ({ page }) => {
+  await page.goto("/?view=waveforms&mode=play&notes");
+  const tile = page.getByRole("img", { name: "Keys at 0" }).locator(".clip-notes canvas").first();
+  const painted = () =>
+    tile.evaluate((canvas: HTMLCanvasElement) => {
+      const { data } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+      let pixels = 0;
+      let green = 0;
+      for (let index = 0; index < data.length; index += 4) {
+        if (data[index + 3]! === 0) continue;
+        pixels++;
+        if (data[index + 1]! > data[index]! && data[index + 1]! > data[index + 2]!) green++;
+      }
+      return { pixels, green };
+    });
+  await expect.poll(async () => (await painted()).pixels).toBeGreaterThan(500);
+  // #34d399, from the stylesheet.
+  const { pixels, green } = await painted();
+  expect(green / pixels).toBeGreaterThan(0.9);
+});

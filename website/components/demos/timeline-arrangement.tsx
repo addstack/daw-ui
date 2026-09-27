@@ -1,7 +1,7 @@
 'use client';
 
 import { createPeaks, musicalGrid, type Peaks } from '@addstack/daw-ui';
-import { Region, Timeline, Toggle, Waveform } from '@addstack/daw-ui/react';
+import { Notes, Region, Timeline, Toggle, Waveform, type Note } from '@addstack/daw-ui/react';
 import { useMemo } from 'react';
 
 const RATE = 22_050;
@@ -16,7 +16,11 @@ function synthesize(seconds: number, sample: (t: number) => number): Peaks {
 }
 
 type Clip = { id: string; name: string; at: number; duration: number };
-type Track = { id: string; name: string; peaks: Peaks; clips: Clip[] };
+/** A track of audio, drawn as a waveform, or of MIDI, drawn as notes. */
+type Track = { id: string; name: string; clips: Clip[] } & ({ peaks: Peaks } | { notes: Note[] });
+
+/** Four bars of chords, a bar each (2 s at 120 BPM), in seconds of the clip. */
+const chords: Note[] = [57, 53, 55, 52].flatMap((root, bar) => [0, 4, 7].map((third) => ({ at: bar * 2, duration: 1.75, pitch: root + third })));
 
 export default function ArrangementDemo() {
   const tracks = useMemo<Track[]>(
@@ -40,7 +44,7 @@ export default function ArrangementDemo() {
       {
         id: 'keys',
         name: 'Keys',
-        peaks: synthesize(4, (t) => 0.4 * Math.sin(Math.PI * (t / 4)) * Math.sin(2 * Math.PI * 262 * t) * Math.sin(2 * Math.PI * 330 * t)),
+        notes: chords,
         clips: [
           { id: 'e', name: 'Chords', at: 4, duration: 4 },
           { id: 'f', name: 'Chords', at: 8, duration: 4 },
@@ -68,7 +72,7 @@ export default function ArrangementDemo() {
         ))}
       </div>
 
-      {/* The timeline shows time; the rows in it are the page's too. */}
+      {/* The timeline shows time; the rows in it are the page's too, with audio or MIDI in their regions. */}
       <Timeline.Root start={0} end={12} position={5} className="flex-1">
         <Timeline.Ruler grid={grid} className="h-6 border-b border-neutral-800 font-mono text-[10px] text-neutral-400 [&_[data-label]]:top-0.5 [&_[data-label]]:ps-1">
           <Timeline.Grid grid={grid} spacing={64} style={{ top: '65%' }} className="text-neutral-600" />
@@ -84,10 +88,17 @@ export default function ArrangementDemo() {
                     <Region.Label className="truncate">{clip.name}</Region.Label>
                   </Region.Header>
                   <Region.Content className="flex-1">
-                    <Waveform.Root peaks={track.peaks} className="h-full">
-                      <Waveform.Shape className="text-sky-500" />
-                      <Waveform.Progress className="text-sky-300" />
-                    </Waveform.Root>
+                    {'peaks' in track ? (
+                      <Waveform.Root peaks={track.peaks} className="h-full">
+                        <Waveform.Shape className="text-sky-500" />
+                        <Waveform.Progress className="text-sky-300" />
+                      </Waveform.Root>
+                    ) : (
+                      <Notes.Root notes={track.notes} className="h-full">
+                        <Notes.Shape className="text-emerald-500" />
+                        <Notes.Progress className="text-emerald-300" />
+                      </Notes.Root>
+                    )}
                   </Region.Content>
                 </Region.Root>
               ))}

@@ -56,6 +56,9 @@ const PARTS = [
   "Waveform.Root",
   "Waveform.Shape",
   "Waveform.Progress",
+  "Notes.Root",
+  "Notes.Shape",
+  "Notes.Progress",
 ] as const;
 
 const SHARED = ["className", "style", "render"];
@@ -121,7 +124,7 @@ function describe(list: string[]): { full: string; short: string } {
 
 const exportName = (part: string) => part.replace(".", "_");
 const content = [
-  `import type { Fader, Knob, Meter, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "@addstack/daw-ui/react";`,
+  `import type { Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "@addstack/daw-ui/react";`,
   ...PARTS.map((part) => `export type ${exportName(part)} = ${part}.Props;`),
 ].join("\n");
 

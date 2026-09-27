@@ -4,7 +4,7 @@ import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { clockGrid, createPeaks, createPeaksRecorder, musicalGrid, type Peaks } from "../src/core/index.js";
-import { Region, Timeline, Waveform } from "../src/react/index.js";
+import { Notes, Region, Timeline, Waveform, type Note } from "../src/react/index.js";
 
 // jsdom has no layout, animation frames or canvas: the tests give the timeline a
 // width, run frames when they say so, and record what the tiles draw.
@@ -12,12 +12,12 @@ import { Region, Timeline, Waveform } from "../src/react/index.js";
 let frames: FrameRequestCallback[] = [];
 let resizeCallbacks: (() => void)[] = [];
 const size = { width: 1000, height: 40 };
-const drawn = { tiles: 0, columns: 0, colors: new Set<string>(), tops: [] as number[] };
+const drawn = { tiles: 0, columns: 0, colors: new Set<string>(), tops: [] as number[], rects: [] as number[][] };
 
 beforeEach(() => {
   frames = [];
   resizeCallbacks = [];
-  Object.assign(drawn, { tiles: 0, columns: 0, colors: new Set(), tops: [] });
+  Object.assign(drawn, { tiles: 0, columns: 0, colors: new Set(), tops: [], rects: [] });
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => frames.push(callback));
   vi.stubGlobal("cancelAnimationFrame", () => {
     frames = [];
@@ -41,9 +41,10 @@ beforeEach(() => {
     () =>
       ({
         clearRect: () => drawn.tiles++,
-        fillRect: (_x: number, top: number) => {
+        fillRect: (x: number, top: number, width: number, height: number) => {
           drawn.columns++;
           drawn.tops.push(top);
+          drawn.rects.push([x, top, width, height]);
         },
         set fillStyle(color: string) {
           drawn.colors.add(color);
@@ -369,6 +370,102 @@ describe("Waveform", () => {
     const [canvas] = canvases("shape");
     unmount();
     expect(canvas!.isConnected).toBe(false);
+  });
+});
+
+describe("Notes", () => {
+  // Three notes going up, one per second, in seconds of the clip.
+  const line: Note[] = [
+    { at: 0, duration: 1, pitch: 60 },
+    { at: 1, duration: 1, pitch: 62 },
+    { at: 2, duration: 1, pitch: 64 },
+  ];
+
+  function Clip({ at = 0, offset = 0, notes = line }: { at?: number; offset?: number; notes?: Note[] }) {
+    return (
+      <Timeline.Root start={0} end={10} position={1.5}>
+        <div>
+          <Region.Root at={at} duration={3 - offset} offset={offset}>
+            <Notes.Root notes={notes}>
+              <Notes.Shape data-testid="shape" />
+              <Notes.Progress data-testid="progress" />
+            </Notes.Root>
+          </Region.Root>
+        </div>
+      </Timeline.Root>
+    );
+  }
+
+  test("is an image named by the application", () => {
+    render(<Notes.Root notes={line} aria-label="Chords" data-testid="notes" />);
+    expect(screen.getByRole("img", { name: "Chords" })).toBe(screen.getByTestId("notes"));
+  });
+
+  test("on its own, draws each note as a bar: in time across, one row per pitch, the highest at the top", () => {
+    render(
+      <Notes.Root notes={line} data-testid="notes">
+        <Notes.Shape style={{ color: "rgb(4, 5, 6)" }} />
+      </Notes.Root>,
+    );
+    // Its own axis: the 3 s of notes across 1000 px.
+    expect(screen.getByTestId("notes").style.getPropertyValue("--timeline-scale")).toBe(`${1000 / 3}px`);
+    frame();
+    // 40 px for the pitches 60 … 64: five rows of 8 px, 64 at the top.
+    expect(drawn.rects).toEqual([
+      [0, 32, 333, 8],
+      [333, 16, 334, 8],
+      [667, 0, 333, 8],
+    ]);
+    expect(drawn.colors).toContain("rgb(4, 5, 6)");
+  });
+
+  test("a range sets the rows, as the keys beside a piano roll do; notes outside it are not drawn", () => {
+    render(
+      <Notes.Root notes={line} range={[62, 65]}>
+        <Notes.Shape />
+      </Notes.Root>,
+    );
+    frame();
+    // Four rows of 10 px, 65 at the top; 60 is below the range.
+    expect(drawn.rects.map(([, top, , height]) => [top, height])).toEqual([
+      [30, 10],
+      [10, 10],
+    ]);
+  });
+
+  test("in a region, it shows what the region shows, and moving the region draws nothing already drawn", () => {
+    const { rerender } = render(<Clip />);
+    frame();
+    // 100 px per second: one tile holds the three notes, for the shape and for the progress.
+    expect(drawn.tiles).toBe(2);
+    drawn.tiles = 0;
+    rerender(<Clip at={2} />);
+    rerender(<Clip at={3} offset={1} />);
+    frame();
+    expect(drawn.tiles).toBe(0);
+    expect(screen.getByTestId("shape").querySelector("canvas")!.style.translate).toBe("calc(-1 * var(--timeline-scale)) 0");
+  });
+
+  test("the same notes draw nothing again; other notes draw again", () => {
+    const { rerender } = render(<Clip />);
+    frame();
+    drawn.tiles = 0;
+    rerender(<Clip />);
+    frame();
+    expect(drawn.tiles).toBe(0);
+    rerender(<Clip notes={[...line, { at: 2.5, duration: 0.5, pitch: 67 }]} />);
+    frame();
+    expect(drawn.tiles).toBe(2);
+  });
+
+  test("the notes played are clipped at the playhead in CSS", () => {
+    render(<Clip at={1} />);
+    expect(screen.getByTestId("progress").style.clipPath).toBe("inset(0 max(0px, calc(100% - 0.5 * var(--timeline-scale))) 0 0)");
+  });
+
+  test("parts outside a root say where they belong", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => render(<Notes.Shape />)).toThrow(/Notes.Root/);
   });
 });
 

@@ -3,6 +3,8 @@
 export * as Fader from "./fader.parts.js";
 export * as Knob from "./knob.parts.js";
 export * as Meter from "./meter.parts.js";
+export * as Notes from "./notes.parts.js";
+export type { Note } from "./notes.js";
 export * as NumberBox from "./number-box.parts.js";
 export * as Region from "./region.parts.js";
 export * as Timeline from "./timeline.parts.js";

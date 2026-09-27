@@ -221,3 +221,10 @@ test("32 waveforms on one timeline: zooming", async ({ page }) => {
   // Budget: nothing renders; tiles are stretched in CSS and redrawn only past twice or half their scale.
   expect(result.reactCommits).toBe(0);
 });
+
+test("32 waveforms and 3760 notes on one timeline: the view pages along", async ({ page }) => {
+  await openStress(page, "waveforms", "&mode=scroll&start=manual&notes");
+  const result = await measure(page, "32 waveforms and 3760 notes, scrolling with playback", 3000, start(page));
+  // Budget: notes are drawn in tiles like waveforms: scrolling renders nothing.
+  expect(result.reactCommits).toBe(0);
+});

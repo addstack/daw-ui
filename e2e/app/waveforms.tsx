@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { createPeaks, createPeaksRecorder, musicalGrid, type Peaks } from "../../src/core/index.js";
-import { Region, Timeline, Waveform } from "../../src/react/index.js";
+import { Notes, Region, Timeline, Waveform, type Note } from "../../src/react/index.js";
 
 // 16 tracks with two 4-minute clips each on one timeline, with one playhead
 // over all of them, driven once per frame:
@@ -10,7 +10,7 @@ import { Region, Timeline, Waveform } from "../../src/react/index.js";
 // - ?mode=zoom: the view zooms in and out without pause;
 // - ?mode=record: playback, and a 17th track records a take in blocks of 128 samples, as an AudioWorklet delivers them.
 // A ruler and a grid of bars and beats run over all of it. The tracks are the page's own rows: the timeline
-// knows nothing of them.
+// knows nothing of them. With ?notes, one more track holds two MIDI clips of sixteenth notes.
 
 const TRACKS = 16;
 const SAMPLE_RATE = 48_000;
@@ -29,6 +29,9 @@ function take(): Peaks {
 }
 
 const peaks = take();
+
+/** 235 seconds of sixteenths at 120 BPM, climbing and falling over two octaves: 1880 notes. */
+const melody: Note[] = Array.from({ length: 1880 }, (_, index) => ({ at: index * 0.125, duration: 0.1, pitch: 48 + ((index * 7) % 24) }));
 const grid = musicalGrid({ bpm: 120, locale: "en" });
 const recording = createPeaksRecorder({ sampleRate: SAMPLE_RATE, channels: 1 });
 // With ?start=manual, time stands at 0 until window.e2e.start(): the perf tests let the first tiles be drawn,
@@ -79,6 +82,7 @@ export function Waveforms() {
   const search = new URLSearchParams(location.search);
   const showRuler = search.get("ruler") !== "0";
   const showGrid = search.get("grid") !== "0";
+  const showNotes = search.has("notes");
   return (
     <main>
       <h1>daw-ui waveforms</h1>
@@ -109,6 +113,18 @@ export function Waveforms() {
               ))}
             </div>
           ))}
+          {showNotes && (
+            <div className="track" role="group" aria-label="Keys">
+              {[0, 240].map((at) => (
+                <Region.Root key={at} className="clip" at={at} duration={235}>
+                  <Notes.Root className="clip-waveform" notes={melody} aria-label={`Keys at ${at}`}>
+                    <Notes.Shape className="clip-notes" />
+                    <Notes.Progress className="clip-progress" />
+                  </Notes.Root>
+                </Region.Root>
+              ))}
+            </div>
+          )}
           {mode === "record" && (
             <div className="track" role="group" aria-label="Recording">
               <Region.Root className="clip" at={0} read={() => ({ duration: recording.duration })}>

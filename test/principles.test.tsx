@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats } from "../src/core/index.js";
-import { Fader, Knob, Meter, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
+import { Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -78,7 +78,12 @@ function EveryComponent() {
             <Region.Header>
               <Region.Label>1</Region.Label>
             </Region.Header>
-            <Region.Content />
+            <Region.Content>
+              <Notes.Root notes={[{ at: 0, duration: 0.25, pitch: 60 }]}>
+                <Notes.Shape />
+                <Notes.Progress />
+              </Notes.Root>
+            </Region.Content>
           </Region.Root>
         </div>
         <Waveform.Root peaks={createPeaks([new Float32Array(8)], 8)}>

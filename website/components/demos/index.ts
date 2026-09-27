@@ -7,6 +7,7 @@ import EndlessKnobDemo from './knob-endless';
 import ModulationDemo from './knob-modulation';
 import WrapKnobDemo from './knob-wrap';
 import MeterDemo from './meter';
+import NotesDemo from './notes';
 import NumberBoxDemo from './number-box';
 import SegmentsDemo from './number-box-segments';
 import ArrangementDemo from './timeline-arrangement';
@@ -26,6 +27,7 @@ export const demos = {
   'knob-modulation': ModulationDemo,
   'knob-wrap': WrapKnobDemo,
   meter: MeterDemo,
+  notes: NotesDemo,
   'number-box': NumberBoxDemo,
   'number-box-segments': SegmentsDemo,
   'timeline-arrangement': ArrangementDemo,

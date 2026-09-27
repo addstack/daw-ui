@@ -11,7 +11,7 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [7. Meter](#7-meter)
 - [8. Toggle](#8-toggle)
 - [9. ToggleGroup](#9-togglegroup)
-- [10. Timeline, Region and Waveform](#10-timeline-region-and-waveform)
+- [10. Timeline, Region, Waveform and Notes](#10-timeline-region-waveform-and-notes)
 - [11. Direction](#11-direction)
 - [12. Performance budgets](#12-performance-budgets)
 
@@ -293,7 +293,7 @@ Toggles are arranged into lines: one line per lane (in order of first appearance
 
 Handled keys prevent their default action. With Shift, an arrow move within the same lane between paintable toggles also sets the target toggle to the state of the one focus came from (reason `"paint"`, one gesture).
 
-## 10. Timeline, Region and Waveform
+## 10. Timeline, Region, Waveform and Notes
 
 ### 10.1 Peaks (`createPeaks`, `createPeaksRecorder`, `peaksFromAudiowaveform`, `readPeaks`)
 
@@ -315,7 +315,7 @@ A `TimeGrid` is `{ steps, label(time, step) }`: `steps` are seconds between line
 
 `Timeline.Root` (`div`, `position: relative`) holds a view outside React: `start` and `end` in seconds (`end > start`, else a `RangeError`) and the width of its padding box in CSS pixels, measured before the first paint and then by a `ResizeObserver`. `scale = width / (end − start)` CSS pixels per second (0 before measurement). It writes to its element `--timeline-start`: `start`, and `--timeline-scale`: `scale` followed by `px`, when the view or the width changes.
 
-The playhead is the `position` prop (default 0), or with `read`, `read()` once per animation frame on the shared frame loop. When it changes, it is written, with the number written in, only into the CSS of the parts that follow it (`Timeline.Playhead`, `Waveform.Progress`), never as a CSS variable: a variable on the root would recalculate the style of everything on the timeline every frame, and one on each part would make every part that defines it costlier to recalculate when the view scrolls.
+The playhead is the `position` prop (default 0), or with `read`, `read()` once per animation frame on the shared frame loop. When it changes, it is written, with the number written in, only into the CSS of the parts that follow it (`Timeline.Playhead`, `Waveform.Progress`, `Notes.Progress`), never as a CSS variable: a variable on the root would recalculate the style of everything on the timeline every frame, and one on each part would make every part that defines it costlier to recalculate when the view scrolls.
 
 With `readView`, `readView()` gives `[start, end]` once per animation frame. None of these changes renders a component. The root adds no role and no element for what it holds: its children are the application's, and it knows nothing of them.
 
@@ -341,7 +341,7 @@ A region has no behaviour of its own: selecting, moving and trimming regions is 
 
 ### 10.5 Tiles
 
-`Timeline.Grid` and the waveform parts draw into canvas tiles appended to their element, without React:
+`Timeline.Grid`, the waveform parts and the notes parts draw into canvas tiles appended to their element, without React:
 
 - Content has its own seconds: audio time for a waveform, timeline time for a grid. A part gives what can be drawn (the whole file; everything for a grid), what its element shows (the region's `offset … offset + duration`; everything), what is in view, and where content time `t` is from its element's left edge (`t − offset`; `t − var(--timeline-start)`).
 - A **layer** is drawn at one scale `s` (the timeline's scale when it starts). Its tile `i` covers content from `i · T` to `(i + 1) · T`, `T = 1024 / s`, within what can be drawn; tiles exist only where they overlap what the element shows. A tile is `round(length · s · devicePixelRatio)` device pixels wide and as tall as the part times `devicePixelRatio`, and is placed in time: `left: 0`, `height: 100%`, `width: calc(length · var(--timeline-scale))`, `translate: calc(place · var(--timeline-scale)) 0`. At another scale it stretches in place; when `place` changes (a trimmed region), tiles are placed again without being drawn.
@@ -361,6 +361,12 @@ A region has no behaviour of its own: selecting, moving and trimming regions is 
 `Waveform.Shape` and `Waveform.Progress` (`div`, `position: absolute; inset: 0`) draw the audio, or the channel `channel`, in tiles (§10.5). A tile draws one column per device pixel from `readPeaks` (with the root's `samples`), as a rectangle from the maximum to the minimum around the middle, at least one device pixel tall. Other `peaks`, `samples` or `channel` remove what is drawn and start a new layer; a new `at`, `duration` or `offset` only places the tiles again and draws the ones that come into view. When the peaks change from second `f` of the audio, the tiles from `f` on are drawn again.
 
 `Waveform.Progress` is clipped to the played part, with the playhead and the region's `at` (0 on its own) written in: `clip-path: inset(0 max(0px, calc(100% − (position − at) · var(--timeline-scale))) 0 0)`, rewritten when either changes.
+
+### 10.7 Notes
+
+`Notes.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`, sized by CSS) shows `notes`, each `{ at, duration, pitch }` in seconds of the clip, on an axis like a waveform's (§10.6): in a `Region.Root`, the region's; otherwise its own, from `offset` (default 0) for `duration` (default the end of the last note − `offset`, at least 0), with its own playhead.
+
+`Notes.Shape` and `Notes.Progress` (`div`, `position: absolute; inset: 0`) draw them in tiles (§10.5), content extending from 0 to the end of the last note. The rows are the whole pitches from `lowest` to `highest`, `range` or else the lowest and highest pitch of the notes; a tile `h` device pixels tall gives each `h / rows`. A note whose pitch is in the range is a rectangle from `round((at − start) · p)` to `round((at + duration − start) · p)` across (`start` the tile's first second, `p` its device pixels per second) and from `round((highest − pitch) · h / rows)` to `round((highest − pitch + 1) · h / rows)` down, at least one device pixel each way. A tile draws the notes that start before its end and end after its start, found by a binary search over the notes sorted by `at` (sorted once per array). Another `notes` array, or another range, removes what is drawn and starts a new layer; a new placement of the region only places the tiles again. `Notes.Progress` is clipped at the playhead as `Waveform.Progress` is.
 
 ## 11. Direction
 
@@ -383,7 +389,7 @@ Checked on every change; a regression fails CI.
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
 | Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
-| In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming; 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
+| In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, and while the view pages along with a MIDI track of 3760 notes more; 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
 | Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 23.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

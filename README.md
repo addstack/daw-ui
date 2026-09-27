@@ -198,7 +198,7 @@ A peak meter with hold and a clip indicator. `read` is called once per animation
 
 Toggles subscribe to the group with selectors: painting one step of a 16 × 64 grid renders that step, not the grid.
 
-### Timeline, Region and Waveform
+### Timeline, Region, Waveform and Notes
 
 A time axis with one playhead over whatever it holds, here rows of clips, and audio drawn on it:
 
@@ -230,6 +230,8 @@ const grid = musicalGrid({ bpm: 120 });
 **Region** parts: `Root` (a clip or pattern, a loop range, a take: `at`, `duration`, `offset`, or `read` per frame; placed in time from the timeline's axis, and as tall as the row it is rendered in), `Header`, `Label` (names it) and `Content`. A new placement moves it without rendering what is inside. Selecting, moving and trimming regions will be an engine the application creates with a hook, not the regions' own behaviour.
 
 **Waveform** parts: `Root` (`role="img"`; in a region it shows what the region shows, on its own it is its own axis, as in a sample browser), `Shape` and `Progress` (the played part, clipped at the playhead in CSS), drawn in their CSS `color`. `createPeaks` computes min/max peaks at several resolutions in one pass (34 ms for ten minutes of stereo); `peaksFromAudiowaveform` reads peaks made ahead of time by the `audiowaveform` tool; `createPeaksRecorder` grows as you `append` blocks while recording, and its waveform draws only the tile the audio arrives in. Given the `samples`, a waveform zoomed in beyond the peaks draws from them, down to single samples. The waveform is drawn into canvas tiles once, placed in time by CSS: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and redraws them sharp when it rests, and one queue for all waveforms draws at most 4 ms per frame, visible tiles first.
+
+**Notes** parts: `Root`, `Shape` and `Progress`, like a waveform's, for the notes of a MIDI clip or a pattern (`{ at, duration, pitch }` in seconds of the clip): bars in time across, one row per pitch, the highest at the top, from the lowest to the highest pitch of the notes or a `range` such as the 88 keys of a piano. In a region they show what the region shows; on their own, as in a clip browser, they are their own axis. They are drawn in the same tiles as waveforms, and a tile finds its notes by a binary search, so thousands of notes cost what is on screen.
 
 ## 🔢 Values and formats
 
@@ -296,6 +298,7 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | The same, the view paging along with playback | 4.6 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
 | The same, recording a 33rd take | 3.5 | 0.3 | 0 of 181 | – | 0, one tile drawn per frame |
 | The same, zooming without pause | 8.9 | 0.8 | 4 of 177 | – | 0 |
+| The same, paging along, with a MIDI track of 3760 notes | 4.9 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
