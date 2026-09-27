@@ -41,9 +41,11 @@ function EveryComponent() {
           <svg viewBox="0 0 100 100">
             <Knob.Track />
             <Knob.Range />
+            <Knob.ModulationRange bipolar />
             <Knob.Pointer />
           </svg>
         </Knob.Control>
+        <Knob.ModulationDepth defaultValue={-0.3} />
         <Knob.Value />
       </Knob.Root>
       <Fader.Root min={-60} max={6}>

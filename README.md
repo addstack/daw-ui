@@ -115,7 +115,7 @@ Three views of one value model. They share these props:
 | Double-click, Delete, Backspace | Reset. |
 | Wheel | 5% per notch (Shift: finer). |
 
-**Knob** parts: `Root` (sets `--knob-value` and `--knob-angle`), `Control` (`role="slider"`), `Label`, `Value`, and the SVG parts `Track`, `Range`, `Pointer` and `Modulation` (the arc to where an LFO moves the value now, read once per frame), which draw into a `viewBox="0 0 100 100"`. `sweep` sets the rotation (270° by default, a full circle when the knob wraps or is endless). An endless knob is a `spinbutton`, since it has no minimum or maximum.
+**Knob** parts: `Root` (sets `--knob-value` and `--knob-angle`), `Control` (`role="slider"`), `Label`, `Value`, and the SVG parts `Track`, `Range`, `Pointer`, `Modulation` (the arc to where an LFO moves the value now, read once per frame) and `ModulationRange` (the arc over a modulation's depth, one or both ways), which draw into a `viewBox="0 0 100 100"`, and `ModulationDepth`, a handle beside the knob that sets that depth, as in Serum, from −100% to 100% of the travel; a knob has as many modulations as `source`s. `sweep` sets the rotation (270° by default, a full circle when the knob wraps or is endless). An endless knob is a `spinbutton`, since it has no minimum or maximum.
 
 When a value changes, the parts write what they show straight to the DOM: dragging a knob, or 128 controls following automation through `read`, renders nothing in React.
 
@@ -344,7 +344,7 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (32.0 kB for everything; 7.0 kB for a knob alone, 4.8 kB for a keyboard alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (32.7 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 

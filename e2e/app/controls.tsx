@@ -39,6 +39,19 @@ export function Controls() {
             </svg>
           </Knob.Control>
         </Knob.Root>
+
+        {/* A modulated knob, as in Serum: the range of an LFO around it, and a handle beside it for its depth. */}
+        <Knob.Root className="knob modulated" defaultValue={0.5} {...logged("level")}>
+          <Knob.Label>Level</Knob.Label>
+          <Knob.Control className="knob-control">
+            <svg viewBox="0 0 100 100">
+              <Knob.Track className="knob-track" />
+              <Knob.ModulationRange className="knob-modulation-range" data-testid="modulation range" />
+              <Knob.Pointer className="knob-pointer" />
+            </svg>
+          </Knob.Control>
+          <Knob.ModulationDepth className="knob-depth" aria-label="LFO depth" defaultValue={0.25} {...logged("depth")} />
+        </Knob.Root>
       </section>
 
       <section>

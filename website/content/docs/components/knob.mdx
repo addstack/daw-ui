@@ -54,9 +54,37 @@ It is a `spinbutton` without a minimum or maximum, since a slider needs both. `R
 
 ### Modulation
 
-`Knob.Modulation` draws the arc from the knob's value to where modulation moves it now, as in Bitwig Studio and Ableton Live. Its `read` returns the modulated value in the knob's units; it is called once per animation frame, and the arc is drawn without rendering. Drag the knob: the modulation follows.
+A modulated knob shows how far modulation (an LFO, an envelope) moves it, lets the user change that depth, and shows where the modulation is now, as Serum and Vital do:
 
 <ComponentPreview name="knob-modulation" />
+
+```tsx
+<Knob.Root value={level} onValueChange={setLevel} className="relative">
+  <Knob.Control>
+    <svg viewBox="0 0 100 100">
+      <Knob.Track />
+      <Knob.ModulationRange radius={48} />
+      <Knob.Modulation read={() => engine.modulated('level')} radius={48} />
+      <Knob.Range />
+    </svg>
+  </Knob.Control>
+  <Knob.ModulationDepth value={depth} onValueChange={setDepth} aria-label={t('lfoDepth')} className="absolute -top-2 -left-3" />
+</Knob.Root>
+```
+
+- `Knob.ModulationDepth` is the depth: a handle beside the knob, a `slider` of its own from −100% to 100% of the knob's travel, so that a depth means the same on a linear, logarithmic or decibel knob. It drags, steps and resets as a knob does, in steps of 1%; a double-click or Delete takes the modulation away (0). Place it outside `Knob.Control`, where you like: a corner, as in Serum.
+- `Knob.ModulationRange` is the arc from the value to the value plus the depth, or to either side of it with `bipolar`; it stops at the ends of the sweep, and follows the value and the depth without rendering. Without a handle, it shows `depth`, for a depth set elsewhere, as in a modulation matrix.
+- `Knob.Modulation` is where the modulation moves the value now: `read` returns the modulated value in the knob's units, once per animation frame, and the arc is drawn without rendering.
+
+A knob can have more than one modulation: give each range and its handle the same `source`.
+
+```tsx
+<Knob.ModulationRange source="lfo" />
+<Knob.ModulationRange source="envelope" bipolar />
+…
+<Knob.ModulationDepth source="lfo" aria-label={t('lfoDepth')} />
+<Knob.ModulationDepth source="envelope" aria-label={t('envelopeDepth')} />
+```
 
 ### Automation
 
@@ -148,6 +176,20 @@ A line at the value's angle. Renders an SVG `<line>`.
 The arc from the value to the modulated value. Renders an SVG `<path>`.
 
 <PropsTable part="Knob.Modulation" />
+
+### ModulationRange
+
+The arc from the value over the depth of a modulation. Renders an SVG `<path>`.
+
+<PropsTable part="Knob.ModulationRange" />
+
+### ModulationDepth
+
+The handle for the depth of a modulation. Renders a `<div>` with `role="slider"`.
+
+<PropsTable part="Knob.ModulationDepth" />
+
+It carries `data-dragging` while dragged, and `--knob-depth`, its depth from −1 to 1, for styles that follow it.
 
 ### Value
 

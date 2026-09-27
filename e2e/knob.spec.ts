@@ -99,3 +99,27 @@ test("double-clicking a label or a value, or dragging across them, selects no te
   await page.mouse.up();
   expect(await selection()).toBe("");
 });
+
+test("the depth handle of a modulation drags as a knob does, and the range around the knob follows it", async ({ page }) => {
+  const handle = page.getByRole("slider", { name: "LFO depth" });
+  const range = page.getByTestId("modulation range");
+  const before = await range.getAttribute("d");
+  await expect(handle).toHaveAttribute("aria-valuetext", "25%");
+  const start = await center(handle);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  // 200 px is the whole travel from −100% to 100%: 50 px up is 50% more.
+  await page.mouse.move(start.x, start.y - 50, { steps: 5 });
+  await page.mouse.up();
+  await expect(handle).toHaveAttribute("aria-valuetext", "75%");
+  expect(await range.getAttribute("d")).not.toBe(before);
+  // The knob keeps its value; only the depth changed, as one gesture.
+  expect(await valueOf(page.getByRole("slider", { name: "Level" }))).toBe(0.5);
+  const events = await eventsOf(page, "depth");
+  expect(events.filter((event) => event.type === "start")).toHaveLength(1);
+  expect(events.at(-1)).toEqual({ source: "depth", type: "end", value: 0.75 });
+  // A double-click takes the modulation away.
+  await handle.dblclick();
+  await expect(handle).toHaveAttribute("aria-valuetext", "0%");
+  await expect(range).not.toHaveAttribute("d");
+});

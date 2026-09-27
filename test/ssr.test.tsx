@@ -14,9 +14,11 @@ test("every component renders on the server", () => {
           <svg viewBox="0 0 100 100">
             <Knob.Track />
             <Knob.Range />
+            <Knob.ModulationRange depth={0.25} />
             <Knob.Pointer />
           </svg>
         </Knob.Control>
+        <Knob.ModulationDepth defaultValue={0.25} aria-label="LFO" />
         <Knob.Value />
       </Knob.Root>
       <Fader.Root min={-60} max={6}>
@@ -88,6 +90,9 @@ test("every component renders on the server", () => {
   expect(html).toContain('data-segment="beats"');
   expect(html).toContain('aria-pressed="true"');
   expect(html).toContain('role="img"');
+  // A modulation range with its depth given is drawn before any script runs; so is its handle's value.
+  expect(html).toMatch(/<path d="M 50 4 A 46 46 0 0 1 [^"]+" fill="none"/);
+  expect(html).toContain('aria-valuetext="25%"');
   // Keys are placed, named and held down before any script runs.
   expect(html).toContain('aria-label="C♯4"');
   expect(html).toMatch(/aria-label="C♯4"[^>]*data-held=""/);

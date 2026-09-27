@@ -177,6 +177,8 @@ Double-click (knob, fader) and Delete/Backspace apply `resetValue ?? defaultValu
 | `Knob.Range` | `path` | Arc from the origin's angle to the value's angle. An empty arc is a bare move command. An endless knob draws none: `d` is absent. |
 | `Knob.Pointer` | `line` | From radius `from` (0) to `to` (40) at the value's angle. |
 | `Knob.Modulation` | `path` | The arc at radius `radius` (46) from the value's angle to the angle of `read()`, the modulated value in the knob's units. `read` is called once per animation frame and the arc (`d`) is written by the frame loop only, never by a render. |
+| `Knob.ModulationRange` | `path` | The arc at radius `radius` (46) over the depth of a modulation: `d` = the depth given, else the value of the `Knob.ModulationDepth` with the same `source` (default `""`), else 0. With `p` the value's travel, from `p` to `p + d`, or from `p − |d|` to `p + |d|` with `bipolar`, each clamped to 0 … 1 unless the knob wraps or is endless. No `d` attribute when the depth is 0. Rewritten without rendering when the value or the depth changes, and when a handle of its source mounts or unmounts. |
+| `Knob.ModulationDepth` | `div` | A value control of its own (§5.1–§5.5) for the depth of the modulation `source`: `role="slider"`, `min` −1, `max` 1, `origin` 0, `step` 0.01 unless given, resets to `resetValue` or else 0, default format `formats.percent()`, disabled with the knob; `aria-valuetext` its format, `--knob-depth` its value. It does not change the knob's value. |
 | `Fader.Track` | `div` | `position: relative`; its length is the default sensitivity. |
 | `Fader.Range` | `div` | Absolutely positioned from the lower of origin and value, with length equal to their distance. |
 | `Fader.Thumb`, `Fader.Tick` | `div` | Centred on the value (thumb) or on `normalize(value)` (tick). Ticks are `aria-hidden`. |
@@ -434,6 +436,7 @@ Checked on every change; a regression fails CI.
 | Budget | Where |
 | --- | --- |
 | Dragging a knob renders nothing, not even the knob; `read` and `Knob.Modulation` render nothing per frame. | `test/knob.test.tsx`, `test/live.test.tsx` |
+| Dragging the depth of a knob's modulation, or the knob, moves its range and renders nothing. | `test/knob-modulation.test.tsx` |
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | Dragging a thumb of an XY pad renders nothing. | `test/xy-pad.test.tsx` |
@@ -442,6 +445,6 @@ Checked on every change; a regression fails CI.
 | Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
 | In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, while the view pages along with a MIDI track of 3760 notes more, while it zooms with an automation lane of 2000 bent points more, and at most 2 for a drag of one of those points when editable (the press, and the application keeping the points); 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
 | With 88 keys in a production build: 0 React commits while `read` holds keys that change every 50 ms, and during a glissando across the keyboard. | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 34 kB; an application importing only a knob ≤ 7.7 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
+| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 34 kB; an application importing only a knob ≤ 8.6 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

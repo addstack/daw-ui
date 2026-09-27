@@ -6,10 +6,13 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 
+import { percentFormat } from "../core/format.js";
 import { arcPath, knobAngle, polar } from "../core/index.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { mergeLive, type Live } from "./live.js";
@@ -18,6 +21,7 @@ import {
   controlLive,
   splitValueControlProps,
   staticAttributes,
+  useIsomorphicLayoutEffect,
   useLabel,
   useLivePart,
   useValueControl,
@@ -31,7 +35,45 @@ import {
 // The drawing parts (Track, Range, Pointer, Modulation) draw into an `<svg viewBox="0 0 100 100">`.
 const CENTER = 50;
 
-type KnobContextValue = { control: ValueControl; sweep: number };
+/** The depth of a modulation, as `Knob.ModulationDepth` holds it. */
+type Depth = { readonly value: number; subscribe(listener: () => void): () => void };
+
+/**
+ * The depths of a knob's modulations by source, outside React, so that
+ * `Knob.ModulationRange` follows the `Knob.ModulationDepth` of its source
+ * without rendering.
+ */
+class Depths {
+  private readonly depths = new Map<string, Depth>();
+  private readonly listeners = new Set<() => void>();
+
+  get(source: string): Depth | undefined {
+    return this.depths.get(source);
+  }
+
+  register(source: string, depth: Depth): () => void {
+    this.depths.set(source, depth);
+    this.notify();
+    return () => {
+      if (this.depths.get(source) !== depth) return;
+      this.depths.delete(source);
+      this.notify();
+    };
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify() {
+    for (const listener of this.listeners) listener();
+  }
+}
+
+type KnobContextValue = { control: ValueControl; sweep: number; depths: Depths };
 
 const KnobContext = createContext<KnobContextValue | null>(null);
 
@@ -64,13 +106,14 @@ export function KnobRoot(props: KnobRoot.Props) {
     }),
   );
 
+  const [depths] = useState(() => new Depths());
   const element = useRenderPart("div", control.state, elementProps, {
     ref: live.ref,
     ...staticAttributes(control.state),
     ...live.attributes,
     style: live.style,
   });
-  return <KnobContext.Provider value={{ control, sweep }}>{element}</KnobContext.Provider>;
+  return <KnobContext.Provider value={{ control, sweep, depths }}>{element}</KnobContext.Provider>;
 }
 
 export namespace KnobRoot {
@@ -260,6 +303,164 @@ export namespace KnobModulation {
      */
     radius?: number | undefined;
   };
+}
+
+/**
+ * The range a modulation (an LFO, an envelope) moves the knob over: the arc
+ * from the value to the value plus the modulation's depth, as in Serum and
+ * Vital, or to either side of it when `bipolar`. The depth is a fraction of
+ * the knob's travel, from −1 to 1: the `Knob.ModulationDepth` of the same
+ * `source`, or `depth`. The arc follows the value and the depth without
+ * rendering, and stops at the ends of the sweep.
+ */
+export function KnobModulationRange({ source = "", depth, bipolar = false, radius = 46, ...props }: KnobModulationRange.Props) {
+  const { control, sweep, depths } = useKnobContext("ModulationRange");
+  const { store, range } = control;
+  const settings = useRef({ depth, bipolar, radius });
+  settings.current = { depth, bipolar, radius };
+
+  const path = useCallback((): string | null => {
+    const { depth, bipolar, radius } = settings.current;
+    const amount = depth ?? depths.get(source)?.value ?? 0;
+    if (amount === 0 || !Number.isFinite(amount)) return null;
+    const at = range.normalize(store.value);
+    const [from, to] = bipolar ? [at - Math.abs(amount), at + Math.abs(amount)] : [at, at + amount];
+    const inSweep = (travel: number) => (range.wrap || range.endless ? travel : Math.min(1, Math.max(0, travel)));
+    return arcPath(CENTER, CENTER, radius, knobAngle(inSweep(from), sweep), knobAngle(inSweep(to), sweep));
+  }, [depths, source, range, store, sweep]);
+
+  const element = useRef<SVGPathElement | null>(null);
+  const draw = useCallback(() => {
+    const target = element.current;
+    if (!target) return;
+    const d = path();
+    if (d === null) target.removeAttribute("d");
+    else if (target.getAttribute("d") !== d) target.setAttribute("d", d);
+  }, [path]);
+  // Follows the knob's value, and the depth of its source, which may mount after this part.
+  const follow = useCallback(
+    (target: SVGPathElement | null) => {
+      element.current = target;
+      if (!target) return;
+      let stopDepth = () => {};
+      const followDepth = () => {
+        stopDepth();
+        stopDepth = depths.get(source)?.subscribe(draw) ?? (() => {});
+        draw();
+      };
+      followDepth();
+      const stopDepths = depths.subscribe(followDepth);
+      const stopValue = store.subscribe(draw);
+      return () => {
+        stopDepths();
+        stopValue();
+        stopDepth();
+      };
+    },
+    [depths, source, store, draw],
+  );
+  useIsomorphicLayoutEffect(draw);
+
+  const live = useLivePart(control, valueLive);
+  const ref = useMergedRef(follow, live.ref);
+  return useRenderPart("path", control.state, props, {
+    ref,
+    d: path() ?? undefined,
+    fill: "none",
+    ...staticAttributes(control.state),
+    ...live.attributes,
+  });
+}
+
+export namespace KnobModulationRange {
+  export type State = ValueControlState;
+  export type Props = PartProps<"path", State> & {
+    /**
+     * Which modulation: the `source` of its `Knob.ModulationDepth`, for a
+     * knob with more than one.
+     * @default ""
+     */
+    source?: string | undefined;
+    /**
+     * The depth, from −1 to 1 of the knob's travel, when no
+     * `Knob.ModulationDepth` sets it: a depth set elsewhere, as in a
+     * modulation matrix.
+     */
+    depth?: number | undefined;
+    /**
+     * The modulation moves the value to either side, as far as the depth.
+     * @default false
+     */
+    bipolar?: boolean | undefined;
+    /**
+     * Radius in the 100 × 100 view box; outside the range's arc by default.
+     * @default 46
+     */
+    radius?: number | undefined;
+  };
+}
+
+const depthFormat = percentFormat();
+
+/**
+ * A handle that sets how deep a modulation moves the knob, as the one beside
+ * a modulated knob in Serum: a `slider` of its own, from −1 to 1 of the
+ * knob's travel, that `Knob.ModulationRange` of the same `source` shows.
+ * It drags, steps and resets as a knob does, in steps of 1% unless `step`
+ * says otherwise; a reset goes to 0. Place it
+ * outside `Knob.Control`, and position it with CSS. Sets `--knob-depth` on
+ * its element.
+ */
+export function KnobModulationDepth({ source = "", ...props }: KnobModulationDepth.Props) {
+  const { control: knob, depths } = useKnobContext("ModulationDepth");
+  const [controlProps, elementProps] = splitValueControlProps(props);
+  const depth = useValueControl(
+    {
+      ...controlProps,
+      min: -1,
+      max: 1,
+      origin: 0,
+      // Whole percents: an arrow moves the depth by 1%.
+      step: controlProps.step ?? 0.01,
+      resetValue: controlProps.resetValue ?? 0,
+      format: controlProps.format ?? depthFormat,
+      disabled: controlProps.disabled || knob.state.disabled,
+    },
+    { orientation: "vertical", defaultSensitivity: () => 200, resetOnDoubleClick: true, role: "slider" },
+  );
+  const { store } = depth;
+  const shared = useMemo<Depth>(
+    () => ({
+      get value() {
+        return store.value;
+      },
+      subscribe: (listener) => store.subscribe(listener),
+    }),
+    [store],
+  );
+  useIsomorphicLayoutEffect(() => depths.register(source, shared), [depths, source, shared]);
+  const live = useLivePart(depth, (state) => mergeLive(controlLive(state), { style: { "--knob-depth": String(state.value) } }));
+  const ref = useMergedRef(depth.controlProps.ref, live.ref);
+  return useRenderPart("div", depth.state, elementProps, {
+    ...depth.controlProps,
+    ref,
+    ...staticAttributes(depth.state),
+    ...live.attributes,
+    style: { ...depth.controlProps.style, ...live.style },
+  });
+}
+
+export namespace KnobModulationDepth {
+  export type State = ValueControlState;
+  export type Props = Omit<PartProps<"div", State>, keyof ValueControlProps> &
+    Omit<ValueControlProps, "min" | "max" | "scale" | "wrap" | "endless" | "origin" | "zones" | "pointerLock"> & {
+      /**
+       * Names the modulation, for the `Knob.ModulationRange` that shows it,
+       * on a knob with more than one.
+       * @default ""
+       */
+      source?: string | undefined;
+    };
 }
 
 /**
