@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
+import { Curve, Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -49,6 +49,10 @@ test("every component renders on the server", () => {
                 <Notes.Shape />
                 <Notes.Progress />
               </Notes.Root>
+              <Curve.Root points={[{ at: 0, value: 0 }, { at: 0.5, value: 1, shape: 0.5 }]}>
+                <Curve.Fill />
+                <Curve.Line />
+              </Curve.Root>
             </Region.Content>
           </Region.Root>
         </div>

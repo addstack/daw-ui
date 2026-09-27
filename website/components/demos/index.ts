@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
 import ArrangementDemo from './arrangement';
+import CurveDemo from './curve';
 import FaderDemo from './fader';
 import KnobDemo from './knob';
 import BipolarKnobDemo from './knob-bipolar';
@@ -24,6 +25,7 @@ import SampleDemo from './waveform-sample';
 /** Demos by file name, for `<ComponentPreview name="…" />`. */
 export const demos = {
   arrangement: ArrangementDemo,
+  curve: CurveDemo,
   fader: FaderDemo,
   knob: KnobDemo,
   'knob-bipolar': BipolarKnobDemo,

@@ -228,3 +228,10 @@ test("32 waveforms and 3760 notes on one timeline: the view pages along", async 
   // Budget: notes are drawn in tiles like waveforms: scrolling renders nothing.
   expect(result.reactCommits).toBe(0);
 });
+
+test("32 waveforms and an automation lane of 2000 bent points: zooming", async ({ page }) => {
+  await openStress(page, "waveforms", "&mode=zoom&start=manual&curve");
+  const result = await measure(page, "32 waveforms and 2000 automation points, zooming", 3000, start(page));
+  // Budget: curves are drawn in tiles like waveforms: zooming renders nothing.
+  expect(result.reactCommits).toBe(0);
+});

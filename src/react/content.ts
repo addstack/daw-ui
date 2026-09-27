@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Ref 
 
 import { RegionPlacement, useOptionalRegion } from "./region.js";
 import { TimeTiles, type TilePainter, type TileStretch } from "./time-tiles.js";
-import { useTimelineView, type TimelineView } from "./timeline.js";
+import { useOptionalTimeline, useTimelineView, type TimelineView } from "./timeline.js";
 import { useIsomorphicLayoutEffect } from "./value-control.js";
 
 // What a waveform and notes share: content drawn in time, in canvas tiles, either
@@ -33,14 +33,18 @@ export type ContentAxis = {
 
 /**
  * The axis content is drawn on. In a region, the region's: its `offset` for
- * its `duration`, where it is on the timeline. On its own, its own axis:
- * `offset` … `offset + duration` of the content across its width, with its
- * own playhead from `position` or `read`, in seconds of the content.
+ * its `duration`, where it is on the timeline. On a timeline outside a
+ * region, the timeline's, from its second 0, which is `offset` in the
+ * content, for `duration` (by default, for ever: an automation lane). On its
+ * own, its own axis: `offset` … `offset + duration` of the content across its
+ * width, with its own playhead from `position` or `read`, in seconds of the
+ * content.
  */
 export function useContentAxis({ length, offset, duration, position, read, subscribe }: ContentAxisOptions): ContentAxis {
   const region = useOptionalRegion();
-  const own = region === null;
-  const shown = () => duration ?? Math.max(0, length() - offset);
+  const timeline = useOptionalTimeline();
+  const own = region === null && timeline === null;
+  const shown = () => (own ? (duration ?? Math.max(0, length() - offset)) : (duration ?? Infinity));
 
   // On its own, 0 … the duration shown across its width, where 0 is `offset` in the content.
   const axis = useTimelineView(
@@ -70,6 +74,14 @@ export function useContentAxis({ length, offset, duration, position, read, subsc
       view: region.view,
       placement,
       state: { offset: placement.offset, duration: placement.duration },
+      root: { style: { position: "relative", overflow: "hidden" } },
+    };
+  }
+  if (timeline) {
+    return {
+      view: timeline.view,
+      placement: ownPlacement,
+      state: { offset, duration: shown() },
       root: { style: { position: "relative", overflow: "hidden" } },
     };
   }

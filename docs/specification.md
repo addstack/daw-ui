@@ -11,7 +11,7 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [7. Meter](#7-meter)
 - [8. Toggle](#8-toggle)
 - [9. ToggleGroup](#9-togglegroup)
-- [10. Timeline, Region, Waveform and Notes](#10-timeline-region-waveform-and-notes)
+- [10. Timeline, Region, Waveform, Notes and Curve](#10-timeline-region-waveform-notes-and-curve)
 - [11. Direction](#11-direction)
 - [12. Performance budgets](#12-performance-budgets)
 
@@ -293,7 +293,7 @@ Toggles are arranged into lines: one line per lane (in order of first appearance
 
 Handled keys prevent their default action. With Shift, an arrow move within the same lane between paintable toggles also sets the target toggle to the state of the one focus came from (reason `"paint"`, one gesture).
 
-## 10. Timeline, Region, Waveform and Notes
+## 10. Timeline, Region, Waveform, Notes and Curve
 
 ### 10.1 Peaks (`createPeaks`, `createPeaksRecorder`, `peaksFromAudiowaveform`, `readPeaks`)
 
@@ -341,7 +341,7 @@ A region has no behaviour of its own: selecting, moving and trimming regions is 
 
 ### 10.5 Tiles
 
-`Timeline.Grid`, the waveform parts and the notes parts draw into canvas tiles appended to their element, without React:
+`Timeline.Grid` and the parts of waveforms, notes and curves draw into canvas tiles appended to their element, without React:
 
 - Content has its own seconds: audio time for a waveform, timeline time for a grid. A part gives what can be drawn (the whole file; everything for a grid), what its element shows (the region's `offset … offset + duration`; everything), what is in view, and where content time `t` is from its element's left edge (`t − offset`; `t − var(--timeline-start)`).
 - A **layer** is drawn at one scale `s` (the timeline's scale when it starts). Its tile `i` covers content from `i · T` to `(i + 1) · T`, `T = 1024 / s`, within what can be drawn; tiles exist only where they overlap what the element shows. A tile is `round(length · s · devicePixelRatio)` device pixels wide and as tall as the part times `devicePixelRatio`, and is placed in time: `left: 0`, `height: 100%`, `width: calc(length · var(--timeline-scale))`, `translate: calc(place · var(--timeline-scale)) 0`. At another scale it stretches in place; when `place` changes (a trimmed region), tiles are placed again without being drawn.
@@ -356,6 +356,7 @@ A region has no behaviour of its own: selecting, moving and trimming regions is 
 `Waveform.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`, sized by CSS) shows the audio of `peaks`:
 
 - **In a `Region.Root`**, from the region's `offset` for its `duration`, on the timeline's axis, where the region starts `at`. Its own `offset`, `duration`, `position` and `read` do not apply.
+- **In a `Timeline.Root` outside a region**, on the timeline's axis from its second 0, which is `offset` (default 0) in the audio, for `duration` (default for ever); the timeline gives the playhead.
 - **Otherwise, on its own**, from `offset` (default 0) for `duration` (default `peaks.duration − offset`, at least 0; growing with peaks that have `subscribe`), as its own axis (§10.3) from 0 to that duration across its width, with the playhead at `position − offset` (default 0), or `read() − offset` once per animation frame.
 
 `Waveform.Shape` and `Waveform.Progress` (`div`, `position: absolute; inset: 0`) draw the audio, or the channel `channel`, in tiles (§10.5). A tile draws one column per device pixel from `readPeaks` (with the root's `samples`), as a rectangle from the maximum to the minimum around the middle, at least one device pixel tall. Other `peaks`, `samples` or `channel` remove what is drawn and start a new layer; a new `at`, `duration` or `offset` only places the tiles again and draws the ones that come into view. When the peaks change from second `f` of the audio, the tiles from `f` on are drawn again.
@@ -364,9 +365,17 @@ A region has no behaviour of its own: selecting, moving and trimming regions is 
 
 ### 10.7 Notes
 
-`Notes.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`, sized by CSS) shows `notes`, each `{ at, duration, pitch }` in seconds of the clip, on an axis like a waveform's (§10.6): in a `Region.Root`, the region's; otherwise its own, from `offset` (default 0) for `duration` (default the end of the last note − `offset`, at least 0), with its own playhead.
+`Notes.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`, sized by CSS) shows `notes`, each `{ at, duration, pitch }` in seconds of the clip, on an axis like a waveform's (§10.6): in a `Region.Root`, the region's; in a `Timeline.Root` outside a region, the timeline's from its second 0; otherwise its own, from `offset` (default 0) for `duration` (default the end of the last note − `offset`, at least 0), with its own playhead.
 
 `Notes.Shape` and `Notes.Progress` (`div`, `position: absolute; inset: 0`) draw them in tiles (§10.5), content extending from 0 to the end of the last note. The rows are the whole pitches from `lowest` to `highest`, `range` or else the lowest and highest pitch of the notes; a tile `h` device pixels tall gives each `h / rows`. A note whose pitch is in the range is a rectangle from `round((at − start) · p)` to `round((at + duration − start) · p)` across (`start` the tile's first second, `p` its device pixels per second) and from `round((highest − pitch) · h / rows)` to `round((highest − pitch + 1) · h / rows)` down, at least one device pixel each way. A tile draws the notes that start before its end and end after its start, found by a binary search over the notes sorted by `at` (sorted once per array). Another `notes` array, or another range, removes what is drawn and starts a new layer; a new placement of the region only places the tiles again. `Notes.Progress` is clipped at the playhead as `Waveform.Progress` is.
+
+### 10.8 Curve
+
+A curve is `points` sorted by `at` (a component sorts an unsorted array once, stably), each `{ at, value, shape }`. `shape` (default `"linear"`) is how it goes to the next point.
+
+`curveValue(points, time, range?)`: with no points, `NaN`; before the first point, its value; at or after the last, its value. Otherwise, between the last point `a` at or before `time` and the next `b` (the later of points at the same time counts, so they make a jump), with `n` = `range.normalize` (identity without a range), `f = (time − a.at) / (b.at − a.at)` and `e = curveEase(a.shape, f)`: `n(a.value) + (n(b.value) − n(a.value)) · e`, through `range.denormalize` with a range. `curveEase` is `f` for `"linear"` or 0, 0 before the end for `"hold"`, and `f ** 2 ** (3 · t)` for a tension `t` clamped to −1 … 1.
+
+`Curve.Root` (`div`, `role="img"`, `position: relative; overflow: hidden`) shows `points` on the range `createRange({ min, max, scale })` (defaults 0, 1, linear), on an axis like a waveform's (§10.6), content lasting on its own up to the last point. `Curve.Line` and `Curve.Fill` (`div`, `position: absolute; inset: 0`) draw in tiles (§10.5), content extending for ever. In a tile `h` device pixels tall, a travel position `p` is at `(1 − clamp(p, 0, 1)) · h` from the top. Each traces, from `m` device pixels before the tile to `m` after (the line's width plus 2 for the line, 2 for the fill), the value there, then each point in between: a line to where the segment ends (for a held segment, the point's value before it), a line to the point's own value when it differs, and for a tension, a point every 2 device pixels between. `Curve.Line` strokes it `thickness` CSS pixels (default 1) times `devicePixelRatio` wide, with round joins; `Curve.Fill` closes it along the travel position of `origin` (default `min`) and fills it. Another `points` array, range, `thickness` or `origin` removes what is drawn and starts a new layer.
 
 ## 11. Direction
 
@@ -389,7 +398,7 @@ Checked on every change; a regression fails CI.
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
 | Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
-| In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, and while the view pages along with a MIDI track of 3760 notes more; 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 23.5 kB. | `scripts/size.mjs` |
+| In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, while the view pages along with a MIDI track of 3760 notes more, and while it zooms with an automation lane of 2000 bent points more; 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
+| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 25.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

@@ -84,3 +84,27 @@ test("notes draw into canvas tiles, one bar per note, in their CSS color", async
   const { pixels, green } = await painted();
   expect(green / pixels).toBeGreaterThan(0.9);
 });
+
+test("a curve on the timeline draws its line in its CSS color, across the view", async ({ page }) => {
+  await page.goto("/?view=waveforms&mode=play&curve");
+  const tile = page.getByRole("img", { name: "Volume automation" }).locator(".clip-curve canvas").first();
+  const painted = () =>
+    tile.evaluate((canvas: HTMLCanvasElement) => {
+      const { data } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+      let pixels = 0;
+      let amber = 0;
+      const columns = new Set<number>();
+      for (let index = 0; index < data.length; index += 4) {
+        if (data[index + 3]! < 128) continue;
+        pixels++;
+        columns.add((index / 4) % canvas.width);
+        if (data[index]! > data[index + 2]! + 100) amber++;
+      }
+      return { pixels, amber, columns: columns.size / canvas.width };
+    });
+  await expect.poll(async () => (await painted()).pixels).toBeGreaterThan(500);
+  // #f59e0b, from the stylesheet, in every column: the line runs through the whole tile.
+  const { pixels, amber, columns } = await painted();
+  expect(amber / pixels).toBeGreaterThan(0.9);
+  expect(columns).toBeGreaterThan(0.99);
+});

@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 
 import { createPeaks, createPeaksRecorder, musicalGrid, type Peaks } from "../../src/core/index.js";
-import { Notes, Region, Timeline, Waveform, type Note } from "../../src/react/index.js";
+import type { CurvePoint } from "../../src/core/index.js";
+import { Curve, Notes, Region, Timeline, Waveform, type Note } from "../../src/react/index.js";
 
 // 16 tracks with two 4-minute clips each on one timeline, with one playhead
 // over all of them, driven once per frame:
@@ -10,7 +11,8 @@ import { Notes, Region, Timeline, Waveform, type Note } from "../../src/react/in
 // - ?mode=zoom: the view zooms in and out without pause;
 // - ?mode=record: playback, and a 17th track records a take in blocks of 128 samples, as an AudioWorklet delivers them.
 // A ruler and a grid of bars and beats run over all of it. The tracks are the page's own rows: the timeline
-// knows nothing of them. With ?notes, one more track holds two MIDI clips of sixteenth notes.
+// knows nothing of them. With ?notes, one more track holds two MIDI clips of sixteenth notes; with ?curve, an
+// automation lane of 2000 bent points lies on the timeline itself, outside any region.
 
 const TRACKS = 16;
 const SAMPLE_RATE = 48_000;
@@ -29,6 +31,9 @@ function take(): Peaks {
 }
 
 const peaks = take();
+
+/** Seven minutes of automation, a bent point every 0.21 seconds, up and down. */
+const automation: CurvePoint[] = Array.from({ length: 2000 }, (_, index) => ({ at: index * 0.21, value: 0.5 + 0.4 * Math.sin(index / 3), shape: 0.4 }));
 
 /** 235 seconds of sixteenths at 120 BPM, climbing and falling over two octaves: 1880 notes. */
 const melody: Note[] = Array.from({ length: 1880 }, (_, index) => ({ at: index * 0.125, duration: 0.1, pitch: 48 + ((index * 7) % 24) }));
@@ -83,6 +88,7 @@ export function Waveforms() {
   const showRuler = search.get("ruler") !== "0";
   const showGrid = search.get("grid") !== "0";
   const showNotes = search.has("notes");
+  const showCurve = search.has("curve");
   return (
     <main>
       <h1>daw-ui waveforms</h1>
@@ -123,6 +129,14 @@ export function Waveforms() {
                   </Notes.Root>
                 </Region.Root>
               ))}
+            </div>
+          )}
+          {showCurve && (
+            <div className="track" role="group" aria-label="Volume">
+              <Curve.Root className="clip-waveform" points={automation} aria-label="Volume automation">
+                <Curve.Fill className="clip-curve-fill" />
+                <Curve.Line className="clip-curve" thickness={1.5} />
+              </Curve.Root>
             </div>
           )}
           {mode === "record" && (

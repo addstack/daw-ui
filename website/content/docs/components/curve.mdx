@@ -1,0 +1,86 @@
+---
+title: Curve
+description: A curve through points in time, for automation, envelopes, fades and tempo, on a timeline or on its own, drawn on canvas once and moved by CSS.
+---
+
+<ComponentPreview name="curve" />
+
+## Anatomy
+
+```tsx
+import { scales, type CurvePoint } from '@addstack/daw-ui';
+import { Curve } from '@addstack/daw-ui/react';
+
+const points: CurvePoint[] = [
+  { at: 0, value: -Infinity, shape: -0.6 },
+  { at: 1, value: 0 },
+];
+
+<Curve.Root points={points} min={-Infinity} max={6} scale={scales.decibel} aria-label="Volume" className="h-12 w-64">
+  <Curve.Fill className="text-orange-500/20" />
+  <Curve.Line thickness={1.5} className="text-orange-500" />
+</Curve.Root>
+```
+
+A curve goes through points, each `at` a time in seconds with a `value`: the automation of a parameter, an envelope, a fade, a tempo that changes. It is named for what it draws, like a waveform or notes: what the curve means is your application's. Before the first point and after the last, it holds their value.
+
+A point's `shape` says how the curve goes on to the next point:
+
+| `shape` | |
+| --- | --- |
+| `"linear"` (default) | A straight line. |
+| `"hold"` | The point's value until the next point, then a jump: steps, as for a stepped modulation. Two points at the same time jump too. |
+| A number from −1 to 1 | A tension that bends it: above 0 it stays near the point's value and moves late, below 0 it moves early, as the curved segments of DAWs. |
+
+## Range
+
+Values go bottom to top from `min` to `max`, placed with `scale` as a knob or a fader of that range would place them: `scales.decibel` for volume, `scales.log` for frequency. A curve in decibels on the range of your volume fader goes where the fader goes, and a straight segment is a steady move of the fader, not of the decibels. The same rule gives the value at a time:
+
+```ts
+import { createRange, curveValue, scales } from '@addstack/daw-ui';
+
+const volume = createRange({ min: -Infinity, max: 6, scale: scales.decibel });
+curveValue(points, 0.5, volume); // the value halfway through the fade, as the audio engine should play it
+```
+
+`curveValue(points, time, range)` takes points sorted by time; without a range, segments go straight in value.
+
+## Where it lies
+
+- **On its own**, as in the demo, a curve is its own time axis: `offset` … `offset + duration` across its width, up to its last point by default.
+- **On a timeline, outside a region**, it lies on the timeline itself, from its second 0, for ever: an automation lane. The [Arrangement block](/docs/blocks/arrangement) has one under its bass track.
+- **In a [region](/docs/components/region)**, it shows the part the region shows, from its `offset` for its `duration`, as clip automation or a fade does.
+
+The same holds for [waveforms](/docs/components/waveform) and [notes](/docs/components/notes).
+
+## Line and fill
+
+`Curve.Line` strokes the curve, `thickness` CSS pixels wide, in its CSS `color`. `Curve.Fill` fills the area between the curve and `origin`, the root's `min` by default, or the middle for pan and pitch bend (`origin={0}` on a range from −1 to 1). Render the fill before the line, to lie under it.
+
+A curve only shows. Editing its points will be an engine your application creates with a hook: see the [principles](/docs/principles), section 6.
+
+## How it stays fast
+
+A curve is drawn like a waveform, in canvas tiles placed in time with the timeline's CSS variables: playback and scrolling draw nothing drawn already, a zoom stretches the tiles and draws them sharp when it rests. A tile finds its first point by a binary search and traces only the points it shows: straight and held segments as lines between their points, bent ones through a point every two device pixels. An automation lane of 2000 bent points adds about half a millisecond per frame to zooming 32 waveforms.
+
+A new `points` array draws the curve again: keep the same one between renders while the points stay the same.
+
+## API reference
+
+### Root
+
+Renders a `<div>` with `role="img"`, `position: relative` and `overflow: hidden`. On its own, it is its own time axis, with `--timeline-start` and `--timeline-scale`.
+
+<PropsTable part="Curve.Root" />
+
+### Line
+
+The curve as a line, drawn on canvas in the CSS `color` of this element. Renders a `<div>` that fills the root.
+
+<PropsTable part="Curve.Line" />
+
+### Fill
+
+The area between the curve and `origin`, drawn on canvas in the CSS `color` of this element. Renders a `<div>` that fills the root.
+
+<PropsTable part="Curve.Fill" />

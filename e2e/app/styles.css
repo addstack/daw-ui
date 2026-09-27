@@ -276,6 +276,14 @@ h1 {
   color: #34d399;
 }
 
+.clip-curve {
+  color: #f59e0b;
+}
+
+.clip-curve-fill {
+  color: rgb(245 158 11 / 0.2);
+}
+
 .clip-progress {
   color: #93c5fd;
 }

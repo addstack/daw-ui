@@ -23,7 +23,7 @@ A waveform needs nothing around it: in a sample browser or on a sampler, it show
 
 ## In a timeline
 
-In a [`Region`](/docs/components/region) on a [timeline](/docs/components/timeline), a waveform shows the audio the region shows, from its `offset` for its `duration`, on the timeline's axis, and follows the region as it moves; the timeline gives it the playhead. Size it across the region's width.
+In a [`Region`](/docs/components/region) on a [timeline](/docs/components/timeline), a waveform shows the audio the region shows, from its `offset` for its `duration`, on the timeline's axis, and follows the region as it moves; the timeline gives it the playhead. Size it across the region's width. Outside a region, in a `Timeline.Root`, a waveform lies on the timeline itself, from its second 0, as a single take in an audio editor.
 
 ```tsx
 <Timeline.Root start={0} end={30} read={() => transport.time}>

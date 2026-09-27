@@ -3,8 +3,8 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { clockGrid, createPeaks, createPeaksRecorder, musicalGrid, type Peaks } from "../src/core/index.js";
-import { Notes, Region, Timeline, Waveform, type Note } from "../src/react/index.js";
+import { clockGrid, createPeaks, createPeaksRecorder, musicalGrid, scales, type CurvePoint, type Peaks } from "../src/core/index.js";
+import { Curve, Notes, Region, Timeline, Waveform, type Note } from "../src/react/index.js";
 
 // jsdom has no layout, animation frames or canvas: the tests give the timeline a
 // width, run frames when they say so, and record what the tiles draw.
@@ -12,12 +12,21 @@ import { Notes, Region, Timeline, Waveform, type Note } from "../src/react/index
 let frames: FrameRequestCallback[] = [];
 let resizeCallbacks: (() => void)[] = [];
 const size = { width: 1000, height: 40 };
-const drawn = { tiles: 0, columns: 0, colors: new Set<string>(), tops: [] as number[], rects: [] as number[][] };
+const drawn = {
+  tiles: 0,
+  columns: 0,
+  colors: new Set<string>(),
+  tops: [] as number[],
+  rects: [] as number[][],
+  /** Paths, as their moves and lines in whole pixels, and how each ended. */
+  path: [] as [string, number, number][],
+  ends: [] as string[],
+};
 
 beforeEach(() => {
   frames = [];
   resizeCallbacks = [];
-  Object.assign(drawn, { tiles: 0, columns: 0, colors: new Set(), tops: [], rects: [] });
+  Object.assign(drawn, { tiles: 0, columns: 0, colors: new Set(), tops: [], rects: [], path: [], ends: [] });
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => frames.push(callback));
   vi.stubGlobal("cancelAnimationFrame", () => {
     frames = [];
@@ -49,6 +58,12 @@ beforeEach(() => {
         set fillStyle(color: string) {
           drawn.colors.add(color);
         },
+        beginPath: () => (drawn.path = []),
+        moveTo: (x: number, y: number) => drawn.path.push(["M", Math.round(x), Math.round(y)]),
+        lineTo: (x: number, y: number) => drawn.path.push(["L", Math.round(x), Math.round(y)]),
+        closePath: () => drawn.ends.push("close"),
+        stroke: () => drawn.ends.push("stroke"),
+        fill: () => drawn.ends.push("fill"),
       }) as unknown as CanvasRenderingContext2D,
   );
 });
@@ -466,6 +481,130 @@ describe("Notes", () => {
   test("parts outside a root say where they belong", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<Notes.Shape />)).toThrow(/Notes.Root/);
+  });
+});
+
+describe("Curve", () => {
+  // A second up from 0 to 1, a held second at 0.5, then a jump down to 0.
+  const ramp: CurvePoint[] = [
+    { at: 0, value: 0 },
+    { at: 1, value: 1 },
+    { at: 2, value: 0.5, shape: "hold" },
+    { at: 3, value: 0 },
+  ];
+
+  test("is an image named by the application", () => {
+    render(<Curve.Root points={ramp} aria-label="Volume" data-testid="curve" />);
+    expect(screen.getByRole("img", { name: "Volume" })).toBe(screen.getByTestId("curve"));
+  });
+
+  test("on its own, draws lines between points, a step for a held segment, and holds past the last point", () => {
+    render(
+      <Curve.Root points={ramp}>
+        <Curve.Line style={{ color: "rgb(7, 8, 9)" }} />
+      </Curve.Root>,
+    );
+    frame();
+    // The 3 s of points across 1000 px, 40 px tall with 1 at the top; the line starts and ends beyond the tile.
+    expect(drawn.path).toEqual([
+      ["M", -3, 40],
+      ["L", 0, 40],
+      ["L", 333, 0],
+      ["L", 667, 20],
+      ["L", 1000, 20],
+      ["L", 1000, 40],
+      ["L", 1027, 40],
+    ]);
+    expect(drawn.ends).toEqual(["stroke"]);
+    expect(drawn.colors).toContain("rgb(7, 8, 9)");
+  });
+
+  test("a bent segment is traced through a point every two device pixels", () => {
+    render(
+      <Curve.Root points={[{ at: 0, value: 0, shape: 0.5 }, { at: 1, value: 1 }]}>
+        <Curve.Line />
+      </Curve.Root>,
+    );
+    frame();
+    const bent = drawn.path.filter(([, x]) => x > 0 && x < 1000);
+    expect(bent.length).toBeGreaterThan(450);
+    // Late: halfway across, still low.
+    const middle = bent.find(([, x]) => x >= 500)!;
+    expect(middle[2]).toBeGreaterThan(30);
+  });
+
+  test("the fill closes the area down to its origin", () => {
+    render(
+      <Curve.Root points={ramp}>
+        <Curve.Fill origin={0.5} />
+      </Curve.Root>,
+    );
+    frame();
+    expect(drawn.path.slice(-2).map(([, , y]) => y)).toEqual([20, 20]);
+    expect(drawn.ends).toEqual(["close", "fill"]);
+  });
+
+  test("values are placed on the range as a fader of it would show them", () => {
+    render(
+      <Curve.Root points={[{ at: 0, value: 0 }, { at: 1, value: 0 }]} min={-Infinity} max={6} scale={scales.decibel}>
+        <Curve.Line />
+      </Curve.Root>,
+    );
+    frame();
+    const volume = 1 - scales.decibel.toNormalized(0, -Infinity, 6);
+    expect(drawn.path[1]![2]).toBe(Math.round(volume * 40));
+  });
+
+  test("on a timeline outside a region, it lies on the timeline for ever: scrolling draws what comes into view", () => {
+    function Lane({ view }: { view: [number, number] }) {
+      return (
+        <Timeline.Root start={view[0]} end={view[1]}>
+          <Curve.Root points={ramp}>
+            <Curve.Line data-testid="line" />
+          </Curve.Root>
+        </Timeline.Root>
+      );
+    }
+    const { rerender } = render(<Lane view={[0, 10]} />);
+    frame();
+    // The timeline's axis, from its second 0: 100 px per second.
+    expect(screen.getByTestId("line").querySelector("canvas")!.style.translate).toBe("calc(0 * var(--timeline-scale)) 0");
+    drawn.tiles = 0;
+    rerender(<Lane view={[60, 70]} />);
+    frame();
+    // A minute on, past the last point, the held value is drawn.
+    expect(drawn.tiles).toBeGreaterThan(0);
+    expect(drawn.path.at(-1)![2]).toBe(40);
+  });
+
+  test("the same points draw nothing again; other points draw again", () => {
+    function Clip({ points }: { points: CurvePoint[] }) {
+      return (
+        <Timeline.Root start={0} end={10}>
+          <div>
+            <Region.Root at={0} duration={3}>
+              <Curve.Root points={points}>
+                <Curve.Line />
+              </Curve.Root>
+            </Region.Root>
+          </div>
+        </Timeline.Root>
+      );
+    }
+    const { rerender } = render(<Clip points={ramp} />);
+    frame();
+    drawn.tiles = 0;
+    rerender(<Clip points={ramp} />);
+    frame();
+    expect(drawn.tiles).toBe(0);
+    rerender(<Clip points={[...ramp, { at: 2.5, value: 1 }]} />);
+    frame();
+    expect(drawn.tiles).toBe(1);
+  });
+
+  test("parts outside a root say where they belong", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => render(<Curve.Line />)).toThrow(/Curve.Root/);
   });
 });
 
