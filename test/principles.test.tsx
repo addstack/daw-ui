@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -103,6 +103,11 @@ function EveryComponent() {
         </XYPad.Control>
         <XYPad.Value />
       </XYPad.Root>
+      <Keys.Root range={[59, 62]} held={[60]}>
+        {[59, 60, 61, 62].map((note) => (
+          <Keys.Key key={note} note={note} />
+        ))}
+      </Keys.Root>
       <ToggleGroup paint exclusive="click">
         <Toggle />
         <Toggle behavior="momentary" />
@@ -163,6 +168,11 @@ test("text the components show is not selectable, except a value being typed (se
         <Meter.Clip data-testid="meter clip">f</Meter.Clip>
       </Meter.Root>
       <Toggle data-testid="toggle">g</Toggle>
+      <Keys.Root range={[60, 60]}>
+        <Keys.Key note={60} data-testid="key">
+          j
+        </Keys.Key>
+      </Keys.Root>
       <Timeline.Root start={0} end={1}>
         <Timeline.Ruler grid={clockGrid()} data-testid="ruler" />
         <XYPad.Root>
@@ -189,6 +199,7 @@ test("text the components show is not selectable, except a value being typed (se
     "meter label",
     "meter clip",
     "toggle",
+    "key",
     "ruler",
     "region header",
     "region label",

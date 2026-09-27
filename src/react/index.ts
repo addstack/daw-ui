@@ -10,6 +10,8 @@ export {
   type CurveLock,
 } from "./curve-editing.js";
 export * as Fader from "./fader.parts.js";
+export * as Keys from "./keys.parts.js";
+export type { KeysPressDetails, KeysReason, KeysReleaseDetails } from "./keys.js";
 export * as Knob from "./knob.parts.js";
 export * as Meter from "./meter.parts.js";
 export * as Notes from "./notes.parts.js";

@@ -5,6 +5,8 @@ import CurveDemo from './curve';
 import CurveEditingDemo from './curve-editing';
 import EnvelopeDemo from './envelope';
 import FaderDemo from './fader';
+import KeysDemo from './keys';
+import PianoRollDemo from './keys-piano-roll';
 import KnobDemo from './knob';
 import BipolarKnobDemo from './knob-bipolar';
 import EndlessKnobDemo from './knob-endless';
@@ -34,6 +36,8 @@ export const demos = {
   'curve-editing': CurveEditingDemo,
   envelope: EnvelopeDemo,
   fader: FaderDemo,
+  keys: KeysDemo,
+  'keys-piano-roll': PianoRollDemo,
   knob: KnobDemo,
   'knob-bipolar': BipolarKnobDemo,
   'knob-endless': EndlessKnobDemo,

@@ -14,7 +14,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { createRange, formats, type Range, type Scale, type ValueFormat } from "../core/index.js";
+import { numberFormat } from "../core/format.js";
+import { createRange, type Range, type Scale, type ValueFormat } from "../core/index.js";
 import { isRightToLeft, useRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { writeLive } from "./live.js";
@@ -85,7 +86,7 @@ function useXYPadContext(part: string): XYPadContextValue {
 const constrain = (ranges: Ranges, [x, y]: XYValue): XYValue => [ranges.x.constrain(x), ranges.y.constrain(y)];
 const sameValue = (a: XYValue | undefined, b: XYValue | undefined) => a !== undefined && b !== undefined && Object.is(a[0], b[0]) && Object.is(a[1], b[1]);
 
-const defaultFormat = formats.number({ digits: 2 });
+const defaultFormat = numberFormat({ digits: 2 });
 
 /**
  * A pad that moves one or more thumbs across two axes at once: the cutoff

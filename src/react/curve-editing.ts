@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { formats, gridStep, type CurvePoint, type Range, type TimeGrid, type ValueFormat } from "../core/index.js";
+import { numberFormat } from "../core/format.js";
+import { gridStep, type CurvePoint, type Range, type TimeGrid, type ValueFormat } from "../core/index.js";
 import { curvePosition, pointAfter } from "../core/curve.js";
 import type { ContentAxis } from "./content.js";
 
@@ -74,8 +75,8 @@ const FINE_STEP = 0.001;
 const BEND_STEP = 0.1;
 const FINE_BEND_STEP = 0.02;
 
-const defaultTime = formats.number({ digits: 2, unit: "s" });
-const defaultValue = formats.number({ digits: 2 });
+const defaultTime = numberFormat({ digits: 2, unit: "s" });
+const defaultValue = numberFormat({ digits: 2 });
 
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 const samePoint = (a: CurvePoint, b: CurvePoint) => a.at === b.at && a.value === b.value && (a.shape ?? "linear") === (b.shape ?? "linear");

@@ -72,6 +72,20 @@ describe("formats", () => {
     expect(polish.parse("ś")).toBe(0);
   });
 
+  test("pitch names notes with the names the application passes", () => {
+    const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+    const format = formats.pitch({ names, locale: "en" });
+    expect([format.format(60), format.format(61), format.format(69), format.format(21), format.format(0)]).toEqual(["C4", "C♯4", "A4", "A0", "C-1"]);
+    expect([format.parse("C4"), format.parse("c#4"), format.parse("Bb3"), format.parse("e♭ 4"), format.parse("C-1")]).toEqual([60, 61, 58, 63, 0]);
+    expect([format.parse("H4"), format.parse("C"), format.parse("60")]).toEqual([null, null, null]);
+
+    // Middle C is C3 in Ableton Live; German names have H, and B for B♭.
+    const german = formats.pitch({ names: ["C", "Cis", "D", "Dis", "E", "F", "Fis", "G", "Gis", "A", "B", "H"], middleC: 3, locale: "de" });
+    expect([german.format(60), german.format(70), german.format(71)]).toEqual(["C3", "B3", "H3"]);
+    expect([german.parse("cis3"), german.parse("H3")]).toEqual([61, 71]);
+    expect(() => formats.pitch({ names: ["C"] })).toThrow(RangeError);
+  });
+
   test("time switches to seconds", () => {
     const format = formats.time({ locale: "en" });
     expect(format.format(4)).toBe("4.00 ms");

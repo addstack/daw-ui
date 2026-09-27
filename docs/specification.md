@@ -12,8 +12,9 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [8. Toggle](#8-toggle)
 - [9. ToggleGroup](#9-togglegroup)
 - [10. Timeline, Region, Waveform, Notes and Curve](#10-timeline-region-waveform-notes-and-curve)
-- [11. Direction](#11-direction)
-- [12. Performance budgets](#12-performance-budgets)
+- [11. Keys](#11-keys)
+- [12. Direction](#12-direction)
+- [13. Performance budgets](#13-performance-budgets)
 
 ## 1. Scope
 
@@ -35,7 +36,7 @@ Each part:
 - accepts `render`: an element, which is cloned with the part's props merged into its own, or a function `(props, state) => element`;
 - merges props in this way: the user's event handler runs first, and if it calls `event.preventDefault()`, the part's own handler is skipped; class names are joined; the user's style is spread over the part's inline style; refs all receive the element.
 
-Inline styles set by parts are limited to positioning (`position`, logical insets, `translate`, `clip-path`), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label` and `XYPad.Value`. The text input of a number box being edited is selectable.
+Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
 
 ## 3. Value model
 
@@ -88,7 +89,7 @@ Built-in formats:
 - print numbers with `Intl.NumberFormat` in the given `locale` (default: the runtime's), with a fixed number of decimals and no grouping; a value that rounds to zero prints without a sign;
 - parse either decimal separator (`.` or `,`) and the Unicode minus sign (U+2212);
 - add only unit symbols that are the same in every language (Hz, kHz, dB, ms, s, %) and signs (−∞);
-- take every word or letter from the application. `pan` requires `left`, `right` and `center`.
+- take every word or letter from the application. `pan` requires `left`, `right` and `center`, and `pitch` requires `names`.
 
 | Format | Output | Accepted input |
 | --- | --- | --- |
@@ -99,6 +100,7 @@ Built-in formats:
 | `pan({ left, right, center })` | `center` when `round(|v|·100) = 0`, else the amount followed by `left` or `right` | `center`; a number (÷100); a number followed by `left` (negative) or `right` |
 | `time()` | milliseconds: 2 decimals under 10, 1 under 100, else 0, then `ms`; from 1000: seconds with 2 decimals and `s` | a number, optionally `ms`; a number followed by `s` (×1000) |
 | `position({ beatsPerBar = 4, divisions = 4 })` | beats as `bar.beat.division`, each counted from 1: with `n = ⌊v·divisions + 10⁻⁹⌋`, bar `⌊n / (beatsPerBar·divisions)⌋ + 1`, beat `⌊(n mod beatsPerBar·divisions) / divisions⌋ + 1`, division `(n mod divisions) + 1` | one to three whole numbers (the first may be negative) separated by `.`, `:`, `,`, `;` or spaces, missing ones being 1: `(bar − 1)·beatsPerBar + (beat − 1) + (division − 1) / divisions` |
+| `pitch({ names, middleC = 4 })` | a MIDI note `n` (rounded) as `names[n mod 12]` followed by the octave `⌊n / 12⌋ − 5 + middleC`; `names` must have 12 entries, or it throws a `RangeError` | a name of `names` (the longest that matches, whatever the case, `#` read as `♯`), then any of `♯`, `#` (+1) and `♭`, `b` (−1), then a whole octave number, which may be negative |
 | `timecode({ fps })` | seconds as `hh:mm:ss:ff`, two digits each, from `n = ⌊|v|·fps + 10⁻⁹⌋` frames; a minus sign before the hours when `v < 0` and `n > 0`. `fps` must be a whole number greater than 0, or it throws a `RangeError` | one to four whole numbers separated as for `position`, filled from the right (frames last); 3 to 8 digits alone are split into pairs from the right (`1500` is 15 s); a leading minus negates |
 
 Segments of the built-in formats:
@@ -133,7 +135,7 @@ A change is **applied** as follows: the candidate is constrained; if it equals t
 
 On primary-button pointerdown on the control (not disabled): the default action is prevented, the control takes focus, captures the pointer, and optionally requests pointer lock (`pointerLock`). The drag keeps a travel position `p`, starting at `normalize(value)`.
 
-On each pointermove, `Δ` is the pointer movement since the previous event (`movementX/Y` while locked, else client coordinates): up for vertical controls, towards the inline end for horizontal ones (§11). Then `p = clamp01(p + Δ / sensitivity × (Shift ? 0.1 : 1))`, and `denormalize(p)` is applied with reason `"drag"`. Because `p` is clamped, moving back after overshooting an end responds at once. On a wrapping or endless range, `p` is not clamped, and the drag goes round. `dragging` is true from the first move until the pointer is released, cancelled or loses capture; then the gesture ends.
+On each pointermove, `Δ` is the pointer movement since the previous event (`movementX/Y` while locked, else client coordinates): up for vertical controls, towards the inline end for horizontal ones (§12). Then `p = clamp01(p + Δ / sensitivity × (Shift ? 0.1 : 1))`, and `denormalize(p)` is applied with reason `"drag"`. Because `p` is clamped, moving back after overshooting an end responds at once. On a wrapping or endless range, `p` is not clamped, and the drag goes round. `dragging` is true from the first move until the pointer is released, cancelled or loses capture; then the gesture ends.
 
 `sensitivity` (pixels for the full travel) defaults to 200 for a knob, to the track's length along the orientation for a fader (the control's length if there is no track, 200 if that is 0), and for a number box to `clamp(2·(max − min) / step, 100, 1000)` (400 without a step or with an infinite range; an endless number box takes `2·(max − min) / step` unclamped, two pixels per step).
 
@@ -143,8 +145,8 @@ On the focused control (not disabled):
 
 | Key | Continuous range | With `step` |
 | --- | --- | --- |
-| ArrowUp; ArrowRight (§11) | travel + 0.01 (Shift: + 0.001) | value + step |
-| ArrowDown; ArrowLeft (§11) | travel − 0.01 (Shift: − 0.001) | value − step |
+| ArrowUp; ArrowRight (§12) | travel + 0.01 (Shift: + 0.001) | value + step |
+| ArrowDown; ArrowLeft (§12) | travel − 0.01 (Shift: − 0.001) | value − step |
 | PageUp / PageDown | travel ± 0.1 | travel ± 0.1 if that is more than one step, else ± step |
 | Home / End | `min` / `max` | same |
 | Delete, Backspace | reset | same |
@@ -295,7 +297,7 @@ Toggles are arranged into lines: one line per lane (in order of first appearance
 
 | Key | Moves focus to |
 | --- | --- |
-| Arrow along the axis | the next enabled toggle in the line in that direction (Left/Right follow the reading direction, §11) |
+| Arrow along the axis | the next enabled toggle in the line in that direction (Left/Right follow the reading direction, §12) |
 | Arrow across the axis | the toggle at the same position (or the last one) in the next line in that direction whose toggle there is enabled |
 | Home / End | the first / last enabled toggle of the line; with Ctrl, of the group |
 
@@ -327,7 +329,7 @@ The playhead is the `position` prop (default 0), or with `read`, `read()` once p
 
 With `readView`, `readView()` gives `[start, end]` once per animation frame. None of these changes renders a component. The root adds no role and no element for what it holds: its children are the application's, and it knows nothing of them.
 
-Parts place themselves in CSS from these variables, with the physical `left` and `translate`: time runs left to right in every direction (§11).
+Parts place themselves in CSS from these variables, with the physical `left` and `translate`: time runs left to right in every direction (§12).
 
 | Part | Element | Behaviour |
 | --- | --- | --- |
@@ -398,7 +400,21 @@ A curve is `points` sorted by `at` (a component sorts an unsorted array once, st
 - **Adds and removes.** A double-click on the root away from the handles, with `canAdd` not `false`, inserts `{ at, value }` at the pointer (snapped as a drag is) after the points at or before it, as one gesture with reason `"add"`, then selects and focuses it. A double-click on a handle, or Delete or Backspace on it, removes the selection (or the point alone if it is not selected), less points locked in both, with `canRemove` not `false`: reason `"remove"`. A double-click on a bend handle makes its segment `"linear"`: reason `"bend"`.
 - **Keys** on a handle, each one gesture with reason `"keyboard"` (`"bend"` for Alt), applying to the selection if the point is in it, else to the point: Left and Right focus the previous or next point not locked in both; with Cmd or Ctrl they move it by a snap step (without `snap.time`, 10 px; with Shift, 1 px). Up and Down move the value by `snap.value` (snapped), else by 0.01 of travel (with Shift, 0.001); with Alt they add ∓0.1 (Shift: 0.02) to the tension of the segment after the point, the sign that moves its middle up for Up. Space selects the point alone (with Cmd or Ctrl, toggles it).
 
-## 11. Direction
+## 11. Keys
+
+`Keys.Root` (`div`, `role="group"`, `data-orientation`, `data-layout`, `data-disabled`, `position: relative`, `touch-action: none`) has a key for each note from `range[0]` to `range[1]`, MIDI note numbers; the application renders a `Keys.Key note={n}` for each. A note is black when `n mod 12` is 1, 3, 6, 8 or 10, and white otherwise.
+
+- **Placement.** Along the keyboard, a key spans, in units of the layout:
+  - `layout="piano"` (default), in white keys: with `o = 7·⌊n / 12⌋` and `c = n mod 12`, a white key `[o + w, o + w + 1]`, `w` its index among the white keys of the octave (C is 0, B is 6); a black key `[o + 7c / 12, o + 7(c + 1) / 12]`. The keyboard spans from the start of the key of `range[0]` to the end of the key of `range[1]`.
+  - `layout="rows"`, in semitones: a black key `[n, n + 1]`; a white key `[n − ½, n + 1 + ½]`, without the half on a side where the next note is white. The keyboard spans `[range[0], range[1] + 1]`, and keys are clipped to it: key `n`'s row is the row `Notes` draws pitch `n` in over the same range (§10.7).
+
+  A key's start and size, as fractions of the keyboard's length in percent (rounded to 1/1000 %), are its `left` and `width` when `orientation="horizontal"` (default), left to right in every direction, or its `bottom` and `height` when `"vertical"`. Across the keyboard it has `inset-block: 0` or `inset-inline: 0`. Keys are `position: absolute`; black keys have `z-index: 1`.
+- **Keys.** `Keys.Key` is a `button` (`type="button"`) with `aria-label` = `format.format(note)` (default `formats.number({ digits: 0 })`), `data-black` or `data-white`, `data-orientation`, `user-select: none`, and `aria-disabled` and `data-disabled` when it or the root is `disabled`.
+- **Down.** A key is down while something holds it: a pointer, or the keyboard. When it gets its first holder, `data-pressed` is set and `onPress(note, { reason, event, velocity })` is called; when it loses its last, `data-pressed` is removed and `onRelease(note, { reason, event })` is called; `reason` is `"pointer"` or `"keyboard"`. `held`, when `read` is not given, and `read()` once per animation frame, are the notes held elsewhere: their keys have `data-held`. Keys are written without rendering.
+- **Pointer.** A primary press on a key of an enabled root prevents the default action, focuses the key, captures the pointer and reads the box of every key once. The pressed key, and then on each move the key under the pointer (the first black key whose box contains it, else the first white one), is held by the pointer if it is enabled: moving onto another key lets go of the previous one and holds the new one; off the keys, the pointer holds none. Release, cancel or lost capture lets go. A key's velocity is `velocity` when it is a number; with `"position"` (default), the travel from the key's back to its front within its box, clamped to 0 … 1: `(y − top) / height` horizontally, `(x − left) / width` vertically, `(right − x) / width` right to left.
+- **Keyboard.** The keyboard is one tab stop: `tabindex` 0 on the focusable key, at first `clamp(60, range[0], range[1])`, then the last focused one; −1 on the others, and on every key while the root is disabled. On a key of an enabled root, Space and Enter (not repeated) hold the key, if enabled, with velocity `velocity`, or 0.8 with `"position"`, until their keyup, or until focus leaves the keyboard. ArrowRight and ArrowUp focus the next enabled key above, ArrowLeft and ArrowDown the next below; PageUp the first enabled key at or above `note + 12`, else the highest; PageDown the first at or below `note − 12`, else the lowest; Home and End the lowest and highest. While the keyboard holds a key, moving focus lets go of it and holds the key focused. Handled keys prevent their default action.
+
+## 12. Direction
 
 The direction is read from the DOM (`getComputedStyle(element).direction`): at pointerdown for drags, at keydown for keys, and once at mount for styles that have no logical form.
 
@@ -407,8 +423,9 @@ The direction is read from the DOM (`getComputedStyle(element).direction`): at p
 - Toggle groups: Left and Right move along the reading direction.
 - Vertical controls, knobs, Up and Down do not depend on direction.
 - Time on a timeline and the fields of number box segments run left to right in every direction (§10, §5.8).
+- Keys run from low to high left to right, or bottom to top, in every direction, and their arrow keys do not change; the back of the keys of a vertical keyboard is at the inline start (§11).
 
-## 12. Performance budgets
+## 13. Performance budgets
 
 Checked on every change; a regression fails CI.
 
@@ -418,9 +435,11 @@ Checked on every change; a regression fails CI.
 | Painting three steps of a 64-step group-owned grid renders exactly those three toggles. | `test/toggle.test.tsx` |
 | Running meters render nothing in React (16 meters, 120 frames); all meters share one frame loop. | `test/meter.test.tsx` |
 | Dragging a thumb of an XY pad renders nothing. | `test/xy-pad.test.tsx` |
+| Pressing keys, gliding across them and reading keys held elsewhere renders nothing. | `test/keys.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
 | Playback, scrolling, and a new placement of a region draw no tile that is drawn already; a zoom draws only after it rests or past twice or half the scale; drawing takes at most 4 ms per frame. | `test/timeline.test.tsx` |
 | In a production build with 32 waveforms on a timeline under a ruler and two grids: 0 React commits during playback, scrolling, recording and zooming, while the view pages along with a MIDI track of 3760 notes more, while it zooms with an automation lane of 2000 bent points more, and at most 2 for a drag of one of those points when editable (the press, and the application keeping the points); 0 tiles drawn during playback, at most 128 while the view pages along for 3 s, and while recording a 33rd take, at most one tile per frame (plus two). | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 6.7 kB, React binding (with core) ≤ 34 kB; an application importing only a knob ≤ 9 kB, only an XY pad ≤ 7.6 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 14.8 kB. | `scripts/size.mjs` |
+| With 88 keys in a production build: 0 React commits while `read` holds keys that change every 50 ms, and during a glissando across the keyboard. | `perf/stress.perf.ts` |
+| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 34 kB; an application importing only a knob ≤ 7.7 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

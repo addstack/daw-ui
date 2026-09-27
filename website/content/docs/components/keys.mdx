@@ -1,0 +1,103 @@
+---
+title: Keys
+description: A piano keyboard, as an instrument on screen or beside a piano roll, that plays with pointers and the keyboard and shows keys held elsewhere without rendering.
+---
+
+<ComponentPreview name="keys" />
+
+## Anatomy
+
+```tsx
+import { formats } from '@addstack/daw-ui';
+import { Keys } from '@addstack/daw-ui/react';
+
+const pitch = formats.pitch({ names: t('noteNames') }); // ['C', 'C♯', 'D', …, 'B']
+
+<Keys.Root
+  range={[48, 72]}
+  format={pitch}
+  onPress={(note, { velocity }) => synth.play(note, velocity)}
+  onRelease={(note) => synth.stop(note)}
+  aria-label={t('keyboard')}
+  className="h-36 w-full"
+>
+  {notes.map((note) => (
+    <Keys.Key key={note} note={note} className="bg-white data-black:h-3/5 data-black:bg-neutral-900 data-pressed:bg-orange-200" />
+  ))}
+</Keys.Root>
+```
+
+A keyboard has a key for each note from `range[0]` to `range[1]`, as MIDI note numbers: 60 is middle C, and `[21, 108]` the 88 keys of a piano. Your application renders the keys, one `Keys.Key` per note, and can put anything in them, such as the name of each C; the keyboard places them. Low notes are on the left, or at the bottom, in every language: a keyboard is an instrument, and does not turn with the reading direction.
+
+The keyboard makes no sound. It reports what is played with `onPress`, which receives the note and `details.velocity`, from 0 to 1, and `onRelease`; what plays is your audio engine's.
+
+## Beside a piano roll
+
+<ComponentPreview name="keys-piano-roll" />
+
+```tsx
+<div className="flex h-64">
+  <Keys.Root range={[57, 72]} orientation="vertical" layout="rows" read={sounding} aria-label={t('keys')} className="w-14">
+    {notes.map((note) => (
+      <Keys.Key key={note} note={note} className="bg-white data-black:w-3/5 data-black:bg-neutral-900 data-held:bg-emerald-300" />
+    ))}
+  </Keys.Root>
+  <Notes.Root notes={melody} range={[57, 72]} read={position} aria-label={t('melody')} className="flex-1">
+    <Notes.Shape />
+  </Notes.Root>
+</div>
+```
+
+`layout` places the keys:
+
+- `"piano"`, the default, makes every white key the same size, with black keys over the gaps on twelve even slots of the octave, as on a piano.
+- `"rows"` makes every semitone the same size: a black key takes its row, and a white key its row and half of the black keys' beside it. The keys line up with the rows of [`Notes`](/docs/components/notes) over the same `range`, as the keys beside a piano roll do.
+
+`orientation="vertical"` runs the keys from the bottom up. Keys are placed along the keyboard; their length across it is yours: give black keys a shorter one in CSS (`data-black:h-3/5`, or `data-black:w-3/5` when vertical), and they lie over the white keys from the back, the top of a horizontal keyboard and the inline start of a vertical one.
+
+## Keys held elsewhere
+
+Keys can show notes that play from elsewhere: a MIDI keyboard, playback, a chord your application suggests. `held` takes them when they change rarely; `read` returns them once per animation frame, for playback or MIDI input, without rendering:
+
+```tsx
+const input = new Set<number>(); // filled by your Web MIDI handler
+<Keys.Root range={[21, 108]} read={() => input}>
+```
+
+Keys pressed on the keyboard carry `data-pressed`, keys held elsewhere `data-held`; style both, or tell them apart.
+
+## Behaviour
+
+- **Pointer:** a press plays the key under it; gliding across the keys lets go of one and plays the next, as a glissando. Every pointer plays its own key, so fingers play chords on a touch screen; a key two pointers hold comes up when both let go.
+- **Velocity:** by default, a press plays softer at the back of the key and harder at its front, as on-screen keyboards in DAWs do. `velocity={0.8}` plays every press alike. Keys pressed from the keyboard play at 0.8, or at the number you give.
+- **Keyboard:** the keyboard is one tab stop, at middle C (or the key nearest it). Arrow keys move along the keys, Right and Up higher, Left and Down lower; Page Up and Page Down by an octave; Home and End to the ends. Space or Enter holds the focused key down until it is let go, and an arrow takes a held key along to the next.
+- **Nothing renders** as keys go down and up: the keyboard writes `data-pressed`, `data-held` and the tab stop straight to the DOM.
+
+Each key is a `button` named by `format`: [`formats.pitch({ names })`](/docs/guides/values-and-formats), with the note names of your application's language, or by its MIDI note number without one. `middleC` sets the octave number of middle C: 4 in scientific pitch notation, the default, and 3 in Ableton Live, Cubase and FL Studio. The root is a `group`: name it with `aria-label`.
+
+## Styling
+
+Keys are placed with `position: absolute`: along the keyboard with `left` and `width` in percent, or `bottom` and `height` when vertical, and across it from edge to edge. Black keys have `z-index: 1`. Size the root with CSS.
+
+| Data attribute | |
+| --- | --- |
+| `data-black`, `data-white` | On each key, by its colour. |
+| `data-pressed` | On a key while it is pressed on this keyboard. |
+| `data-held` | On a key while it is held elsewhere, from `held` or `read`. |
+| `data-orientation` | On the root and the keys: `"horizontal"` or `"vertical"`. |
+| `data-layout` | On the root: `"piano"` or `"rows"`. |
+| `data-disabled` | On the root and the keys while disabled. |
+
+## API reference
+
+### Root
+
+Holds the keys that are down. Renders a `<div>` with `role="group"`.
+
+<PropsTable part="Keys.Root" />
+
+### Key
+
+The key of `note`. Renders a `<button>`.
+
+<PropsTable part="Keys.Key" />

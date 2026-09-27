@@ -14,7 +14,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { createRange, formats, zoneOf, type Range, type Scale, type ValueFormat, type Zones } from "../core/index.js";
+import { numberFormat } from "../core/format.js";
+import { createRange, zoneOf, type Range, type Scale, type ValueFormat, type Zones } from "../core/index.js";
 import { isRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { liveProps, mergeLive, useLive, type Live, type LiveListener } from "./live.js";
@@ -262,7 +263,7 @@ export function useValueControl(props: ValueControlProps, options: Options) {
     [min, max, step, scale, wrap, endless],
   );
   const format = useMemo(
-    () => formatProp ?? formats.number({ digits: step !== undefined && Number.isInteger(step) ? 0 : 2 }),
+    () => formatProp ?? numberFormat({ digits: step !== undefined && Number.isInteger(step) ? 0 : 2 }),
     [formatProp, step],
   );
   const origin = range.clamp(originProp ?? min);

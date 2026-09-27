@@ -1,9 +1,10 @@
 export type HarnessEvent = {
   source: string;
-  type: "start" | "change" | "end";
+  type: "start" | "change" | "end" | "press" | "release";
   value?: unknown;
   reason?: string;
   delta?: number;
+  velocity?: number;
 };
 
 export type FrameStats = {

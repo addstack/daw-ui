@@ -18,7 +18,7 @@ In a DAW, the interface competes with audio and with dozens of animated meters. 
 
 ## What is measured
 
-Every change to the repository runs stress pages, in a production build, in Chromium with the CPU slowed down 4×: 64 channel strips with running meters, pan knobs, faders and mute and solo buttons, a 16 × 64 step sequencer, 64 channels whose knobs and faders follow automation on every frame, and a timeline of 16 tracks with 32 four-minute clips under one playhead, a ruler and a grid, and a take being recorded.
+Every change to the repository runs stress pages, in a production build, in Chromium with the CPU slowed down 4×: 64 channel strips with running meters, pan knobs, faders and mute and solo buttons, a 16 × 64 step sequencer, 64 channels whose knobs and faders follow automation on every frame, a timeline of 16 tracks with 32 four-minute clips under one playhead, a ruler and a grid, a take being recorded, a MIDI track and an automation lane, and a keyboard of 88 keys.
 
 | Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
 | --- | --: | --: | --: | --: | --: |
@@ -31,11 +31,15 @@ Every change to the repository runs stress pages, in a production build, in Chro
 | The same, the view paging along with playback | 4.6 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
 | The same, recording a 33rd take | 3.5 | 0.3 | 0 of 181 | – | 0, one tile drawn per frame |
 | The same, zooming without pause | 8.9 | 0.8 | 4 of 177 | – | 0 |
-| The same, editable, dragging a region | 0.6 | 0.2 | 0 of 91 | 15.5 / 16.5 | 1, when the application keeps the move |
+| The same, paging along, with a MIDI track of 3760 notes | 4.9 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
+| The same, zooming, with an automation lane of 2000 bent points | 9.1 | 0.8 | 4 of 177 | – | 0 |
+| The same, playing, dragging a point of that lane, editable | 4.0 | 0.5 | 0 of 90 | 10.4 / 13.5 | 2: the press, and keeping the points |
+| 88 keys lit by playback through `read` | 0.4 | 0.0 | 0 of 181 | – | 0 |
+| A glissando across 88 keys | 1.1 | 0.1 | 0 of 90 | 14.2 / 15.4 | 0 |
 
-A 60 Hz frame has 16.7 ms. The last two rows are the same page driven two ways: controlled `value` props updated on every frame spend more than the whole budget, `read` leaves room.
+A 60 Hz frame has 16.7 ms. The two automation rows are the same page driven two ways: controlled `value` props updated on every frame spend more than the whole budget, `read` leaves room.
 
-The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction (zero for drags, for automation through `read`, for running meters and for waveforms), canvas tiles drawn (none during playback), renders per painted step, and the bundle size, minified and gzipped: 30.9 kB for everything, and what an application adds when it imports only some components, such as 8.2 kB for a knob alone, which checks that the rest is left out. Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
+The numbers that do not depend on the machine fail the build when they get worse: React commits per interaction (zero for drags, for automation through `read`, for running meters, for waveforms and for keys), canvas tiles drawn (none during playback), renders per painted step, and the bundle size, minified and gzipped: 32.0 kB for everything, and what an application adds when it imports only some components, such as 7.0 kB for a knob alone or 4.8 kB for a keyboard alone, which checks that the rest is left out. Timings are reported in the CI job summary, because shared CI machines are too noisy to fail on them.
 
 ## In your application
 

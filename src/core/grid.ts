@@ -1,4 +1,4 @@
-import { formats, type LocaleOptions, type ValueField } from "./format.js";
+import { positionFormat, type LocaleOptions, type ValueField } from "./format.js";
 import { createPadder, symbol } from "./numbers.js";
 
 /**
@@ -40,8 +40,7 @@ export function musicalGrid({ bpm, beatsPerBar = 4, divisions = 4, locale }: Mus
   const bar = beat * beatsPerBar;
   const steps = divisions > 1 ? [beat / divisions, beat] : [beat];
   for (let bars = 1; bars <= 1024; bars *= 2) steps.push(bar * bars);
-  const fields = formats
-    .position({ beatsPerBar, divisions, locale })
+  const fields = positionFormat({ beatsPerBar, divisions, locale })
     .segments!.filter((segment): segment is ValueField => segment.type === "field");
   // A step a hair under a beat, from floating-point noise, is still a beat.
   const atLeast = (step: number, unit: number) => step >= unit * (1 - 1e-9);

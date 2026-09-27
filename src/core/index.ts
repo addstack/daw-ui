@@ -1,4 +1,16 @@
-export * from "./format.js";
+export {
+  formats,
+  type LocaleOptions,
+  type NumberFormatOptions,
+  type PanFormatOptions,
+  type PitchFormatOptions,
+  type PositionFormatOptions,
+  type TimecodeFormatOptions,
+  type ValueField,
+  type ValueFormat,
+  type ValueLiteral,
+  type ValueSegment,
+} from "./format.js";
 export * from "./geometry.js";
 export * from "./meter.js";
 export * from "./range.js";

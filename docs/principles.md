@@ -36,9 +36,9 @@ The library does not decide the language of an application. **No English text is
 Arabic, Hebrew and Persian interfaces run right to left, and a component must work there without extra code. The direction is read from the DOM (`dir` / CSS `direction`), not from a prop.
 
 - **What follows the reading direction:** horizontal faders and meters fill from the inline start (the right edge in RTL); horizontal drag increases towards the inline end; Left and Right arrow keys on horizontal controls and in toggle groups move the value or focus along the reading direction; Home goes to the inline start.
-- **What does not:** vertical controls (up is always more), knobs (clockwise is always more, as on hardware), and Up and Down keys. Time on a timeline also runs left to right, the convention of music software and notation, and so do the fields of a song position or a timecode.
+- **What does not:** vertical controls (up is always more), knobs (clockwise is always more, as on hardware), and Up and Down keys. Time on a timeline also runs left to right, the convention of music software and notation, and so do the fields of a song position or a timecode. A piano keyboard is an instrument, not text: its low notes are on the left in every language.
 - Formatted values render with `dir="auto"`: the text decides its own direction, so "-6.0 dB" keeps its order inside a right-to-left page, and a value with an Arabic unit reads right to left.
-- Positioning uses logical properties (`inset-inline-start`, not `left`). Where CSS has no logical form (`translate`, `clip-path`), the part reads the direction once when it mounts. Timelines, which run left to right in every language, use physical properties on purpose.
+- Positioning uses logical properties (`inset-inline-start`, not `left`). Where CSS has no logical form (`translate`, `clip-path`), the part reads the direction once when it mounts. Timelines and keyboards, which run left to right in every language, use physical properties on purpose.
 - RTL behaviour is covered by tests in real browsers, like any other layout-dependent behaviour.
 
 ## 5. Input

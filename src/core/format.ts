@@ -349,4 +349,52 @@ function timecode({ fps, locale }: TimecodeFormatOptions): ValueFormat {
   };
 }
 
-export const formats = { number, decibel, frequency, percent, pan, time, position, timecode };
+export type PitchFormatOptions = LocaleOptions & {
+  /**
+   * The names of the twelve notes of an octave, from C, in the application's
+   * language: `["C", "C♯", "D", …, "B"]`, with H in German, or
+   * `["Do", "Do♯", "Re", …]` in solfège.
+   */
+  names: readonly string[];
+  /**
+   * The octave number of middle C, MIDI note 60: 4 in scientific pitch
+   * notation, 3 in Ableton Live, Cubase and FL Studio.
+   * @default 4
+   */
+  middleC?: number | undefined;
+};
+
+/**
+ * A MIDI note number as a note name and an octave, with the names the
+ * application passes: 60 is "C4", 61 "C♯4". Parses the same, whatever the
+ * case, with `#` for ♯, and ♯, #, ♭ or `b` after a name to raise or lower it:
+ * "Bb3" is 58.
+ */
+function pitch({ names, middleC = 4, locale }: PitchFormatOptions): ValueFormat {
+  if (names.length !== 12) throw new RangeError(`names must name the 12 notes of an octave, not ${names.length}.`);
+  const pad = createPadder(locale);
+  const plain = (text: string) => text.toLowerCase().replaceAll("#", "♯");
+  // Longest first, so that "C♯" is found before "C".
+  const byLength = names.map((name, index) => ({ name: plain(name), index })).sort((a, b) => b.name.length - a.name.length);
+  return {
+    format(value) {
+      const note = Math.round(value);
+      return `${names[mod(note, 12)]}${pad(Math.floor(note / 12) - 5 + middleC)}`;
+    },
+    parse(text) {
+      const trimmed = plain(text.trim());
+      const found = byLength.find(({ name }) => name !== "" && trimmed.startsWith(name));
+      if (!found) return null;
+      const match = /^([♯♭b]*)\s*([-−]?\d+)$/.exec(trimmed.slice(found.name.length));
+      if (!match) return null;
+      const accidentals = [...match[1]!].reduce((sum, sign) => sum + (sign === "♯" ? 1 : -1), 0);
+      return (Number(match[2]!.replace("−", "-")) + 5 - middleC) * 12 + found.index + accidentals;
+    },
+  };
+}
+
+export const formats = { number, decibel, frequency, percent, pan, time, position, timecode, pitch };
+
+// The formats the library itself uses, one by one, and not through `formats`: an application that does not
+// import `formats` does not load them all. Not part of the public API.
+export { decibel as decibelFormat, number as numberFormat, position as positionFormat };

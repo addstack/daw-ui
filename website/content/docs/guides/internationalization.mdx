@@ -9,6 +9,7 @@ daw-ui does not decide the language of your application. Nothing a user sees or 
 
 - Parts without visible text need a name from you: a `Label` part, or an `aria-label` in your language.
 - The pan format takes its letters: `formats.pan({ left: 'L', right: 'R', center: 'C' })` in English, `{ left: 'L', right: 'P', center: 'Ś' }` in Polish.
+- The pitch format takes the names of the notes: `formats.pitch({ names: ['C', 'C♯', 'D', …, 'B'] })`, with H for B in German, or `['Do', 'Do♯', 'Re', …]` in solfège. Keys are named with it; without it, by their MIDI note number.
 - Units such as BPM, and anything else that is a word, go in `formats.number({ unit })` or your own format.
 
 The built-in formats add only symbols that read the same in every language: Hz, kHz, dB, ms, s, %, and −∞.

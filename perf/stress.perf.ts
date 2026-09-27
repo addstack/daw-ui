@@ -252,3 +252,22 @@ test("32 waveforms and an editable automation lane of 2000 points: dragging a po
   // is the application keeping the points when the gesture ends.
   expect(result.reactCommits).toBeLessThanOrEqual(2);
 });
+
+test("88 keys lit by playback through read", async ({ page }) => {
+  await openStress(page, "keys", "&play");
+  const result = await measure(page, "88 keys, held notes read every frame", 3000);
+  // Budget: keys go down and up in the DOM; nothing renders.
+  expect(result.reactCommits).toBe(0);
+});
+
+test("a glissando across 88 keys", async ({ page }) => {
+  await openStress(page, "keys");
+  const grand = (await page.getByRole("group", { name: "Grand" }).boundingBox())!;
+  const y = grand.y + grand.height - 5;
+  const result = await measure(page, "Glissando across 88 keys", 1500, () => glide(page, { x: grand.x + 5, y }, { x: grand.x + grand.width - 5, y }, 60));
+  const played = await page.evaluate(() => window.e2e.events.filter((event) => event.source === "Grand" && event.type === "press").length);
+  // Along the fronts of the white keys: every one of the 52, and no black key.
+  expect(played).toBe(52);
+  // Budget: every key a pointer crosses goes down and up without rendering.
+  expect(result.reactCommits).toBe(0);
+});

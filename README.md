@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>Headless React components for audio apps.</b><br>
-  Knobs, faders, number boxes, level meters, toggle groups you paint by dragging, and waveforms on a timeline, the way Ableton Live and FL Studio work. Unstyled, accessible, in any language, and measured for speed.
+  Knobs, faders, number boxes, level meters, toggle groups you paint by dragging, piano keys, and waveforms on a timeline, the way Ableton Live and FL Studio work. Unstyled, accessible, in any language, and measured for speed.
 </p>
 
 <p align="center">
@@ -214,6 +214,24 @@ A peak meter with hold and a clip indicator. `read` is called once per animation
 
 Toggles subscribe to the group with selectors: painting one step of a 16 × 64 grid renders that step, not the grid.
 
+### Keys
+
+A piano keyboard: an instrument on screen, or the keys beside a piano roll. It reports what is played and shows keys held elsewhere, by MIDI input or playback, without rendering; the sound is your audio engine's.
+
+```tsx
+<Keys.Root
+  range={[48, 72]}
+  format={formats.pitch({ names: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"] })}
+  onPress={(note, { velocity }) => synth.play(note, velocity)}
+  onRelease={(note) => synth.stop(note)}
+  aria-label="Keyboard"
+>
+  {notes.map((note) => <Keys.Key key={note} note={note} />)}
+</Keys.Root>
+```
+
+**Keys** parts: `Root` (a `group`, with `range` in MIDI note numbers, `orientation`, `layout`, `velocity`, `onPress(note, { velocity, reason, event })`, `onRelease`, `held`, `read`, `format`) and `Key` (a `button` per note, `note`; `data-black` or `data-white`, `data-pressed`, `data-held`). `layout="piano"` puts white keys side by side and black keys over the gaps; `layout="rows"` gives every semitone the same size, so vertical keys line up with the rows of `Notes` over the same range. A glide across the keys plays each in turn, every pointer plays its own key, and a press is harder towards the front of the key. The keyboard is one tab stop: arrows move along the keys, Space or Enter holds one down. Keys are named by `formats.pitch` with your note names, or by their MIDI number.
+
 ### Timeline, Region, Waveform, Notes and Curve
 
 A time axis with one playhead over whatever it holds, here rows of clips, and audio drawn on it:
@@ -305,7 +323,7 @@ A gesture starts with the first change, so a click that changes nothing leaves n
 
 ## ⚡ Performance
 
-In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders stress pages with 64 channel strips (running meters, pan knobs, faders, mute and solo), a 16 × 64 step sequencer and a timeline of 32 four-minute clips, in a production build, with the CPU slowed down 4×:
+In a DAW, UI work competes with the audio thread, so performance is measured, not assumed ([principles, section 7](https://github.com/addstack/daw-ui/blob/main/docs/principles.md#7-performance)). Every CI run renders stress pages with 64 channel strips (running meters, pan knobs, faders, mute and solo), a 16 × 64 step sequencer, a timeline of 32 four-minute clips and an 88-key keyboard, in a production build, with the CPU slowed down 4×:
 
 | Scenario | Main thread per frame (ms) | Of which JavaScript (ms) | Dropped frames | Input → frame p50 / p95 (ms) | React commits |
 | --- | --: | --: | --: | --: | --: |
@@ -321,16 +339,18 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | The same, paging along, with a MIDI track of 3760 notes | 4.9 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
 | The same, zooming, with an automation lane of 2000 bent points | 9.1 | 0.8 | 4 of 177 | – | 0 |
 | The same, playing, dragging a point of that lane, editable | 4.0 | 0.5 | 0 of 90 | 10.4 / 13.5 | 2: the press, and keeping the points |
+| 88 keys lit by playback through `read` | 0.4 | 0.0 | 0 of 181 | – | 0 |
+| A glissando across 88 keys | 1.1 | 0.1 | 0 of 90 | 14.2 / 15.4 | 0 |
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (30.9 kB for everything; 8.2 kB for a knob alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (32.0 kB for everything; 7.0 kB for a knob alone, 4.8 kB for a keyboard alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 
 The package ships behaviour only, so it can sit under your design system or a shadcn registry, the way Base UI sits under shadcn/ui. The [documentation's demos](https://github.com/addstack/daw-ui/tree/main/website/components/demos) show it with Tailwind, and the [playground](https://github.com/addstack/daw-ui/blob/main/playground/main.tsx) is written like that: its `components/ui` sections wrap the parts with `data-slot` and classes, and the app imports those.
 
-- State is exposed as attributes: `data-dragging`, `data-disabled`, `data-bipolar`, `data-zone`, `data-orientation`, `data-pressed`, `data-painting="on" | "off"`, `data-editing`, `data-active`, `data-clipped`.
+- State is exposed as attributes: `data-dragging`, `data-disabled`, `data-bipolar`, `data-zone`, `data-orientation`, `data-pressed`, `data-held`, `data-painting="on" | "off"`, `data-editing`, `data-active`, `data-clipped`.
 - `className` and `style` are plain values, never functions of state. In a DAW everything renders often (every pointer event of a drag, every frame of automation), so styling must not run code per render; the browser applies attributes and CSS variables by itself.
 - Values are exposed as CSS variables: `--knob-value`, `--knob-angle`, `--fader-value`, `--meter-level`, `--meter-peak`, `--timeline-start`, `--timeline-scale`.
 - `render` replaces a part's element: `<Knob.Control render={<button />} />`. Handlers are merged; call `event.preventDefault()` in yours to skip the part's own handling.
@@ -338,7 +358,7 @@ The package ships behaviour only, so it can sit under your design system or a sh
 
 ## ♿ Accessibility and languages
 
-Knobs and faders are sliders, number boxes are spin buttons, meters are meters, toggles are buttons with `aria-pressed`, and waveforms are images named by you. Values are announced as they are shown. A meter's accessible value updates four times a second, not 60. Nothing in the library is English: parts without visible text need a name from you (a `Label` part or `aria-label`), numbers follow the locale, and horizontal controls and arrow keys follow the reading direction in right-to-left pages. The details are in [docs/principles.md](https://github.com/addstack/daw-ui/blob/main/docs/principles.md).
+Knobs and faders are sliders, number boxes are spin buttons, meters are meters, toggles are buttons with `aria-pressed`, the keys of a keyboard are buttons in one tab stop, and waveforms are images named by you. Values are announced as they are shown. A meter's accessible value updates four times a second, not 60. Nothing in the library is English: parts without visible text need a name from you (a `Label` part or `aria-label`), numbers follow the locale, and horizontal controls and arrow keys follow the reading direction in right-to-left pages. The details are in [docs/principles.md](https://github.com/addstack/daw-ui/blob/main/docs/principles.md).
 
 ## 📐 Specification
 

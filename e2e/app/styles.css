@@ -327,3 +327,56 @@ h1 {
   border-radius: 50%;
   background: #fff;
 }
+
+/* Keys: white keys the full length, black keys 60% of it, from the back. */
+.key {
+  padding: 0;
+  border: 1px solid #333;
+  background: #eee;
+}
+
+.key[data-black] {
+  border: 0;
+  background: #111;
+}
+
+.keys[data-orientation="horizontal"] .key[data-black] {
+  height: 60%;
+}
+
+.keys[data-orientation="vertical"] .key[data-black] {
+  width: 60%;
+}
+
+.key[data-pressed],
+.key[data-held] {
+  background: #ff9f0a;
+}
+
+/* C3 to C5: 15 white keys of 28 px. */
+.piano {
+  width: 420px;
+  height: 100px;
+}
+
+/* C4 to B4: 12 rows of 20 px. */
+.roll {
+  display: flex;
+}
+
+.roll-keys {
+  width: 60px;
+  height: 240px;
+}
+
+.roll-notes {
+  width: 300px;
+  height: 240px;
+  color: #34d399;
+}
+
+/* 88 keys: 52 white keys of 20 px. */
+.grand {
+  width: 1040px;
+  height: 80px;
+}

@@ -18,12 +18,13 @@ function only(names) {
 
 // About 10% above the current size: growth is a decision, taken by raising the budget in the same change.
 const BUDGETS = {
-  "@addstack/daw-ui": { entry: "src/core/index.ts", limit: 6_700 },
+  "@addstack/daw-ui": { entry: "src/core/index.ts", limit: 7_300 },
   "@addstack/daw-ui/react": { entry: "src/react/index.ts", limit: 34_000 },
-  "a knob alone": { entry: only(["Knob"]), limit: 9_000 },
-  "an XY pad alone": { entry: only(["XYPad"]), limit: 7_600 },
+  "a knob alone": { entry: only(["Knob"]), limit: 7_700 },
+  "an XY pad alone": { entry: only(["XYPad"]), limit: 6_200 },
+  "a keyboard alone": { entry: only(["Keys"]), limit: 5_300 },
   "a timeline with regions and waveforms": { entry: only(["Timeline", "Region", "Waveform"]), limit: 8_600 },
-  "an editable curve": { entry: only(["Curve", "useCurveEditing"]), limit: 14_800 },
+  "an editable curve": { entry: only(["Curve", "useCurveEditing"]), limit: 13_500 },
 };
 
 let failed = false;

@@ -16,7 +16,6 @@ import {
 import {
   createMeterBallistics,
   createRange,
-  formats,
   zoneOf,
   type MeterBallistics,
   type MeterBallisticsOptions,
@@ -25,6 +24,7 @@ import {
   type ValueFormat,
   type Zones,
 } from "../core/index.js";
+import { decibelFormat } from "../core/format.js";
 import { useRightToLeft } from "./direction.js";
 import { onEveryFrame } from "./frame-loop.js";
 import { dataAttributes, unselectable, useMergedRef, useRenderPart, type PartProps } from "./render.js";
@@ -91,7 +91,7 @@ export function MeterRoot(props: MeterRoot.Props) {
   } = props;
 
   const range = useMemo(() => createRange({ min, max, scale }), [min, max, scale]);
-  const format = useMemo(() => formatProp ?? formats.decibel(), [formatProp]);
+  const format = useMemo(() => formatProp ?? decibelFormat(), [formatProp]);
   const ballistics = useMemo(
     () => createMeterBallistics({ floor: min, fall, hold, clipAbove }),
     [min, fall, hold, clipAbove],

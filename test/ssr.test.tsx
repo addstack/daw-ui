@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { createPeaks, formats } from "../src/core/index.js";
-import { Curve, Fader, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, Notes, NumberBox, Region, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
 
 test("every component renders on the server", () => {
   const html = renderToString(
@@ -69,6 +69,11 @@ test("every component renders on the server", () => {
         </XYPad.Control>
         <XYPad.Value />
       </XYPad.Root>
+      <Keys.Root range={[60, 62]} held={[61]} format={formats.pitch({ names: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"] })}>
+        <Keys.Key note={60} />
+        <Keys.Key note={61} />
+        <Keys.Key note={62} />
+      </Keys.Root>
       <ToggleGroup multiple defaultValue={["a"]}>
         <Toggle value="a">A</Toggle>
         <Toggle value="b">B</Toggle>
@@ -83,6 +88,9 @@ test("every component renders on the server", () => {
   expect(html).toContain('data-segment="beats"');
   expect(html).toContain('aria-pressed="true"');
   expect(html).toContain('role="img"');
+  // Keys are placed, named and held down before any script runs.
+  expect(html).toContain('aria-label="C♯4"');
+  expect(html).toMatch(/aria-label="C♯4"[^>]*data-held=""/);
   // The playhead is rendered where it is, before any script runs.
   expect(html).toContain("translate:calc((0.5 - var(--timeline-start)) * var(--timeline-scale)) 0");
 });
