@@ -292,3 +292,24 @@ h1 {
   width: 1px;
   background: #fff;
 }
+
+/* An editable curve: 400 × 100 px, and the handles of editable curves. */
+.curve-edit {
+  flex-basis: auto;
+  width: 400px;
+  height: 100px;
+  background: #111;
+}
+
+.curve-handle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.curve-bend {
+  width: 8px;
+  height: 8px;
+  background: #f59e0b;
+}

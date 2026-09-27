@@ -235,3 +235,20 @@ test("32 waveforms and an automation lane of 2000 bent points: zooming", async (
   // Budget: curves are drawn in tiles like waveforms: zooming renders nothing.
   expect(result.reactCommits).toBe(0);
 });
+
+test("32 waveforms and an editable automation lane of 2000 points: dragging a point", async ({ page }) => {
+  await openStress(page, "waveforms", "&mode=play&start=manual&curve&edit");
+  const lane = (await page.getByRole("group", { name: "Volume automation" }).boundingBox())!;
+  // The point at 21 s (index 100): the timeline shows 60 s across its width.
+  const x = lane.x + (21 / 60) * lane.width;
+  const y = lane.y + (1 - (0.5 + 0.4 * Math.sin(100 / 3))) * lane.height;
+  await page.mouse.move(x, y);
+  await expect(page.getByRole("slider", { name: "Point" })).toHaveCount(2);
+  await page.evaluate(() => (window.reactCommits = 0));
+  const result = await measure(page, "32 waveforms, dragging a point of an automation lane of 2000", 1500, () =>
+    glide(page, { x, y }, { x: x + 60, y: y + 6 }, 60),
+  );
+  // Budget: the point, its handle and the stretch of the curve it changes move without rendering; the one commit
+  // is the application keeping the points when the gesture ends.
+  expect(result.reactCommits).toBeLessThanOrEqual(2);
+});

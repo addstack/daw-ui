@@ -1,1 +1,8 @@
-export { CurveFill as Fill, CurveLine as Line, CurveRoot as Root } from "./curve.js";
+export {
+  CurveBend as Bend,
+  CurveDots as Dots,
+  CurveFill as Fill,
+  CurveHandle as Handle,
+  CurveLine as Line,
+  CurveRoot as Root,
+} from "./curve.js";

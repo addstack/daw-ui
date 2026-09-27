@@ -1,6 +1,14 @@
 "use client";
 
 export * as Curve from "./curve.parts.js";
+export {
+  useCurveEditing,
+  type CurveChangeDetails,
+  type CurveEditing,
+  type CurveEditingOptions,
+  type CurveEditReason,
+  type CurveLock,
+} from "./curve-editing.js";
 export * as Fader from "./fader.parts.js";
 export * as Knob from "./knob.parts.js";
 export * as Meter from "./meter.parts.js";

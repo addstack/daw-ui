@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { createPeaks, createPeaksRecorder, musicalGrid, type Peaks } from "../../src/core/index.js";
 import type { CurvePoint } from "../../src/core/index.js";
-import { Curve, Notes, Region, Timeline, Waveform, type Note } from "../../src/react/index.js";
+import { Curve, Notes, Region, Timeline, useCurveEditing, Waveform, type Note } from "../../src/react/index.js";
 
 // 16 tracks with two 4-minute clips each on one timeline, with one playhead
 // over all of them, driven once per frame:
@@ -12,7 +12,8 @@ import { Curve, Notes, Region, Timeline, Waveform, type Note } from "../../src/r
 // - ?mode=record: playback, and a 17th track records a take in blocks of 128 samples, as an AudioWorklet delivers them.
 // A ruler and a grid of bars and beats run over all of it. The tracks are the page's own rows: the timeline
 // knows nothing of them. With ?notes, one more track holds two MIDI clips of sixteenth notes; with ?curve, an
-// automation lane of 2000 bent points lies on the timeline itself, outside any region.
+// automation lane of 2000 bent points lies on the timeline itself, outside any region; with ?curve&edit, its
+// points can be edited, and the application keeps what each gesture leaves.
 
 const TRACKS = 16;
 const SAMPLE_RATE = 48_000;
@@ -89,6 +90,8 @@ export function Waveforms() {
   const showGrid = search.get("grid") !== "0";
   const showNotes = search.has("notes");
   const showCurve = search.has("curve");
+  const [points, setPoints] = useState(automation);
+  const editing = useCurveEditing({ snap: { time: grid }, onGestureEnd: setPoints });
   return (
     <main>
       <h1>daw-ui waveforms</h1>
@@ -133,9 +136,12 @@ export function Waveforms() {
           )}
           {showCurve && (
             <div className="track" role="group" aria-label="Volume">
-              <Curve.Root className="clip-waveform" points={automation} aria-label="Volume automation">
+              <Curve.Root className="clip-waveform" points={points} editing={search.has("edit") ? editing : undefined} aria-label="Volume automation">
                 <Curve.Fill className="clip-curve-fill" />
                 <Curve.Line className="clip-curve" thickness={1.5} />
+                <Curve.Dots className="clip-curve" size={4} />
+                <Curve.Bend className="curve-bend" />
+                <Curve.Handle className="curve-handle" aria-label="Point" />
               </Curve.Root>
             </div>
           )}

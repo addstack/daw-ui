@@ -1,0 +1,25 @@
+---
+title: Envelope
+description: An ADSR envelope you shape on its curve or with knobs, composed from Curve, useCurveEditing and Knob.
+---
+
+<ComponentPreview name="envelope" />
+
+A block is a composition of components, to copy and adapt: the library has no `Envelope` component. The code tab has all of it.
+
+## How it is composed
+
+| Part of the block | Component |
+| --- | --- |
+| The shape, with handles and bends | [`Curve`](/docs/components/curve), with `useCurveEditing` |
+| Attack, decay, sustain and release | [`Knob`](/docs/components/knob)s |
+
+An envelope is four numbers, not free points, so the block keeps the numbers and makes the curve from them:
+
+- **`toPoints` and `fromPoints`.** The five points of the curve follow from the numbers, and the numbers from the points. The curve's `points` are `toPoints(adsr)`.
+- **`constrain`** is the envelope's rule: after any move, the points are `toPoints(fromPoints(points))`, so the end of the held note follows the knee, the release keeps its length, and nothing goes past the drawing.
+- **`lock`** keeps the start and the end of the held note in place, the peak at the top and the end of the release at the bottom: those points move in one axis, or have no handle.
+- **`canAdd` and `canRemove` are off:** an envelope always has five points.
+- **The knobs follow the curve live.** `onPointsChange` sets the numbers at every step, which renders the knobs and the curve: five points render cheaply. For a lane of thousands of points, keep them in `onGestureEnd` instead, and nothing renders during a drag.
+
+The bends of the three slopes are numbers too: drag the middle of a slope to bend it, or press Alt with Up or Down on the point before it.

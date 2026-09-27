@@ -62,6 +62,9 @@ const PARTS = [
   "Curve.Root",
   "Curve.Line",
   "Curve.Fill",
+  "Curve.Dots",
+  "Curve.Handle",
+  "Curve.Bend",
 ] as const;
 
 const SHARED = ["className", "style", "render"];

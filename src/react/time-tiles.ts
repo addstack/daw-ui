@@ -177,13 +177,16 @@ export class TimeTiles {
     this.relayer(false);
   }
 
-  /** What is drawn from content time `from` on has changed, as when audio arrives: it is drawn again over itself. */
-  invalidate(from: number): void {
+  /**
+   * What is drawn from content time `from` on, or up to `to`, has changed, as when audio arrives or a point
+   * of a curve moves: it is drawn again over itself.
+   */
+  invalidate(from: number, to = Infinity): void {
     for (const layer of [this.shown, this.next]) {
       const range = layer && this.range(layer);
       if (!layer || !range) continue;
       for (const index of layer.drawn) {
-        if ((index + 1) * range.seconds > from) layer.drawn.delete(index);
+        if ((index + 1) * range.seconds > from && index * range.seconds < to) layer.drawn.delete(index);
       }
     }
     this.cull();

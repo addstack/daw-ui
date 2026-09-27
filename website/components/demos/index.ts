@@ -2,6 +2,8 @@ import type { ComponentType } from 'react';
 
 import ArrangementDemo from './arrangement';
 import CurveDemo from './curve';
+import CurveEditingDemo from './curve-editing';
+import EnvelopeDemo from './envelope';
 import FaderDemo from './fader';
 import KnobDemo from './knob';
 import BipolarKnobDemo from './knob-bipolar';
@@ -26,6 +28,8 @@ import SampleDemo from './waveform-sample';
 export const demos = {
   arrangement: ArrangementDemo,
   curve: CurveDemo,
+  'curve-editing': CurveEditingDemo,
+  envelope: EnvelopeDemo,
   fader: FaderDemo,
   knob: KnobDemo,
   'knob-bipolar': BipolarKnobDemo,

@@ -61,6 +61,7 @@ beforeEach(() => {
         beginPath: () => (drawn.path = []),
         moveTo: (x: number, y: number) => drawn.path.push(["M", Math.round(x), Math.round(y)]),
         lineTo: (x: number, y: number) => drawn.path.push(["L", Math.round(x), Math.round(y)]),
+        arc: (x: number, y: number) => drawn.path.push(["A", Math.round(x), Math.round(y)]),
         closePath: () => drawn.ends.push("close"),
         stroke: () => drawn.ends.push("stroke"),
         fill: () => drawn.ends.push("fill"),
@@ -550,6 +551,22 @@ describe("Curve", () => {
     // Late: halfway across, still low.
     const middle = bent.find(([, x]) => x >= 500)!;
     expect(middle[2]).toBeGreaterThan(30);
+  });
+
+  test("dots are drawn at every point the tile shows", () => {
+    render(
+      <Curve.Root points={ramp}>
+        <Curve.Dots />
+      </Curve.Root>,
+    );
+    frame();
+    expect(drawn.path.filter(([op]) => op === "A").map(([, x, y]) => [x, y])).toEqual([
+      [0, 40],
+      [333, 0],
+      [667, 20],
+      [1000, 40],
+    ]);
+    expect(drawn.ends).toEqual(["fill"]);
   });
 
   test("the fill closes the area down to its origin", () => {

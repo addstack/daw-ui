@@ -102,6 +102,17 @@ export function useContentAxis({ length, offset, duration, position, read, subsc
 }
 
 /**
+ * Where content time `time` is from the content's left edge: a CSS
+ * expression in seconds, for `calc(… * var(--timeline-scale))`. A region
+ * moves with the view, and its content with it; on a timeline outside a
+ * region, the view scrolls under the content.
+ */
+export function contentPlace({ placement, lies }: ContentAxis, time: number): string {
+  const seconds = time - placement.offset;
+  return lies === "timeline" ? `(${seconds + placement.at} - var(--timeline-start))` : String(seconds);
+}
+
+/**
  * Paints content that is placed like a region's: tiles in seconds of the
  * content, so that moving or trimming the region only places them again,
  * and draws only what comes into view.
@@ -133,18 +144,24 @@ export abstract class ContentPainter<S> implements TilePainter {
   }
 
   place(start: number) {
-    const seconds = start - this.placement.offset + this.placement.at;
-    // A region moves with the view, and its content with it; on a timeline, the view scrolls under the content.
-    return this.axis.lies === "timeline" ? `(${seconds} - var(--timeline-start))` : String(seconds - this.placement.at);
+    return contentPlace(this.axis, start);
   }
 }
 
 export type ContentKind<S> = {
   /** Whether two sources draw the same: a render with the same draws nothing again. */
   same(a: S, b: S): boolean;
+  /**
+   * For sources that differ only over a stretch of content time, as a curve whose point moved: that
+   * stretch, drawn again over itself. Without it, or `undefined`, other content starts a new layer.
+   */
+  differs?(a: S, b: S): { from: number; to: number } | undefined;
   /** For content that changes from a time on, as audio arriving: calls `changed` with that time. */
   changes?(source: S, changed: (from: number) => void): (() => void) | undefined;
 };
+
+/** Content that changes outside React, as points being dragged: the part draws what `source` gives, when told. */
+export type LiveContent<S> = { subscribe(listener: () => void): () => void; source(): S };
 
 /** Tiles of content, which follow it as it changes and its placement as it moves. */
 class ContentDrawing<S> {
@@ -179,6 +196,11 @@ class ContentDrawing<S> {
       this.tiles.cull();
       return;
     }
+    const stretch = this.kind.differs?.(previous, source);
+    if (stretch) {
+      this.tiles.invalidate(stretch.from, stretch.to);
+      return;
+    }
     this.listen();
     this.tiles.reset();
   }
@@ -202,6 +224,7 @@ export function useContentDrawing<S>(
   source: S,
   createPainter: (source: S, axis: ContentAxis) => ContentPainter<S>,
   kind: ContentKind<S>,
+  live?: LiveContent<S>,
 ) {
   const latest = useRef(source);
   latest.current = source;
@@ -228,8 +251,10 @@ export function useContentDrawing<S>(
   );
   // A render with other content draws again; any other render does not.
   useIsomorphicLayoutEffect(() => {
-    drawing.current?.update(latest.current);
+    drawing.current?.update(live ? live.source() : latest.current);
   });
+  // Content that changes outside React draws again when it says so, without rendering.
+  useEffect(() => live?.subscribe(() => drawing.current?.update(live.source())), [live]);
   return ref;
 }
 

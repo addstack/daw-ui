@@ -233,7 +233,7 @@ const grid = musicalGrid({ bpm: 120 });
 
 **Notes** parts: `Root`, `Shape` and `Progress`, like a waveform's, for the notes of a MIDI clip or a pattern (`{ at, duration, pitch }` in seconds of the clip): bars in time across, one row per pitch, the highest at the top, from the lowest to the highest pitch of the notes or a `range` such as the 88 keys of a piano. In a region they show what the region shows; on their own, as in a clip browser, they are their own axis. They are drawn in the same tiles as waveforms, and a tile finds its notes by a binary search, so thousands of notes cost what is on screen.
 
-**Curve** parts: `Root`, `Line` and `Fill`, for a curve through points in time (`{ at, value, shape }`): automation, envelopes, fades, a tempo that changes. Segments go straight, hold as steps, or bend with a tension; values are placed on `min` … `max` with a `scale`, as a fader of that range shows them, and `curveValue(points, time, range)` gives the value an audio engine should play. In a region it shows what the region shows; on a timeline outside a region it lies on the timeline for ever, as an automation lane; on its own it is its own axis. It is drawn in the same tiles as waveforms and notes.
+**Curve** parts: `Root`, `Line` and `Fill`, for a curve through points in time (`{ at, value, shape }`): automation, envelopes, fades, a tempo that changes. Segments go straight, hold as steps, or bend with a tension; values are placed on `min` … `max` with a `scale`, as a fader of that range shows them, and `curveValue(points, time, range)` gives the value an audio engine should play. In a region it shows what the region shows; on a timeline outside a region it lies on the timeline for ever, as an automation lane; on its own it is its own axis. It is drawn in the same tiles as waveforms and notes. With an engine from `useCurveEditing`, its points can be dragged, added, removed and bent, by pointer and by keys: `Dots` draws every point in the tiles, and `Handle` and `Bend` are elements only where the pointer, the selection or the focus is, so a lane of 2000 points has a handful. A drag draws again only the stretch it changes, without rendering; `snap`, `lock`, `constrain`, `canAdd` and `canRemove` are the application's rules.
 
 Waveforms, notes and curves placed in a `Timeline.Root` outside a region lie on the timeline itself, from its second 0.
 
@@ -304,6 +304,7 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 | The same, zooming without pause | 8.9 | 0.8 | 4 of 177 | – | 0 |
 | The same, paging along, with a MIDI track of 3760 notes | 4.9 | 0.2 | 0 of 181 | – | 0, 4 tiles drawn in 3 s |
 | The same, zooming, with an automation lane of 2000 bent points | 9.1 | 0.8 | 4 of 177 | – | 0 |
+| The same, playing, dragging a point of that lane, editable | 4.0 | 0.5 | 0 of 90 | 10.4 / 13.5 | 2: the press, and keeping the points |
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 

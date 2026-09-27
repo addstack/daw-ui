@@ -1,6 +1,6 @@
 ---
 title: Curve
-description: A curve through points in time, for automation, envelopes, fades and tempo, on a timeline or on its own, drawn on canvas once and moved by CSS.
+description: A curve through points in time, for automation, envelopes, fades and tempo, on a timeline or on its own, drawn on canvas once and moved by CSS, and editable with a hook.
 ---
 
 <ComponentPreview name="curve" />
@@ -57,7 +57,60 @@ The same holds for [waveforms](/docs/components/waveform) and [notes](/docs/comp
 
 `Curve.Line` strokes the curve, `thickness` CSS pixels wide, in its CSS `color`. `Curve.Fill` fills the area between the curve and `origin`, the root's `min` by default, or the middle for pan and pitch bend (`origin={0}` on a range from −1 to 1). Render the fill before the line, to lie under it.
 
-A curve only shows. Editing its points will be an engine your application creates with a hook: see the [principles](/docs/principles), section 6.
+## Editing
+
+<ComponentPreview name="curve-editing" />
+
+Give the root an `editing` engine from `useCurveEditing`, and its points can be moved, added, removed and bent. The engine is yours, as the [principles](/docs/principles) (section 6) have it: its options are your rules, its callbacks report what the user does, and the points stay in your state.
+
+```tsx
+const [points, setPoints] = useState(initialPoints);
+const editing = useCurveEditing({ snap: { time: grid }, onGestureEnd: setPoints });
+
+<Curve.Root points={points} editing={editing} aria-label={t('volume')}>
+  <Curve.Fill />
+  <Curve.Line />
+  <Curve.Dots />
+  <Curve.Bend className="size-2 rotate-45 border" />
+  <Curve.Handle aria-label={t('point')} className="size-3 rounded-full bg-white data-selected:bg-orange-400" />
+</Curve.Root>
+```
+
+- **Dots and handles.** `Curve.Dots` draws every point in the tiles, which costs nothing to scroll. A `Curve.Handle` is an element only where one is needed: at the point the pointer is near, at the selected points, and at the one that takes the focus from Tab. A lane of 2000 points has a handful of handles, however many points it shows. `Curve.Bend` shows in the middle of the segment the pointer is near.
+- **A gesture shows without rendering.** The points, their handles and the stretch of the curve a move changes are drawn again as the pointer moves, and nothing renders. `onPointsChange` reports each step; when the gesture ends, the curve returns to its `points`, so keep the changes, in `onGestureEnd` or as they come. Dragging a point of a lane of 2000 next to 32 waveforms takes 4 ms per frame.
+- **Moves hold together.** A drag moves the selection. No point passes a neighbour that does not move, no value leaves the range, and the most constrained point stops them all. Moves snap to the finest lines of `snap.time` at least 12 px apart, and to multiples of `snap.value`; Shift does not snap.
+- **Your rules.** `lock` fixes axes of points: a point locked in both has no handle. `constrain` is a function from the points a move makes to the points it may make, applied at every step, and `canAdd` and `canRemove` turn the double-clicks off. The [Envelope block](/docs/blocks/envelope) is an ADSR made with them.
+
+| Input | Effect |
+| --- | --- |
+| Drag a point | Moves it, and the selection with it. |
+| Drag the middle of a segment | Bends the segment through the pointer. |
+| Double-click the curve / a point / the middle of a segment | Adds a point / removes it / makes the segment straight. |
+| <kbd>Shift</kbd> while dragging | Does not snap. |
+| Press, <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+press, press away from the points | Selects alone, adds or takes out, clears. |
+| <kbd>Tab</kbd> | Into the curve: one tab stop for all its points. |
+| Left and Right | The previous or next point. |
+| Up and Down (<kbd>Shift</kbd>: finer) | Moves the value, by `snap.value` or a hundredth of the range. |
+| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+Left and Right | Moves the point in time, by a snap step (<kbd>Shift</kbd>: a pixel). |
+| <kbd>Alt</kbd>+Up and Down | Bends the segment after the point. |
+| <kbd>Delete</kbd>, <kbd>Space</kbd> | Removes; selects (with <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>: adds or takes out). |
+
+Editable, the root is a `group`, and each handle a `slider` of its point's value, whose `aria-valuetext` says its time and value in `format.time` and `format.value`. Bend handles are hidden from assistive technology: Alt with Up and Down does what they do.
+
+### Options of `useCurveEditing`
+
+| Option | |
+| --- | --- |
+| `snap` | `{ time?: TimeGrid, value?: number }`: the grid moves snap to in time, the step in value. |
+| `lock` | Axes points do not move on, by index (`{ 0: "both", 1: "value" }`), or as a function of the index and the point. |
+| `constrain` | `(points) => points`: your rule, applied at every step of a gesture. Keep the number of points and their order. |
+| `canAdd`, `canRemove` | Whether double-clicks and Delete add and remove points. Both `true` by default. |
+| `format` | `{ time?, value? }`: the formats handles announce with. |
+| `onPointsChange(points, { reason, event })` | Each step of a gesture: `reason` is `"drag"`, `"keyboard"`, `"add"`, `"remove"` or `"bend"`. |
+| `onGestureStart()`, `onGestureEnd(points)` | Around each gesture: one undo step. |
+| `onSelectedChange(indexes)` | The selection a press or a key makes. |
+
+The engine is the same object on every render. Read `editing.selected`, and call `editing.select(indexes)` or `editing.selectAll()` on it, from a toolbar for instance.
 
 ## How it stays fast
 
@@ -84,3 +137,26 @@ The curve as a line, drawn on canvas in the CSS `color` of this element. Renders
 The area between the curve and `origin`, drawn on canvas in the CSS `color` of this element. Renders a `<div>` that fills the root.
 
 <PropsTable part="Curve.Fill" />
+
+### Dots
+
+A dot at every point, drawn on canvas in the CSS `color` of this element. Renders a `<div>` that fills the root.
+
+<PropsTable part="Curve.Dots" />
+
+### Handle
+
+The handle of a point, with editing: rendered for each point that needs one, centred on it. Renders a `<div>` with `role="slider"`: give it a size and a look, and an `aria-label`.
+
+<PropsTable part="Curve.Handle" />
+
+| Data attribute | |
+| --- | --- |
+| `data-selected` | While its point is selected. |
+| `data-dragging` | While it is dragged. |
+
+### Bend
+
+The handle in the middle of a segment, with editing, rendered for the segment the pointer is near. Renders a `<div>` hidden from assistive technology, with `data-dragging` while it is dragged.
+
+<PropsTable part="Curve.Bend" />

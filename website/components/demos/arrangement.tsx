@@ -1,8 +1,8 @@
 'use client';
 
 import { createPeaks, musicalGrid, scales, type CurvePoint, type Peaks } from '@addstack/daw-ui';
-import { Curve, Notes, Region, Timeline, Toggle, Waveform, type Note } from '@addstack/daw-ui/react';
-import { Fragment, useMemo } from 'react';
+import { Curve, Notes, Region, Timeline, Toggle, useCurveEditing, Waveform, type Note } from '@addstack/daw-ui/react';
+import { Fragment, useMemo, useState } from 'react';
 
 const RATE = 22_050;
 // 120 BPM: a bar is 2 seconds.
@@ -68,6 +68,10 @@ export default function ArrangementDemo() {
     ],
     [],
   );
+  // The automation lane can be edited: drag its points, double-click to add one. The application keeps what each
+  // gesture leaves.
+  const [automation, setAutomation] = useState(() => tracks.find((track) => track.automation)!.automation!.points);
+  const editing = useCurveEditing({ snap: { time: grid }, onGestureEnd: setAutomation });
 
   return (
     <div className="flex w-full max-w-2xl overflow-hidden rounded-md bg-neutral-900 text-white select-none">
@@ -127,9 +131,12 @@ export default function ArrangementDemo() {
               {track.automation && (
                 // Outside a region, a curve lies on the timeline itself, from its second 0, for ever.
                 <div className="relative h-10 border-b border-neutral-800 last:border-0">
-                  <Curve.Root points={track.automation.points} min={-Infinity} max={6} scale={scales.decibel} aria-label={`${track.name} ${track.automation.name}`} className="h-full">
+                  <Curve.Root points={automation} editing={editing} min={-Infinity} max={6} scale={scales.decibel} aria-label={`${track.name} ${track.automation.name}`} className="h-full">
                     <Curve.Fill className="text-amber-500/20" />
                     <Curve.Line thickness={1.5} className="text-amber-500" />
+                    <Curve.Dots className="text-amber-300" size={4} />
+                    <Curve.Bend className="size-2 rotate-45 border border-amber-300 bg-neutral-900" />
+                    <Curve.Handle aria-label="Point" className="size-2.5 rounded-full bg-white data-selected:bg-amber-400" />
                   </Curve.Root>
                 </div>
               )}

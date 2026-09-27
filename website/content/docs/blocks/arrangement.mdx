@@ -1,6 +1,6 @@
 ---
 title: Arrangement
-description: Tracks of audio and MIDI clips on a timeline, with their headers beside it, composed from Timeline, Region, Waveform, Notes and Toggle.
+description: Tracks of audio and MIDI clips and a lane of automation on a timeline, with their headers beside it, composed from Timeline, Region, Waveform, Notes, Curve and Toggle.
 ---
 
 <ComponentPreview name="arrangement" />
@@ -16,9 +16,11 @@ A block is a composition of components, to copy and adapt: the library has no `A
 | Audio in a clip | [`Waveform`](/docs/components/waveform) |
 | MIDI in a clip | [`Notes`](/docs/components/notes) |
 | Mute buttons | [`Toggle`](/docs/components/toggle) |
+| Automation | [`Curve`](/docs/components/curve), with `useCurveEditing` |
 
 - **Headers beside the timeline.** A timeline shows time from its left edge, so the track headers are a column of their own next to it, not inside it. Both columns render the same list of tracks with rows of the same height (`h-16`), and a spacer as tall as the ruler (`h-6`) tops the headers.
 - **Rows are yours.** In the timeline, each track is a `div` with `position: relative`, named with `role="group"` and `aria-label`. A region takes its place in time from the timeline and its height from that row, so clips are rendered in the row of their track: first the tracks, then their clips.
 - **Content by kind.** A clip of audio holds a waveform, a clip of MIDI holds notes; both show what the region shows, from its `offset` for its `duration`.
+- **An automation lane under the bass.** A [`Curve`](/docs/components/curve) outside any region lies on the timeline itself. It is editable: drag its points, bend its segments, double-click to add a point; moves snap to the grid, and the block keeps the points each gesture leaves.
 
-Editing clips, selecting, moving and trimming them, is not in this block yet: it will be an engine your application creates with a hook and hands to the regions (see the [principles](/docs/principles), section 6).
+Editing clips, selecting, moving and trimming them, is not in this block yet: it will be an engine your application creates with a hook and hands to the regions, as `useCurveEditing` is for curves (see the [principles](/docs/principles), section 6).
