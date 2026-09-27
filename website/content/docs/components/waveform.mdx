@@ -3,16 +3,29 @@ title: Waveform
 description: The shape of audio, in a region of a timeline or on its own, drawn on canvas once and moved by CSS.
 ---
 
-<ComponentPreview name="waveform" />
+<ComponentPreview name="waveform-sample" />
 
 ## Anatomy
 
 ```tsx
 import { createPeaks } from '@addstack/daw-ui';
-import { Timeline, Waveform } from '@addstack/daw-ui/react';
+import { Waveform } from '@addstack/daw-ui/react';
 
 const peaks = createPeaks([buffer.getChannelData(0)], buffer.sampleRate);
 
+<Waveform.Root peaks={peaks} read={() => player.currentTime} aria-label="Kick" className="h-8 w-64">
+  <Waveform.Shape className="text-neutral-400" />
+  <Waveform.Progress className="text-orange-500" />
+</Waveform.Root>
+```
+
+A waveform needs nothing around it: in a sample browser or on a sampler, it shows its audio across its own width, from `offset` for `duration` (the whole file by default), and takes its playhead from `position` or `read`, in seconds of the audio. It is an image named by `aria-label`, in your application's language; size it with CSS.
+
+## In a timeline
+
+In a [`Timeline.Region`](/docs/components/timeline#regions), a waveform shows the audio the region shows, from its `offset` for its `duration`, on the timeline's axis, and follows the region as it moves; the timeline gives it the playhead. Size it across the region's width.
+
+```tsx
 <Timeline.Root start={0} end={30} read={() => transport.time}>
   <Timeline.Track aria-label="Vocals" className="h-16">
     <Timeline.Region at={4} duration={8} offset={1.5}>
@@ -26,20 +39,7 @@ const peaks = createPeaks([buffer.getChannelData(0)], buffer.sampleRate);
 </Timeline.Root>
 ```
 
-In a [`Timeline.Region`](/docs/components/timeline#regions), a waveform shows the audio the region shows, from its `offset` for its `duration`, and follows it as it moves. It is an image named by `aria-label`, in your application's language; size it with CSS, across the region's width.
-
-## On its own
-
-A waveform needs no timeline: in a sample browser or on a sampler, it shows its audio across its own width, from `offset` for `duration`, and takes its playhead from `position` or `read`, in seconds of the audio.
-
-```tsx
-<Waveform.Root peaks={sample} read={() => player.currentTime} aria-label="Kick" className="h-8 w-64">
-  <Waveform.Shape />
-  <Waveform.Progress />
-</Waveform.Root>
-```
-
-<ComponentPreview name="waveform-sample" />
+<ComponentPreview name="waveform" />
 
 ## Peaks
 
