@@ -8,7 +8,7 @@ Status: describes version 1. This is the normative description of behaviour; the
 - [4. Formats](#4-formats)
 - [5. Value controls](#5-value-controls-knob-fader-numberbox-xy-pad-multi-slider-slider)
 - [6. Gestures](#6-gestures)
-- [7. Meter and Spectrum](#7-meter-and-spectrum)
+- [7. Meter, Spectrum and Tuner](#7-meter-spectrum-and-tuner)
 - [8. Toggle](#8-toggle)
 - [9. ToggleGroup](#9-togglegroup)
 - [10. Timeline, Region, Waveform, Notes and Curve](#10-timeline-region-waveform-notes-and-curve)
@@ -38,7 +38,7 @@ Each part:
 
 A part that moves focus because of a pointer press, or of a click on a `Label`, calls `focus({ preventScroll: true, focusVisible: false })`: it shows no focus ring, as the browser's own focusing on a click shows none. Focus moved by keys keeps the ring.
 
-Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value`, `Slider.Label`, `Slider.Value`, `MultiSlider.Label`, `MultiSlider.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
+Inline styles set by parts are limited to positioning (`position`, insets, `translate`, `clip-path`, and `z-index` on black keys), `touch-action: none` on drag targets, and `user-select: none` (with `-webkit-user-select`) on parts that show text: every `Label`, `Knob.Value`, `Fader.Value`, `Fader.Tick`, the display of `NumberBox.Field`, `NumberBox.Segments` (its segments inherit it), `Meter.Clip`, `Toggle`, `Timeline.Ruler`, `Region.Header`, `Region.Label`, `XYPad.Value`, `Tuner.Note`, `Tuner.Frequency`, `Tuner.Cents`, `Tuner.Mark`, `Slider.Label`, `Slider.Value`, `MultiSlider.Label`, `MultiSlider.Value` and `Keys.Key`. The text input of a number box being edited is selectable.
 
 ## 3. Value model
 
@@ -244,7 +244,7 @@ A gesture groups the changes of one user action. `onGestureStart()` is called im
 
 A controlled `ToggleGroup` whose parent did not take a change shows its `value` prop again when the gesture ends.
 
-## 7. Meter and Spectrum
+## 7. Meter, Spectrum and Tuner
 
 ### 7.1 Ballistics (`createMeterBallistics`)
 
@@ -277,6 +277,15 @@ Options: `floor` (−70 dBFS; the meter root passes its `min`), `fall` (24 dB/s)
 `Spectrum.Root` (`div`, `role="img"`, `position: relative`, named by the application) shows levels in dB of `n` FFT bins, bin `k` at `k · sampleRate / (2n)` Hz: with `read`, `read()` once per animation frame on the shared frame loop, while the root intersects the viewport; else `bins`, drawn when they or the props change. It measures its client width `w` and height in CSS pixels (a `ResizeObserver`). The axis across is `createRange({ min, max, scale })` in hertz (defaults 20, 20 000, `scales.log`); column `c` of `w` covers the bins from `denormalize(c / w)` to `denormalize((c + 1) / w)` divided by the bin width, worked out again when `w`, `n`, `sampleRate` or the axis change. A column's level is the highest level of the whole bins it covers; when it covers none, the Catmull–Rom curve through the four bins around its middle, at its middle; non-finite levels count as −200 dB. With `tilt`, `tilt · log₂(f / 1000)` is added, `f` the geometric middle of the column. With a finite `fall` and a previous frame, a column's level is `max(new, previous − fall · elapsed seconds)`; otherwise the new one. The level maps to a height from `floor` (−90, the bottom) to `ceiling` (0, the top), clamped.
 
 The parts are `canvas` elements (`aria-hidden`, `position: absolute; inset: 0; width: 100%; height: 100%`, `transition: color 1ms`, whose `transitionend` makes them read their colour again), sized to the root in device pixels, which clear and draw each new frame in their computed `color`, with points in the middle of each column: `Spectrum.Line` strokes the levels (`thickness` 1.5 CSS pixels), `Spectrum.Fill` fills from the bottom left along the levels to the bottom right, `Spectrum.Peak` strokes, per column, the highest level since it was last reached `hold` ms ago (1000), falling after that at `fall` dB per second (24) down to the level (`thickness` 1). Nothing renders.
+
+### 7.4 Tuner
+
+`Tuner.Root` (`div`, no role) reads a frequency `f` in hertz: with `read`, `read()` once per animation frame on the shared frame loop; else `frequency`, read when the props change. A reading is heard when `f` is a finite number above 0.
+
+- **Note.** `n = 69 + 12 · log₂(f / reference)` (`reference` 440). With `smoothing` above 0 and a previous heard frame, the note shown moves towards `n` by `1 − e^(−Δt / smoothing)`, `Δt` the time between frames in milliseconds; otherwise it is `n`. The target is `target` when given; else, of `targets` (default every whole note), the nearest to the note shown, except that the previous target stays until the nearest is nearer by `hysteresis / 100` semitones (`hysteresis` 10), or is no longer one of `targets`. `cents = (note − target) · 100`; the pitch is in tune when `|cents| ≤ tolerance` (5), flat below, sharp above.
+- **Silence.** When `f` is not heard, `data-active` and the tuning attributes go, and the parts keep what they showed.
+- **Attributes.** The root and the parts but `Tuner.Mark` have `data-active` while heard, and `data-in-tune`, `data-flat` or `data-sharp`. Everything is written without rendering, only when it changes.
+- **Parts.** `Tuner.Note` (`output`, `aria-live="polite"`, `dir="auto"`, `user-select: none`) the target in `format` (the part's, else the root's, else `formats.number({ digits: 0 })`). `Tuner.Frequency` (`output`, `aria-live="off"`) `f` in `format` (default `formats.frequency()`). `Tuner.Cents` (`output`, `aria-live="off"`) the cents in `format` (default whole cents with a sign unless 0). `Tuner.Indicator` (`div`, `aria-hidden`) sets on itself `--tuner-offset` = `clamp(cents / 50, −1, 1)` (rounded to 0.0001), `--tuner-cents` (to 0.1) and `--tuner-class` = the note shown mod 12 (to 0.0001). `Tuner.Mark` (`div`, `aria-hidden`, `user-select: none`) has `data-active` while heard and on it: its `note` equals the target, or its `pitchClass` the target mod 12, or the cents are in `[cents[0], cents[1])`. `Tuner.Strobe` (`div`, `aria-hidden`) sets `--tuner-phase`, the sum over heard frames of `cents · Δt` in seconds (to 0.01).
 
 ## 8. Toggle
 
@@ -465,6 +474,7 @@ Checked on every change; a regression fails CI.
 | Dragging a thumb of an XY pad renders nothing. | `test/xy-pad.test.tsx` |
 | A stroke across a multi-slider renders nothing. | `test/multi-slider.test.tsx` |
 | A spectrum that reads its bins every frame renders nothing. | `test/spectrum.test.tsx` |
+| A tuner that reads a frequency every frame renders nothing. | `test/tuner.test.tsx` |
 | Dragging a thumb of a slider renders nothing. | `test/slider.test.tsx` |
 | Pressing keys, gliding across them and reading keys held elsewhere renders nothing. | `test/keys.test.tsx` |
 | In a production build with 64 strips: 0 React commits while meters run, during a fader drag, and while 128 knobs and faders follow automation through `read`; for a paint stroke, at most one commit per pointer event plus three. | `perf/stress.perf.ts` |
@@ -473,6 +483,6 @@ Checked on every change; a regression fails CI.
 | In a production build, 8 spectra of 2048 bins read every frame make 0 React commits. | `perf/stress.perf.ts` |
 | In a production build, a stroke across 64 values of a multi-slider sets every one and makes 0 React commits. | `perf/stress.perf.ts` |
 | With 88 keys in a production build: 0 React commits while `read` holds keys that change every 50 ms, and during a glissando across the keyboard. | `perf/stress.perf.ts` |
-| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 44 kB; an application importing only a knob ≤ 8.6 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, only a multi-slider ≤ 6.5 kB, only a slider ≤ 6.9 kB, only a spectrum ≤ 4.6 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
+| Minified and gzipped: core ≤ 7.3 kB, React binding (with core) ≤ 44 kB; an application importing only a knob ≤ 8.6 kB, only an XY pad ≤ 6.2 kB, only a keyboard ≤ 5.3 kB, only a multi-slider ≤ 6.5 kB, only a slider ≤ 6.9 kB, only a spectrum ≤ 4.6 kB, only a tuner ≤ 4.4 kB, a timeline with regions and waveforms ≤ 8.6 kB, an editable curve ≤ 13.5 kB. | `scripts/size.mjs` |
 
 Frame times, main-thread time per frame and input latency under 4× CPU slowdown are measured in `perf/stress.perf.ts` and reported, not enforced.

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { clockGrid, createPeaks, formats, scales } from "../src/core/index.js";
-import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "../src/react/index.js";
+import { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "../src/react/index.js";
 
 afterEach(cleanup);
 
@@ -122,6 +122,14 @@ function EveryComponent() {
         <Spectrum.Line />
         <Spectrum.Peak />
       </Spectrum.Root>
+      <Tuner.Root frequency={446}>
+        <Tuner.Note />
+        <Tuner.Frequency />
+        <Tuner.Cents />
+        <Tuner.Indicator />
+        <Tuner.Mark note={69} />
+        <Tuner.Strobe />
+      </Tuner.Root>
       <MultiSlider.Root defaultValue={[0.2, 0.9]}>
         <MultiSlider.Control>
           <MultiSlider.Item index={0}>
@@ -196,6 +204,12 @@ test("text the components show is not selectable, except a value being typed (se
         <Meter.Clip data-testid="meter clip">f</Meter.Clip>
       </Meter.Root>
       <Toggle data-testid="toggle">g</Toggle>
+      <Tuner.Root frequency={440}>
+        <Tuner.Note data-testid="tuner note" />
+        <Tuner.Frequency data-testid="tuner frequency" />
+        <Tuner.Cents data-testid="tuner cents" />
+        <Tuner.Mark note={69} data-testid="tuner mark">m</Tuner.Mark>
+      </Tuner.Root>
       <Slider.Root>
         <Slider.Label data-testid="slider label">l</Slider.Label>
         <Slider.Value data-testid="slider value" />
@@ -236,6 +250,10 @@ test("text the components show is not selectable, except a value being typed (se
     "meter clip",
     "toggle",
     "key",
+    "tuner note",
+    "tuner frequency",
+    "tuner cents",
+    "tuner mark",
     "slider label",
     "slider value",
     "multi-slider label",

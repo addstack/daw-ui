@@ -79,6 +79,13 @@ const PARTS = [
   "Spectrum.Line",
   "Spectrum.Fill",
   "Spectrum.Peak",
+  "Tuner.Root",
+  "Tuner.Note",
+  "Tuner.Frequency",
+  "Tuner.Cents",
+  "Tuner.Indicator",
+  "Tuner.Mark",
+  "Tuner.Strobe",
   "MultiSlider.Root",
   "MultiSlider.Label",
   "MultiSlider.Control",
@@ -157,7 +164,7 @@ function describe(list: string[]): { full: string; short: string } {
 
 const exportName = (part: string) => part.replace(".", "_");
 const content = [
-  `import type { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Waveform, XYPad } from "@addstack/daw-ui/react";`,
+  `import type { Curve, Fader, Keys, Knob, Meter, MultiSlider, Notes, NumberBox, Region, Slider, Spectrum, Timeline, Toggle, ToggleGroup, Tuner, Waveform, XYPad } from "@addstack/daw-ui/react";`,
   ...PARTS.map((part) => `export type ${exportName(part)} = ${part}.Props;`),
 ].join("\n");
 

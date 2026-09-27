@@ -233,6 +233,20 @@ const bins = new Float32Array(analyser.frequencyBinCount);
 
 **Spectrum** parts: `Root` (`read` or `bins`, `sampleRate`, `min`/`max` in hertz on `scales.log`, `floor`/`ceiling` in dB, `tilt` in dB per octave, `fall`), `Line`, `Fill` and `Peak` (peaks that hold, then fall). A column over many bins shows the loudest, so narrow peaks show at the high end; the low end is a smooth curve through the bins. A `Slider` or an XY pad with the same range lines up with it.
 
+### Tuner
+
+The note a pitch is nearest, or tuned to, and how many cents it is off, from the frequency your application hears. A tuner has no shape: its parts show the reading as text, attributes and CSS variables, which CSS turns into a needle, a dial, a row of lights, a strobe or a wheel of notes.
+
+```tsx
+<Tuner.Root read={() => detector.frequency} format={formats.pitch({ names })} targets={[40, 45, 50, 55, 59, 64]}>
+  <Tuner.Note />
+  <Tuner.Cents />
+  <Tuner.Indicator className="left-[calc(50%+var(--tuner-offset)*50%)]" />
+</Tuner.Root>
+```
+
+**Tuner** parts: `Root` (`read` or `frequency` in hertz, `reference`, `tolerance`, `targets` and `target`, `hysteresis`, `smoothing`, `format`; `data-active`, `data-in-tune`, `data-flat`, `data-sharp`), `Note`, `Frequency` and `Cents` (text, each with its own `format`), `Indicator` (`--tuner-offset`, `--tuner-cents`, `--tuner-class`), `Mark` (lit on a `note`, a `pitchClass` or a stretch of `cents`) and `Strobe` (`--tuner-phase`). Pitch detection is your audio code's; nothing renders as the pitch changes.
+
 ### Toggle and ToggleGroup
 
 `Toggle` is a button with `aria-pressed` that reacts on press, not on release. `behavior` is `"toggle"`, `"momentary"` (on while held) or `"hybrid"` (latches on a short press, momentary on a long one, like the buttons of hardware controllers).
@@ -398,7 +412,7 @@ In a DAW, UI work competes with the audio thread, so performance is measured, no
 
 A 60 Hz frame has 16.7 ms. The two automation rows are the comparison: controlled `value` props updated every frame cost the budget, `read` does not.
 
-The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (40.1 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a multi-slider alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
+The deterministic numbers fail CI when they get worse: React commits per interaction (zero for drags, automation through `read` and running meters), renders per painted step (unit tests), and bundle size, minified and gzipped (41.8 kB for everything; 7.8 kB for a knob alone, 4.8 kB for a keyboard alone, 5.9 kB for a multi-slider alone, 7.8 kB for a timeline with regions and waveforms: what an application does not import is left out). Timings go to the job summary, because shared CI machines are too noisy to fail on them.
 
 ## 🎨 Building a styled library on top
 

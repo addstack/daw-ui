@@ -1,4 +1,4 @@
 {
   "title": "Components",
-  "pages": ["knob", "fader", "slider", "xy-pad", "multi-slider", "number-box", "meter", "spectrum", "toggle", "toggle-group", "keys", "timeline", "region", "waveform", "notes", "curve"]
+  "pages": ["knob", "fader", "slider", "xy-pad", "multi-slider", "number-box", "meter", "spectrum", "tuner", "toggle", "toggle-group", "keys", "timeline", "region", "waveform", "notes", "curve"]
 }
