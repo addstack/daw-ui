@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Toggle, ToggleGroup } from "../../../src/react/index.js";
 import { useMusicalTyping } from "../../synth/src/keyboard.js";
 import { Arrangement } from "./arrangement.js";
+import { ComposePanel } from "./compose.js";
 import { Devices, PluginWindows, pluginKey } from "./devices.js";
 import { Mixer, type PluginRef } from "./mixer.js";
 import { PianoRoll } from "./pianoroll.js";
@@ -13,7 +14,7 @@ import { Transport } from "./transport.js";
 // three plug-ins: the experimental wavetable synth and a drum machine as instruments, and the experimental
 // ShaperBox as an effect, on any track and on the master, each with its own panel in a window.
 
-type Tab = "editor" | "mixer" | "devices";
+type Tab = "editor" | "compose" | "mixer" | "devices";
 
 export function App() {
   const project = useProject();
@@ -94,12 +95,15 @@ export function App() {
   return (
     <div className="daw">
       <Transport project={project} />
-      <Arrangement project={project} selection={selection} onSelect={setSelection} onOpen={showClip} />
+      <Arrangement project={project} selection={selection} onSelect={setSelection} onOpen={showClip} onCompose={() => setTab("compose")} />
       <section className="bottom" aria-label="Editor">
         <nav className="tabs">
           <ToggleGroup aria-label="Panel" value={[tab]} onValueChange={(value) => value[0] && setTab(value[0] as Tab)} className="segmented">
             <Toggle value="editor" className="segment">
               Clip
+            </Toggle>
+            <Toggle value="compose" className="segment">
+              Compose
             </Toggle>
             <Toggle value="mixer" className="segment">
               Mixer
@@ -119,6 +123,7 @@ export function App() {
             ) : (
               <p className="empty">{clip ? "An audio clip: drag its edges in the arrangement to trim it." : "Select a MIDI clip to edit its notes, or double-click an empty place of an instrument track for a new one."}</p>
             ))}
+          {tab === "compose" && <ComposePanel project={project} selection={selection} onSelect={setSelection} />}
           {tab === "mixer" && <Mixer project={project} selection={selection} onSelect={setSelection} onOpen={open} />}
           {tab === "devices" && <Devices project={project} selection={selection} onOpen={open} onPresetChange={restart} />}
         </div>

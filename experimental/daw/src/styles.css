@@ -313,7 +313,7 @@ body {
 
   .track-header {
     display: grid;
-    grid-template-columns: 5px minmax(0, 1fr) auto auto auto;
+    grid-template-columns: 5px minmax(0, 1fr) auto auto auto auto;
     grid-template-rows: 1fr auto;
     align-items: center;
     column-gap: 6px;
@@ -451,6 +451,247 @@ body {
 
   .loop-edge.end {
     right: -3px;
+  }
+
+  /* The ruler, the chords and the form stay at the top as the tracks scroll. */
+  .top-rows {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: var(--panel);
+  }
+
+  .lane-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 6px 0 14px;
+    border-bottom: 1px solid var(--edge);
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .lane-header > span:first-child {
+    flex: 1;
+  }
+
+  .lane-header-key {
+    font-size: 10px;
+    color: var(--text);
+  }
+
+  .lane-row {
+    position: relative;
+    height: 34px;
+    overflow: hidden;
+    border-bottom: 1px solid var(--edge);
+    background: var(--background);
+  }
+
+  .chord-cell,
+  .section-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-inline-start: 1px solid var(--edge);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .chord-cell:hover,
+  .section-cell:hover {
+    background: rgb(255 255 255 / 0.04);
+  }
+
+  .chord-cell[data-selected] {
+    background: rgb(255 179 71 / 0.18);
+  }
+
+  .chord-name,
+  .section-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .section-cell[data-looped] {
+    background: rgb(255 179 71 / 0.14);
+  }
+
+  /* How much goes on in a section: a line along its bottom. */
+  .section-energy {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    background: rgb(255 255 255 / 0.18);
+  }
+
+  .section-cell[data-kind="chorus"] .section-energy,
+  .section-cell[data-kind="drop"] .section-energy {
+    background: var(--accent);
+  }
+
+  .chord-picker {
+    position: absolute;
+    top: 2px;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: repeat(8, auto);
+    gap: 3px;
+    padding: 6px;
+    border: 1px solid #3a404a;
+    border-radius: 6px;
+    background: #22262d;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+  }
+
+  .chord-picker button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 52px;
+    padding: 3px 6px;
+  }
+
+  .chord-picker button[aria-pressed="true"] {
+    border-color: var(--accent);
+  }
+
+  .chord-picker .roman {
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .menu {
+    position: relative;
+  }
+
+  .menu-button {
+    width: 22px;
+    padding: 0;
+    border-color: transparent;
+    background: none;
+    color: var(--muted);
+    line-height: 20px;
+  }
+
+  .menu-list {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+    padding: 4px;
+    border: 1px solid #3a404a;
+    border-radius: 6px;
+    background: #22262d;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+  }
+
+  .menu-list button {
+    border: none;
+    background: none;
+    text-align: start;
+    padding: 6px 8px;
+  }
+
+  .menu-list button:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.07);
+  }
+
+  .track-compose {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    color: var(--accent);
+  }
+
+  /* --- composing --- */
+
+  .compose {
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr) minmax(260px, 1fr);
+    gap: 12px;
+    height: 100%;
+    padding: 12px;
+    overflow: auto;
+  }
+
+  .compose-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--panel-2);
+  }
+
+  .compose-block h3 {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .compose-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+  }
+
+  .compose-row .number {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .field-box.seed {
+    min-width: 80px;
+  }
+
+  .compose button.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--inset);
+    font-weight: 700;
+  }
+
+  .compose-note {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  .compose-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    list-style: none;
+  }
+
+  .compose-sections li {
+    display: grid;
+    grid-template-columns: 90px 52px minmax(0, 1fr);
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .section-chords {
+    overflow: hidden;
+    color: var(--muted);
+    font-family: ui-monospace, monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .lanes {

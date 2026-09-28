@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type K
 import { Meter, Notes, Region, Timeline, Toggle, Waveform } from "../../../src/react/index.js";
 import { emptyClip } from "../engine/host.js";
 import { BEATS_PER_BAR, type Clip, type Project, type Track } from "../engine/project.js";
+import { ChordLane, ComposeHeaders, SectionLane } from "./compose.js";
 import { beatGrid, host, type Selection } from "./state.js";
 
 // The arrangement, as the arrangement block does it: a column of track headers beside a timeline, whose rows hold
@@ -36,7 +37,7 @@ const trimStart =
     return { ...clip, at: clip.at + by, offset: clip.offset + by, duration: clip.duration - by };
   };
 
-function TrackHeader({ track, selected, onSelect }: { track: Track; selected: boolean; onSelect: () => void }) {
+function TrackHeader({ track, selected, onSelect, onCompose }: { track: Track; selected: boolean; onSelect: () => void; onCompose: () => void }) {
   const [renaming, setRenaming] = useState(false);
   return (
     <div className="track-header" data-selected={selected || undefined} style={{ "--track": track.color } as CSSProperties} onPointerDown={onSelect}>
@@ -64,6 +65,11 @@ function TrackHeader({ track, selected, onSelect }: { track: Track; selected: bo
         )}
         <span className="track-kind">{track.instrument === "synth" ? "Synth" : track.instrument === "drums" ? "Drum Machine" : "Audio"}</span>
       </div>
+      {track.instrument && (
+        <button type="button" className="track-compose" aria-label={`Generate ${track.name}'s notes`} title="Generate notes that follow the chords" onClick={onCompose}>
+          ✦
+        </button>
+      )}
       <Toggle pressed={track.mute} onPressedChange={(pressed) => host.setMute(track.id, pressed)} aria-label={`Mute ${track.name}`} className="track-toggle mute">
         M
       </Toggle>
@@ -107,12 +113,15 @@ export function Arrangement({
   selection,
   onSelect,
   onOpen,
+  onCompose,
 }: {
   project: Project;
   selection: Selection;
   onSelect: (selection: Selection) => void;
   /** Shows a clip in the editor below. */
   onOpen: (selection: Selection) => void;
+  /** Shows the panel to compose, for the selected track. */
+  onCompose: () => void;
 }) {
   const view = useRef({ start: 0, end: 10 * BEATS_PER_BAR });
   const lanes = useRef<HTMLDivElement>(null);
@@ -160,6 +169,21 @@ export function Arrangement({
     const span = Math.min(MAX_BEATS, Math.max(MIN_BEATS, (end - start) * factor));
     view.current = { start, end: start + span };
   };
+
+  /** The whole song in view, and a bar after it. */
+  const songEnd = Math.max(
+    project.sections.reduce((end, section) => Math.max(end, section.at + section.duration), 0),
+    ...project.tracks.flatMap((track) => track.clips.map((clip) => clip.at + clip.duration)),
+  );
+  const fit = () => (view.current = { start: 0, end: Math.min(MAX_BEATS, Math.max(MIN_BEATS * 4, songEnd + BEATS_PER_BAR)) });
+  // A new form fits the view to it.
+  const form = project.sections.map((section) => section.id).join();
+  const fitted = useRef(form);
+  useEffect(() => {
+    if (fitted.current === form) return;
+    fitted.current = form;
+    if (songEnd > view.current.end) fit();
+  }, [form]);
 
   /** Follows a drag of a clip, snapped to beats (Alt: sixteenths), and keeps the result when it ends. */
   const drag = (event: PointerEvent<HTMLElement>, track: Track, clip: Clip, edit: (step: number) => Edit) => {
@@ -248,16 +272,31 @@ export function Arrangement({
     <section className="arrangement" aria-label="Arrangement">
       <div className="arrangement-scroll">
         <div className="arrangement-headers">
-          <div className="corner">
-            <button type="button" aria-label="Zoom out" title="Zoom out (Ctrl or Cmd with the wheel)" onClick={() => zoom(1.5)}>
-              −
-            </button>
-            <button type="button" aria-label="Zoom in" title="Zoom in (Ctrl or Cmd with the wheel)" onClick={() => zoom(1 / 1.5)}>
-              +
-            </button>
+          <div className="top-rows">
+            <div className="corner">
+              <button type="button" aria-label="Zoom out" title="Zoom out (Ctrl or Cmd with the wheel)" onClick={() => zoom(1.5)}>
+                −
+              </button>
+              <button type="button" aria-label="Zoom in" title="Zoom in (Ctrl or Cmd with the wheel)" onClick={() => zoom(1 / 1.5)}>
+                +
+              </button>
+              <button type="button" aria-label="Fit the song" title="Show the whole song" onClick={fit}>
+                ⇔
+              </button>
+            </div>
+            <ComposeHeaders project={project} onCompose={onCompose} />
           </div>
           {project.tracks.map((track) => (
-            <TrackHeader key={track.id} track={track} selected={selection.track === track.id} onSelect={() => onSelect({ track: track.id, clip: selection.track === track.id ? selection.clip : null })} />
+            <TrackHeader
+              key={track.id}
+              track={track}
+              selected={selection.track === track.id}
+              onSelect={() => onSelect({ track: track.id, clip: selection.track === track.id ? selection.clip : null })}
+              onCompose={() => {
+                onSelect({ track: track.id, clip: null });
+                onCompose();
+              }}
+            />
           ))}
           <div className="add-track">
             <button type="button" onClick={() => onSelect({ track: host.addTrack("synth"), clip: null })}>
@@ -293,6 +332,7 @@ export function Arrangement({
           onDragOver={(event) => event.dataTransfer.types.includes("Files") && event.preventDefault()}
           onDrop={(event) => dropFiles(event)}
         >
+          <div className="top-rows">
           <div className="ruler-row">
           <Timeline.Ruler
             grid={beatGrid}
@@ -315,6 +355,9 @@ export function Arrangement({
               <span className="loop-edge end" onPointerDown={(event) => dragLoop(event, "end")} />
             </Region.Root>
           </Timeline.Ruler>
+          </div>
+          <ChordLane project={project} selection={selection} />
+          <SectionLane project={project} />
           </div>
           <div ref={lanes} className="lanes">
             <Timeline.Grid grid={beatGrid} className="grid-fine" />

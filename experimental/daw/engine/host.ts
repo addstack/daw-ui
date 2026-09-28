@@ -3,6 +3,10 @@ import { Box } from "../../shaperbox/engine/box.js";
 import { PRESETS as BOX_PRESETS, loadPreset as loadBoxPreset } from "../../shaperbox/src/presets.js";
 import { Synth } from "../../synth/engine/synth.js";
 import { PRESETS as SYNTH_PRESETS, loadPreset as loadSynthPreset } from "../../synth/src/presets.js";
+import type { Composer, PlanRequest, Role } from "./compose/composer.js";
+import { ROLE_NAMES } from "./compose/composer.js";
+import { rules } from "./compose/rules.js";
+import { voice, type ChordSymbol } from "./compose/theory.js";
 import { DrumMachine } from "./drums.js";
 import { BEATS_PER_BAR, TRACK_COLORS, demoProject, newId, type AudioClip, type Clip, type Device, type InstrumentKind, type MidiClip, type Project, type Track } from "./project.js";
 
@@ -31,6 +35,9 @@ type Rack = { input: GainNode; output: GainNode; box: Box };
 
 /** Where the song is: from the audio context's second `time`, at beat `beat`. */
 type Anchor = { time: number; beat: number };
+
+/** The synth preset a role sounds best with. */
+const ROLE_PRESETS: Record<Role, string> = { drums: "", bass: "Deep Bass", chords: "Supersaw Pad", arp: "Pluck", lead: "Vowel Lead" };
 
 const LOOKAHEAD = 0.12;
 const TICK = 25;
@@ -170,10 +177,10 @@ export class Host {
   }
 
   /** A new instrument track, with an empty clip of four bars; returns its id. */
-  addTrack(instrument: InstrumentKind): string {
+  addTrack(instrument: InstrumentKind, name?: string, preset = "Init"): string {
     const track: Track = {
       id: newId("track"),
-      name: instrument === "drums" ? "Drums" : "Synth",
+      name: name ?? (instrument === "drums" ? "Drums" : "Synth"),
       color: TRACK_COLORS[this.project.tracks.length % TRACK_COLORS.length]!,
       instrument,
       volume: -6,
@@ -183,7 +190,7 @@ export class Host {
       clips: [{ id: newId("clip"), kind: "midi", name: "Clip", at: 0, duration: 4 * BEATS_PER_BAR, offset: 0, notes: [] }],
       effects: [],
     };
-    this.instruments.set(track.id, this.createInstrument(instrument, instrument === "synth" ? "Init" : undefined));
+    this.instruments.set(track.id, this.createInstrument(instrument, instrument === "synth" ? preset : undefined));
     this.commit({ ...this.project, tracks: [...this.project.tracks, track] });
     return track.id;
   }
@@ -258,22 +265,107 @@ export class Host {
 
   /** Sets the tempo: audio clips keep their seconds, so their beats change; the transport keeps its place. */
   setBpm(bpm: number): void {
-    const ratio = bpm / this.project.bpm;
-    if (ratio === 1) return;
+    if (bpm === this.project.bpm) return;
+    this.commit(this.withBpm(this.project, bpm));
+  }
+
+  /** `project` at `bpm`, with the transport moved on to it. */
+  private withBpm(project: Project, bpm: number): Project {
+    const ratio = bpm / project.bpm;
+    if (ratio === 1) return project;
     if (this.playing && this.context) {
       // From where the scheduling has reached, at the new tempo.
       this.anchors.push({ ...this.cursor });
       this.clock(this.cursor.time, this.cursor.beat, bpm);
     }
-    this.commit({
-      ...this.project,
+    return {
+      ...project,
       bpm,
-      tracks: this.project.tracks.map((track) =>
+      tracks: project.tracks.map((track) =>
         track.clips.some((clip) => clip.kind === "audio")
           ? { ...track, clips: track.clips.map((clip) => (clip.kind === "audio" ? { ...clip, duration: clip.duration * ratio, offset: clip.offset * ratio } : clip)) }
           : track,
       ),
+    };
+  }
+
+  // --- composing ---
+
+  /** What writes the song's plan and parts: rules and a seed, for now. */
+  composer: Composer = rules;
+
+  /** A new form and chords, in a style and key, at the style's tempo; one step to undo. */
+  async compose(request: PlanRequest): Promise<void> {
+    const plan = await this.composer.plan(request);
+    const end = Math.max(...plan.sections.map((section) => section.at + section.duration));
+    this.commit({
+      ...this.withBpm(this.project, plan.bpm ?? this.project.bpm),
+      style: request.style,
+      key: request.key,
+      seed: request.seed,
+      sections: plan.sections,
+      chords: plan.chords,
+      loop: { on: false, start: 0, end },
     });
+  }
+
+  /** New chords for the form there is. */
+  async recompose(seed: number): Promise<void> {
+    const { style, key, sections } = this.project;
+    const chords = await this.composer.chords({ style, key, seed, sections });
+    this.commit({ ...this.project, seed, chords });
+  }
+
+  /** Changes a chord of the chord track. */
+  setChord(id: string, symbol: ChordSymbol): void {
+    this.commit({ ...this.project, chords: this.project.chords.map((chord) => (chord.id === id ? { ...chord, ...symbol } : chord)) });
+  }
+
+  /**
+   * Writes a track's notes for `role`, following the form and chords: a clip for each section it plays in, in
+   * place of its clips. A synth still on its first preset takes one that suits the role.
+   */
+  async generate(trackId: string, role: Role, seed: number): Promise<void> {
+    const { style, key, sections, chords } = this.project;
+    if (sections.length === 0) return;
+    const part = await this.composer.part({ role, style, key, sections, chords, seed });
+    const instrument = this.instruments.get(trackId);
+    if (instrument instanceof Synth && instrument.preset === 0) loadSynthPreset(instrument, Math.max(0, SYNTH_PRESETS.findIndex((one) => one.name === ROLE_PRESETS[role])));
+    this.updateTrack(trackId, (track) => ({
+      ...track,
+      role,
+      seed,
+      clips: sections
+        .filter((section) => part[section.id])
+        .map<MidiClip>((section) => ({
+          id: newId("clip"),
+          kind: "midi",
+          name: section.name,
+          at: section.at,
+          duration: section.duration,
+          offset: 0,
+          notes: part[section.id]!.map((note, index) => ({ id: index, ...note })),
+        })),
+    }));
+  }
+
+  /** A new track that plays `role`, with an instrument and preset for it, its notes generated; returns its id. */
+  async addPart(role: Role, seed: number): Promise<string> {
+    const id = this.addTrack(role === "drums" ? "drums" : "synth", ROLE_NAMES[role], ROLE_PRESETS[role]);
+    await this.generate(id, role, seed);
+    // The two steps are one to undo.
+    this.past.splice(this.past.length - 1, 1);
+    return id;
+  }
+
+  /** Plays a chord on a track's instrument, voiced in the middle of the keyboard, as a chord is chosen. */
+  async previewChord(trackId: string, chord: ChordSymbol): Promise<void> {
+    await this.start();
+    const instrument = this.instruments.get(trackId);
+    if (!instrument) return;
+    const notes = voice(chord, null, 52, 72, 62);
+    for (const note of notes) instrument.noteOn(note, 0.7);
+    for (const note of notes) instrument.noteOff(note, this.context!.currentTime + 0.6);
   }
 
   // --- plug-ins ---

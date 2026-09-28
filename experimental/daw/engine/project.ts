@@ -1,6 +1,10 @@
-// A song, as data: its tempo and loop, its tracks, their clips and the devices on them. Time is in beats (quarter
-// notes), so that a song keeps its shape when its tempo changes. It holds no audio and no plug-in's settings: the
-// host keeps those, by the ids here. Every change makes a new project, so that undo keeps the old ones.
+import type { Chord, Role, Section, Style } from "./compose/composer.js";
+import type { Key } from "./compose/theory.js";
+
+// A song, as data: its tempo and loop, its key, form and chords, its tracks, their clips and the devices on them.
+// Time is in beats (quarter notes), so that a song keeps its shape when its tempo changes. It holds no audio and no
+// plug-in's settings: the host keeps those, by the ids here. Every change makes a new project, so that undo keeps
+// the old ones.
 
 /** A note of a MIDI clip: beats from the start of the clip's content, and a velocity from 1 to 127. */
 export type Note = { id: number; at: number; duration: number; pitch: number; velocity: number };
@@ -40,11 +44,22 @@ export type Track = {
   solo: boolean;
   clips: Clip[];
   effects: Device[];
+  /** What its generated notes play, and the seed they came from, to make them again. */
+  role?: Role | undefined;
+  seed?: number | undefined;
 };
 
 export type Project = {
   bpm: number;
   loop: { on: boolean; start: number; end: number };
+  key: Key;
+  style: Style;
+  /** The seed the form and chords came from. */
+  seed: number;
+  /** The form: sections one after another, in beats. */
+  sections: Section[];
+  /** The chords, in beats: the chord track. */
+  chords: Chord[];
   tracks: Track[];
   master: { volume: number; effects: Device[] };
 };
@@ -143,6 +158,7 @@ export function demoProject(): { project: Project; presets: DemoPlugins } {
   const drums: Track = {
     id: newId("track"),
     name: "Drums",
+    role: "drums",
     color: TRACK_COLORS[0]!,
     instrument: "drums",
     volume: -3,
@@ -156,6 +172,7 @@ export function demoProject(): { project: Project; presets: DemoPlugins } {
   const bass: Track = {
     id: newId("track"),
     name: "Bass",
+    role: "bass",
     color: TRACK_COLORS[1]!,
     instrument: "synth",
     volume: -2,
@@ -169,6 +186,7 @@ export function demoProject(): { project: Project; presets: DemoPlugins } {
   const pad: Track = {
     id: newId("track"),
     name: "Chords",
+    role: "chords",
     color: TRACK_COLORS[2]!,
     instrument: "synth",
     volume: -9,
@@ -181,6 +199,7 @@ export function demoProject(): { project: Project; presets: DemoPlugins } {
   const lead: Track = {
     id: newId("track"),
     name: "Lead",
+    role: "arp",
     color: TRACK_COLORS[3]!,
     instrument: "synth",
     volume: -12,
@@ -190,10 +209,25 @@ export function demoProject(): { project: Project; presets: DemoPlugins } {
     clips: [midi("Arpeggio", 16, 4, arpeggio(4))],
     effects: [],
   };
+  const qualities = ["m7", "maj7", "maj", "maj"] as const;
   return {
     project: {
       bpm: 124,
       loop: { on: true, start: 0, end: 32 },
+      key: { tonic: 9, mode: "minor" },
+      style: "edm",
+      seed: 1,
+      sections: [
+        { id: newId("section"), kind: "intro", name: "Intro", at: 0, duration: 16, energy: 0.4 },
+        { id: newId("section"), kind: "drop", name: "Drop", at: 16, duration: 16, energy: 1 },
+      ],
+      chords: Array.from({ length: 8 }, (_, bar) => ({
+        id: newId("chord"),
+        at: bar * BEATS_PER_BAR,
+        duration: BEATS_PER_BAR,
+        root: ROOTS[bar % 4]! % 12,
+        quality: qualities[bar % 4]!,
+      })),
       tracks: [drums, bass, pad, lead],
       master: { volume: 0, effects: [] },
     },
