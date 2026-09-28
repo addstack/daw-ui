@@ -11,6 +11,11 @@ export type FrameStats = {
   frames: number;
   intervals: number[];
   longAnimationFrames: number;
+  /**
+   * Canvas tiles drawn over the same frames, counted between the first and the last: read afterwards, the count
+   * would take in what the page draws while the test reads it, and a drawing that goes on would pass its budget.
+   */
+  canvasDraws: number;
 };
 
 declare global {
@@ -74,14 +79,16 @@ function measureFrames(durationMs: number): Promise<FrameStats> {
     }
     let last: number | undefined;
     let end: number | undefined;
+    let draws: number | undefined;
     const tick = (now: number) => {
       if (last !== undefined) intervals.push(now - last);
       last = now;
       end ??= now + durationMs;
+      draws ??= window.e2e.canvasDraws;
       if (now < end) requestAnimationFrame(tick);
       else {
         observer?.disconnect();
-        resolve({ frames: intervals.length, intervals, longAnimationFrames });
+        resolve({ frames: intervals.length, intervals, longAnimationFrames, canvasDraws: window.e2e.canvasDraws - draws });
       }
     };
     requestAnimationFrame(tick);

@@ -121,7 +121,7 @@ async function measure(
     mainThreadPerFrame: (after.task - before.task) / stats.frames,
     scriptPerFrame: (after.script - before.script) / stats.frames,
     reactCommits: await page.evaluate(() => window.reactCommits),
-    canvasDraws: await page.evaluate(() => window.e2e.canvasDraws),
+    canvasDraws: stats.canvasDraws,
   };
   results.push(result);
   return result;
