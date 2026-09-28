@@ -1,4 +1,5 @@
 import type { CurvePoint } from "../../../src/core/index.js";
+import type { Box } from "../engine/box.js";
 import { BANDS, KINDS, rateIndex, type Kind } from "../engine/params.js";
 import { restingWave } from "../engine/waves.js";
 import { TIME_WAVES, WAVES, double } from "./waves.js";
@@ -146,4 +147,11 @@ export function presetWaves(preset: Preset): Partial<Record<Kind, CurvePoint[][]
     waves[kind] = Array.from({ length: BANDS }, (_, band) => bands[band] ?? bands[0] ?? restingWave(kind));
   }
   return waves;
+}
+
+/** Sets everything preset `index` holds on `box`. */
+export function loadPreset(box: Box, index: number): void {
+  const preset = PRESETS[index]!;
+  box.preset = index;
+  box.load(preset.params, presetWaves(preset), preset.order ?? [...KINDS]);
 }

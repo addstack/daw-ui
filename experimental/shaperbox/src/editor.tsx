@@ -3,7 +3,8 @@ import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react"
 import { formats, scales, type CurvePoint, type TimeGrid, type ValueFormat } from "../../../src/core/index.js";
 import { Curve, Slider, Spectrum, Toggle, ToggleGroup, useCurveEditing } from "../../../src/react/index.js";
 import { SLICES, type Kind } from "../engine/params.js";
-import { BAND_NAMES, COLORS, NAMES, ParamToggle, box, useFrame } from "./controls.js";
+import { BAND_NAMES, COLORS, NAMES, ParamToggle, useBox, useFrame } from "./controls.js";
+import type { Box } from "../engine/box.js";
 import { double, invert, reverse, wavesFor } from "./waves.js";
 
 // The wave editor, as ShaperBox's: the wave over one cycle, on the audio that went through it in its last cycle
@@ -36,6 +37,7 @@ const AXES: Record<Kind, [string, string]> = {
 
 /** The lowest and highest cutoff the filter's wave moves between, beside the wave. */
 function CutoffRange() {
+  const box = useBox();
   return (
     <Slider.Root
       orientation="vertical"
@@ -66,7 +68,7 @@ function CutoffRange() {
 }
 
 /** The grid, and the audio of the wave's last cycle, as a peak per slice: before the shaper, and after it. */
-function drawAudio(canvas: HTMLCanvasElement, grid: number, color: string, time: boolean) {
+function drawAudio(canvas: HTMLCanvasElement, box: Box, grid: number, color: string, time: boolean) {
   const ratio = window.devicePixelRatio || 1;
   const [width, height] = [canvas.clientWidth, canvas.clientHeight];
   if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
@@ -118,6 +120,7 @@ function drawAudio(canvas: HTMLCanvasElement, grid: number, color: string, time:
 }
 
 export function WaveEditor({ kind, band, grid, onGrid }: { kind: Kind; band: number; grid: number; onGrid: (grid: number) => void }) {
+  const box = useBox();
   const [points, setPoints] = useState(() => box.waves[kind][band]!);
   const canvas = useRef<HTMLCanvasElement>(null);
   const playhead = useRef<HTMLDivElement>(null);
@@ -150,7 +153,7 @@ export function WaveEditor({ kind, band, grid, onGrid }: { kind: Kind; band: num
       const { report } = box;
       const last = drawn.current;
       if (report !== last.report || element.clientWidth !== last.width || grid !== last.grid) {
-        drawAudio(element, grid, color, kind === "time");
+        drawAudio(element, box, grid, color, kind === "time");
         drawn.current = { report, width: element.clientWidth, grid };
       }
     }
@@ -230,6 +233,7 @@ export function WaveEditor({ kind, band, grid, onGrid }: { kind: Kind; band: num
 
 /** The bands a multiband shaper splits the audio into, over the spectrum of what comes in; a band picks its wave. */
 export function Crossover({ kind, band, onBand }: { kind: Kind; band: number; onBand: (band: number) => void }) {
+  const box = useBox();
   return (
     <Slider.Root
       min={20}

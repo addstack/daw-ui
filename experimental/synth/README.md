@@ -1,7 +1,8 @@
 # Experimental synth
 
-A wavetable synth in the spirit of Serum, to see how far daw-ui's parts go in a real instrument. It is an experiment,
-not part of the package: nothing here is published, and it may change or go.
+A wavetable synth in the spirit of Serum, to see how far daw-ui's parts go in a real instrument. It plays on its own
+page here, and as an instrument in the [experimental DAW](../daw). It is an experiment, not part of the package:
+nothing here is published, and it may change or go.
 
 ```sh
 npm install
@@ -29,7 +30,7 @@ Open the address Vite prints, press **Start audio** (browsers start audio only a
   depth (drag it up or down; double-click for 0), and a white arc shows where the knob is now. The matrix lists the
   routings, removes them and adds them from the keyboard too.
 - **Chorus, delay and reverb**, and the output's spectrum and level.
-- **Presets**: Init, Supersaw Pad, Wobble Bass, Pluck, Vowel Lead.
+- **Presets**: Init, Supersaw Pad, Wobble Bass, Pluck, Vowel Lead, Deep Bass.
 
 ## How it is made
 
@@ -38,9 +39,9 @@ Open the address Vite prints, press **Start audio** (browsers start audio only a
 | Parameters, sources and destinations, shared by both threads | [`engine/params.ts`](engine/params.ts) |
 | Wavetables: frames made in the time domain, then band-limited copies per octave through an FFT, so that high notes do not alias (mipmaps) | [`engine/wavetables.ts`](engine/wavetables.ts) |
 | The sound: unison wavetable oscillators, Andrew Simper's state-variable filter, ADSR envelopes, the modulation matrix, eight voices | [`engine/dsp.ts`](engine/dsp.ts) |
-| The audio thread: an `AudioWorkletProcessor` around the engine, which reports where modulation is about sixty times a second | [`engine/processor.ts`](engine/processor.ts) |
-| The page's side: the audio context, the effects on the Web Audio API's own nodes, and the messages | [`engine/synth.ts`](engine/synth.ts) |
-| The interface: daw-ui's `Knob` (with `ModulationRange`, `ModulationDepth` and `Modulation`), `Curve` with `useCurveEditing`, `Keys`, `Spectrum`, `Meter`, `Toggle` and `ToggleGroup` | [`src/`](src/) |
+| The audio thread: an `AudioWorkletProcessor` around the engine, which plays a note sent with a time on its own sample, and reports where modulation is about sixty times a second | [`engine/processor.ts`](engine/processor.ts) |
+| The page's side: the processor in a context of its own, or in a host's (`connect`), the effects on the Web Audio API's own nodes, and the messages | [`engine/synth.ts`](engine/synth.ts) |
+| The interface: daw-ui's `Knob` (with `ModulationRange`, `ModulationDepth` and `Modulation`), `Curve` with `useCurveEditing`, `Keys`, `Spectrum`, `Meter`, `Toggle` and `ToggleGroup`; `SynthPanel` shows a synth, here or in the DAW's window | [`src/`](src/) |
 
 The algorithms are the textbook ones (wavetable mipmaps, the trapezoidal SVF, exponential envelopes); open-source
 synths such as Vital and Surge XT were an inspiration for what to build, but no code comes from them (both are GPL).

@@ -1,5 +1,6 @@
 import type { CurvePoint } from "../../../src/core/index.js";
 import type { Routing } from "../engine/params.js";
+import type { Synth } from "../engine/synth.js";
 
 // A few sounds to start from. Parameters not named keep their defaults.
 
@@ -96,4 +97,28 @@ export const PRESETS: Preset[] = [
     ],
     lfos: [SHAPES.sine, SHAPES.triangle],
   },
+  {
+    name: "Deep Bass",
+    params: {
+      "a.position": 0.667, "a.unison": 2, "a.detune": 0.08,
+      "sub.on": 1, "sub.level": 0.6, "sub.octave": 0,
+      "filter.type": 1, "filter.cutoff": 420, "filter.resonance": 0.25, "filter.drive": 0.3,
+      "env1.attack": 2, "env1.decay": 260, "env1.sustain": 0.55, "env1.release": 70,
+      "env2.attack": 1, "env2.decay": 180, "env2.sustain": 0, "env2.release": 100,
+      "reverb.mix": 0, "master.volume": -4,
+    },
+    routings: [{ source: "env2", destination: "filter.cutoff", amount: 0.35 }],
+    lfos: [SHAPES.sine, SHAPES.triangle],
+  },
 ];
+
+/** Sets everything preset `index` holds on `synth`, and releases the notes that were playing. */
+export function loadPreset(synth: Synth, index: number): void {
+  const preset = PRESETS[index]!;
+  synth.preset = index;
+  synth.allNotesOff();
+  synth.setParams(preset.params);
+  synth.setRoutings(preset.routings);
+  synth.setShape(0, preset.lfos[0]);
+  synth.setShape(1, preset.lfos[1]);
+}

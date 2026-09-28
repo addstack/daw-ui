@@ -114,15 +114,19 @@ export function denormalize(spec: ParamSpec, travel: number): number {
 
 export const defaults = (): Record<string, number> => Object.fromEntries(Object.entries(PARAMS).map(([id, spec]) => [id, spec.default]));
 
+/** A note's messages: at `time`, in the audio context's seconds, or at once without it. */
+export type NoteMessage =
+  | { type: "noteOn"; note: number; velocity: number; time?: number | undefined }
+  | { type: "noteOff"; note: number; time?: number | undefined }
+  | { type: "allNotesOff"; time?: number | undefined };
+
 /** Messages from the page to the audio thread. */
 export type ToProcessor =
   | { type: "tables"; tables: Float32Array[] }
   | { type: "params"; values: Record<string, number> }
   | { type: "routings"; routings: Routing[] }
   | { type: "lfo"; index: 0 | 1; shape: Float32Array }
-  | { type: "noteOn"; note: number; velocity: number }
-  | { type: "noteOff"; note: number }
-  | { type: "allNotesOff" };
+  | NoteMessage;
 
 /** Messages from the audio thread: where modulation has moved each destination now, as travel, and what plays. */
 export type FromProcessor = { type: "state"; travel: Record<string, number>; lfo: [number, number]; notes: number[] };

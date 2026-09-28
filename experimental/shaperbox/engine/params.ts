@@ -115,6 +115,8 @@ export type ToProcessor =
   | { type: "order"; order: Kind[] }
   | { type: "source"; left: Float32Array; right: Float32Array; beats: number | null }
   | { type: "transport"; playing: boolean; bpm: number }
+  /** As an effect in a host: from the audio context's second `at`, the host's song is at beat `beats`. */
+  | { type: "clock"; at: number; beats: number; bpm: number }
   | { type: "watch"; kind: Kind; band: number };
 
 /**

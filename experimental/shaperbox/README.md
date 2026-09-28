@@ -1,7 +1,9 @@
 # Experimental ShaperBox
 
 A multi-effect in the spirit of Cableguys' ShaperBox 3, to see how far daw-ui's parts go in a real plug-in's
-interface. It is an experiment, not part of the package: nothing here is published, and it may change or go.
+interface. It plays on its own page here, with a loop or a file to shape, and as an effect in the
+[experimental DAW](../daw), where its waves follow the song. It is an experiment, not part of the package: nothing
+here is published, and it may change or go.
 
 ```sh
 npm install
@@ -44,9 +46,9 @@ it. **Bypass** plays the audio without the shapers, to compare.
 | Shapers, their parameters and rates, and the messages between the page and the audio thread | [`engine/params.ts`](engine/params.ts) |
 | The sound: each shaper's effect, its wave's phase (by the beat, or since a transient), the three-band crossover, the chain, the transport | [`engine/dsp.ts`](engine/dsp.ts) |
 | The loop to shape: a kick, a clap, hats, a bass and chords, made at the tempo | [`engine/loops.ts`](engine/loops.ts) |
-| The audio thread: an `AudioWorkletProcessor` around the engine, which reports where the waves are and the audio of the one shown about sixty times a second | [`engine/processor.ts`](engine/processor.ts) |
-| The page's side: the audio context, files, the waves as curves and their undo | [`engine/box.ts`](engine/box.ts) |
-| The interface: daw-ui's `Curve` with `useCurveEditing` for the waves, `Slider` for the cutoff range and the crossover (its `Band`s over a `Spectrum`), `NumberBox` for the tempo and rates, `Knob`, `Toggle`, `ToggleGroup` and `Meter` | [`src/`](src/) |
+| The audio thread: an `AudioWorkletProcessor` around the engine, which plays its source, or as an effect shapes its input by the host's clock, and reports where the waves are and the audio of the one shown about sixty times a second | [`engine/processor.ts`](engine/processor.ts) |
+| The page's side: the processor in a context of its own, or in a host's (`connect`, `input`, `clock`), files, the waves as curves and their undo | [`engine/box.ts`](engine/box.ts) |
+| The interface: daw-ui's `Curve` with `useCurveEditing` for the waves, `Slider` for the cutoff range and the crossover (its `Band`s over a `Spectrum`), `NumberBox` for the tempo and rates, `Knob`, `Toggle`, `ToggleGroup` and `Meter`; `ShaperBoxPanel` shows a box, here or in the DAW's window | [`src/`](src/) |
 
 The algorithms are the textbook ones (Robert Bristow-Johnson's biquads for the crossovers, Andrew Simper's
 state-variable filter, a cubic-interpolated delay line for Time and Liquid); ShaperBox was the inspiration for what

@@ -4,8 +4,18 @@ import { BANDS, KINDS, defaults, type Kind, type Report, type ToProcessor } from
 import processorUrl from "./processor.ts?worker&url";
 import { restingWave, sampleWave } from "./waves.js";
 
-// The page's side of the box: the audio context, the processor, the audio it plays, and the waves as curves.
+// The page's side of the box: the processor, the audio it plays on its own, and the waves as curves. On its own it
+// plays in an audio context of its own; as an effect it shapes what a host sends into it, in the host's context.
 // Nothing here renders: the page calls these methods, and reads the processor's latest report once per frame.
+
+const modules = new WeakMap<BaseAudioContext, Promise<void>>();
+
+/** Loads the processor into `context`, once. */
+function loadModule(context: BaseAudioContext): Promise<void> {
+  let loading = modules.get(context);
+  if (!loading) modules.set(context, (loading = context.audioWorklet.addModule(processorUrl)));
+  return loading;
+}
 
 export type SourceName = Loop | "File";
 
@@ -22,7 +32,9 @@ export class Box {
   file: { name: string; left: Float32Array; right: Float32Array; beats: number | null } | null = null;
   /** The newest report from the audio thread: a new object each time. */
   report: Report | null = null;
-  private audio: AudioContext | null = null;
+  /** The preset loaded last, by its index; the page keeps it here, so that its panel shows it when it opens again. */
+  preset = 0;
+  private audio: BaseAudioContext | null = null;
   private node: AudioWorkletNode | null = null;
   private starting: Promise<void> | null = null;
   private analysers: { output: AnalyserNode; input: AnalyserNode } | null = null;
@@ -32,8 +44,8 @@ export class Box {
   private readonly samples = new Float32Array(4096);
   private readonly bins = { output: new Float32Array(2048).fill(-Infinity), input: new Float32Array(2048).fill(-Infinity) };
 
-  /** The audio context, made on first use; it plays after `start`. */
-  get context(): AudioContext {
+  /** The audio context: on its own, made on first use, and playing after `start`; as an effect, the host's. */
+  get context(): BaseAudioContext {
     return (this.audio ??= new AudioContext({ latencyHint: "interactive" }));
   }
 
@@ -45,31 +57,58 @@ export class Box {
     return this.node !== null;
   }
 
-  /** Starts the audio. Call it from a user action: browsers only start audio after one. */
-  async start(): Promise<void> {
-    this.starting ??= this.connect();
-    await this.starting;
-    await this.context.resume();
+  /** Where a host sends the audio to shape, once connected as an effect. */
+  get input(): AudioNode | null {
+    return this.node;
   }
 
-  private async connect(): Promise<void> {
-    const { context } = this;
-    await context.audioWorklet.addModule(processorUrl);
-    const node = new AudioWorkletNode(context, "shaperbox", { numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [2, 2] });
+  /** Starts the audio on its own. Call it from a user action: browsers only start audio after one. */
+  async start(): Promise<void> {
+    this.starting ??= this.connect(this.context, this.context.destination, false);
+    await this.starting;
+    await (this.context as AudioContext).resume();
+  }
+
+  /**
+   * Plays into `destination`, in `context`. As an `effect`, it shapes what comes into `input`, and follows the
+   * host's song from `clock`; otherwise it plays its own source.
+   */
+  async connect(context: BaseAudioContext, destination: AudioNode, effect = true): Promise<void> {
+    this.audio = context;
+    await loadModule(context);
+    const node = new AudioWorkletNode(context, "shaperbox", {
+      numberOfInputs: effect ? 1 : 0,
+      numberOfOutputs: 2,
+      outputChannelCount: [2, 2],
+      processorOptions: { effect },
+    });
     node.port.onmessage = ({ data }: MessageEvent<Report>) => (this.report = data);
     this.node = node;
     this.send({ type: "params", values: this.params });
     this.sendWaves();
     this.send({ type: "order", order: this.order });
     this.send({ type: "watch", ...this.watching });
-    this.send({ type: "transport", playing: this.playing, bpm: this.bpm });
-    this.sendSource();
+    if (!effect) {
+      this.send({ type: "transport", playing: this.playing, bpm: this.bpm });
+      this.sendSource();
+    }
     const output = new AnalyserNode(context, { fftSize: 4096, smoothingTimeConstant: 0.75 });
     const input = new AnalyserNode(context, { fftSize: 4096, smoothingTimeConstant: 0.8 });
     node.connect(output, 0);
-    node.connect(context.destination, 0);
+    node.connect(destination, 0);
     node.connect(input, 1);
     this.analysers = { output, input };
+  }
+
+  /** Lets go of the audio nodes. */
+  disconnect(): void {
+    this.node?.disconnect();
+    this.node = this.analysers = null;
+  }
+
+  /** As an effect: from the audio context's second `at`, the host's song is at beat `beats`, at `bpm`. */
+  clock(at: number, beats: number, bpm: number): void {
+    this.send({ type: "clock", at, beats, bpm });
   }
 
   private send(message: ToProcessor): void {

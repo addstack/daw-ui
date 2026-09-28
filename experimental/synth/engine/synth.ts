@@ -4,9 +4,22 @@ import processorUrl from "./processor.ts?worker&url";
 import { sampleShape } from "./shapes.js";
 import { createWavetables } from "./wavetables.js";
 
-// The page's side of the synth: the audio context, the processor, and effects on the Web Audio API's own nodes
-// after it (chorus, delay, reverb, volume). Nothing here renders: the page calls these methods, and reads the
-// processor's latest report once per frame.
+// The page's side of the synth: the processor, and effects on the Web Audio API's own nodes after it (chorus,
+// delay, reverb, volume). It plays on its own, in an audio context of its own, or as an instrument in a host's,
+// into the node the host gives it. Nothing here renders: the page calls these methods, and reads the processor's
+// latest report once per frame.
+
+// The wavetables, made once for the page (a quarter of a second, 11 MB) and sent once to each audio context.
+let tables: Float32Array[] | null = null;
+const tablesSent = new WeakSet<BaseAudioContext>();
+const modules = new WeakMap<BaseAudioContext, Promise<void>>();
+
+/** Loads the processor into `context`, once. */
+function loadModule(context: BaseAudioContext): Promise<void> {
+  let loading = modules.get(context);
+  if (!loading) modules.set(context, (loading = context.audioWorklet.addModule(processorUrl)));
+  return loading;
+}
 
 /** A stereo impulse response: noise dying away over `seconds`, for the reverb. */
 function impulse(context: BaseAudioContext, seconds: number): AudioBuffer {
@@ -29,11 +42,15 @@ type Effects = {
 };
 
 export class Synth {
-  readonly tables = createWavetables();
+  readonly tables = (tables ??= createWavetables());
   params = defaults();
   routings: Routing[] = [];
+  /** The preset loaded last, by its index; the page keeps it here, so that its panel shows it when it opens again. */
+  preset = 0;
+  /** The LFOs' shapes as curves, as they were drawn. */
+  lfoPoints: [CurvePoint[], CurvePoint[]] = [[], []];
   private shapes: [Float32Array, Float32Array] = [new Float32Array(LFO_SIZE).fill(0.5), new Float32Array(LFO_SIZE).fill(0.5)];
-  private context: AudioContext | null = null;
+  private context: BaseAudioContext | null = null;
   private node: AudioWorkletNode | null = null;
   private effects: Effects | null = null;
   private latest: FromProcessor | null = null;
@@ -49,29 +66,45 @@ export class Synth {
     return this.context?.sampleRate ?? 48_000;
   }
 
-  /** Starts the audio. Call it from a user action: browsers only start audio after one. */
+  /** Starts the audio in a context of its own. Call it from a user action: browsers only start audio after one. */
   async start(): Promise<void> {
-    if (this.context) {
-      await this.context.resume();
-      return;
+    if (!this.context) {
+      const context = new AudioContext({ latencyHint: "interactive" });
+      await this.connect(context, context.destination);
     }
-    const context = new AudioContext({ latencyHint: "interactive" });
+    await (this.context as AudioContext).resume();
+  }
+
+  /** Plays into `destination`, in `context`: a host's, as an instrument. */
+  async connect(context: BaseAudioContext, destination: AudioNode): Promise<void> {
     this.context = context;
-    await context.audioWorklet.addModule(processorUrl);
+    await loadModule(context);
     const node = new AudioWorkletNode(context, "synth", { numberOfInputs: 0, outputChannelCount: [2] });
     node.port.onmessage = ({ data }: MessageEvent<FromProcessor>) => (this.latest = data);
     this.node = node;
-    this.send({ type: "tables", tables: this.tables.map((table) => table.slice()) });
+    if (!tablesSent.has(context)) {
+      tablesSent.add(context);
+      this.send({ type: "tables", tables: this.tables.map((table) => table.slice()) });
+    }
     this.send({ type: "params", values: this.params });
     this.send({ type: "routings", routings: this.routings });
     this.send({ type: "lfo", index: 0, shape: this.shapes[0] });
     this.send({ type: "lfo", index: 1, shape: this.shapes[1] });
-    this.effects = this.connect(context, node);
+    this.effects = this.build(context, node);
+    this.effects.master.connect(destination);
     this.applyEffects();
-    await context.resume();
   }
 
-  private connect(context: AudioContext, node: AudioWorkletNode): Effects {
+  /** Stops playing, and lets go of the audio nodes. */
+  disconnect(): void {
+    this.send({ type: "allNotesOff" });
+    this.node?.disconnect();
+    this.effects?.master.disconnect();
+    this.effects?.chorus.lfo.stop();
+    this.node = this.effects = null;
+  }
+
+  private build(context: BaseAudioContext, node: AudioWorkletNode): Effects {
     const input = new GainNode(context);
     node.connect(input);
 
@@ -111,7 +144,6 @@ export class Synth {
 
     const analyser = new AnalyserNode(context, { fftSize: 4096, smoothingTimeConstant: 0.75 });
     master.connect(analyser);
-    master.connect(context.destination);
     return {
       input,
       chorus: { wet: chorusWet, left, right, lfo, depth },
@@ -164,20 +196,23 @@ export class Synth {
   }
 
   setShape(index: 0 | 1, points: readonly CurvePoint[]): void {
+    this.lfoPoints[index] = [...points];
     this.shapes[index] = sampleShape(points);
     this.send({ type: "lfo", index, shape: this.shapes[index] });
   }
 
-  noteOn(note: number, velocity: number): void {
-    this.send({ type: "noteOn", note, velocity });
+  /** Starts a note, at `time` in the audio context's seconds, or at once. */
+  noteOn(note: number, velocity: number, time?: number): void {
+    this.send({ type: "noteOn", note, velocity, time });
   }
 
-  noteOff(note: number): void {
-    this.send({ type: "noteOff", note });
+  noteOff(note: number, time?: number): void {
+    this.send({ type: "noteOff", note, time });
   }
 
-  allNotesOff(): void {
-    this.send({ type: "allNotesOff" });
+  /** Releases every note; with a time, also drops the notes scheduled after it. */
+  allNotesOff(time?: number): void {
+    this.send({ type: "allNotesOff", time });
   }
 
   /** A parameter as modulation has moved it for the newest note, or as it is set without one. */

@@ -58,14 +58,21 @@ class Filter {
     this.a3 = g * this.a2;
   }
 
-  /** Returns [low, band, high] for one sample. */
-  run(input: number): [number, number, number] {
+  /** The outputs of the last sample, kept here so that a sample allocates nothing. */
+  low = 0;
+  band = 0;
+  high = 0;
+
+  /** Runs one sample; its outputs are then in `low`, `band` and `high`. */
+  run(input: number): void {
     const v3 = input - this.ic2;
     const v1 = this.a1 * this.ic1 + this.a2 * v3;
     const v2 = this.ic2 + this.a2 * this.ic1 + this.a3 * v3;
     this.ic1 = 2 * v1 - this.ic1;
     this.ic2 = 2 * v2 - this.ic2;
-    return [v2, v1, input - this.k * v1 - v2];
+    this.low = v2;
+    this.band = v1;
+    this.high = input - this.k * v1 - v2;
   }
 
   reset(): void {
@@ -88,18 +95,20 @@ class VoiceFilter {
 
   run(input: number): number {
     const driven = this.drive > 0 ? Math.tanh(input * (1 + this.drive * 6)) / (1 + this.drive * 1.5) : input;
-    const [low, band, high] = this.first.run(driven);
+    const { first } = this;
+    first.run(driven);
     switch (this.type) {
       case 1:
-        return this.second.run(low)[0];
+        this.second.run(first.low);
+        return this.second.low;
       case 2:
-        return high;
+        return first.high;
       case 3:
-        return band;
+        return first.band;
       case 4:
-        return low + high;
+        return first.low + first.high;
       default:
-        return low;
+        return first.low;
     }
   }
 

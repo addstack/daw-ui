@@ -685,18 +685,32 @@ export class Engine {
     this.bpm = bpm;
   }
 
-  /** Renders `n` samples; `dryLeft` and `dryRight` take the audio before the shapers. */
-  render(left: Float32Array, right: Float32Array, n: number, dryLeft?: Float32Array, dryRight?: Float32Array): void {
+  /** As an effect in a host: the host's song is at beat `beats` now, at `bpm`, and the waves follow it. */
+  sync(beats: number, bpm: number): void {
+    this.beats = beats;
+    this.bpm = bpm;
+    this.playing = true;
+  }
+
+  /**
+   * Renders `n` samples of the source, or of `input` when given (one or two channels: a host's audio, as an
+   * effect); `dryLeft` and `dryRight` take the audio before the shapers.
+   */
+  render(left: Float32Array, right: Float32Array, n: number, dryLeft?: Float32Array, dryRight?: Float32Array, input?: readonly Float32Array[]): void {
     for (let at = 0; at < n; at += BLOCK) {
       const count = Math.min(BLOCK, n - at);
       const part = (buffer: Float32Array | undefined) => (buffer && (at === 0 && count === buffer.length ? buffer : buffer.subarray(at, at + count)));
-      this.block(part(left)!, part(right)!, count, part(dryLeft), part(dryRight));
+      const channels = input && input.length > 0 ? [part(input[0])!, part(input[1] ?? input[0])!] : undefined;
+      this.block(part(left)!, part(right)!, count, part(dryLeft), part(dryRight), channels);
     }
   }
 
-  private block(left: Float32Array, right: Float32Array, n: number, dryLeft?: Float32Array, dryRight?: Float32Array): void {
+  private block(left: Float32Array, right: Float32Array, n: number, dryLeft?: Float32Array, dryRight?: Float32Array, input?: Float32Array[]): void {
     const { source, params, coefficients, envelopes } = this;
-    if (this.playing && source) {
+    if (input) {
+      left.set(input[0]!.subarray(0, n));
+      right.set(input[1]!.subarray(0, n));
+    } else if (this.playing && source) {
       const length = source.left.length;
       for (let i = 0; i < n; i++) {
         const index = (this.sample + i) % length;

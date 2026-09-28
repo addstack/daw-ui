@@ -1,13 +1,19 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 
 import { formats, scales, type ValueFormat } from "../../../src/core/index.js";
 import { Knob, Toggle } from "../../../src/react/index.js";
-import { Box } from "../engine/box.js";
+import type { Box } from "../engine/box.js";
 import { PARAMS, RATES, type Kind } from "../engine/params.js";
 
-// The box, and its controls on the library's parts: a knob or a switch for any parameter.
+// The box's controls on the library's parts: a knob or a switch for any parameter of the box they are in.
 
-export const box = new Box();
+export const BoxContext = createContext<Box | null>(null);
+
+export function useBox(): Box {
+  const box = useContext(BoxContext);
+  if (!box) throw new Error("Place ShaperBox controls inside BoxContext.");
+  return box;
+}
 
 export const NAMES: Record<Kind, string> = {
   volume: "Volume",
@@ -60,6 +66,7 @@ export function formatFor(id: string): ValueFormat {
 
 /** A knob for the parameter `id`, on its range. */
 export function ParamKnob({ id, label, onChange }: { id: string; label: string; onChange?: (value: number) => void }) {
+  const box = useBox();
   const spec = PARAMS[id]!;
   return (
     <Knob.Root
@@ -103,6 +110,7 @@ export function ParamToggle({
   onChange?: (on: boolean) => void;
   children: ReactNode;
 }) {
+  const box = useBox();
   return (
     <Toggle
       defaultPressed={box.params[id] === 1}
